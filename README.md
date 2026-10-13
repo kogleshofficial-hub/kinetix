@@ -2,50 +2,50 @@
 
 **Your body. Your power. Your arena.**
 
-Kinetix is a browser-first motion-controlled fantasy combat prototype created by **Koglesh R. Murugan**. It combines a solo boss encounter with a local two-player duel, readable controls, health/mana management and original energy effects.
+Kinetix is a browser-first, webcam-controlled fantasy combat prototype created by **Koglesh R. Murugan**. It includes a solo boss encounter and a local two-player duel, with readable motion gestures, health and mana management, healing supplies, impact feedback and original energy effects.
 
-This is an early prototype—not a finished commercial game or a claim that webcam-controlled games are new.
+This is an early playable prototype—not a finished commercial game or a claim that webcam-controlled games are new.
+
+## Camera is required
+
+Kinetix requests camera access automatically when the page opens. The browser may reuse a permission already granted for this site, so it might not show a new prompt every visit. No match can start until camera access and the pose model are ready.
+
+If the request is denied, open the browser's site permissions, allow camera access, then retry. Camera access requires HTTPS (or localhost). Camera frames and pose landmarks are processed locally in the browser; Kinetix does not record or upload camera footage and does not request microphone access. The MediaPipe library/model assets are downloaded from their configured CDN.
 
 ## Play modes
 
-- **Solo vs Rift AI:** fight the Hollow, read its warning, time your guard or phase dodge, build energy and trigger NOVA.
-- **2-player local duel:** two players share one camera and screen. Each has separate health, mana, combos, defense, NOVA and a med-kit inventory. The first player to reduce the opponent's health to zero wins; if time runs out, remaining health decides the result, with a tie possible.
-- **Phone and touch:** the arena and dual action panels are responsive. The on-screen controls can be used when gestures aren't comfortable or available. If camera setup fails, the two-player touch fallback is available.
-
-## Run locally
-
-Open `index.html` through a local static server or deploy it over HTTPS. Camera access requires HTTPS (or localhost) and explicit browser permission. Keyboard and touch controls do not require a camera. No package build step is required for the static prototype.
+- **Solo vs Rift AI:** one tracked player fights the Hollow. Read its warnings, time guard or phase dodges, manage mana, use NOVA and claim supply drops.
+- **2-player local duel:** two players stand apart in front of one camera. Both must be visible and calibrated before the round starts. Each has independent health, mana, combos, defence, NOVA and med-kit inventory. The first player to reduce the other player's health to zero wins; when time runs out, remaining health decides the result, with a draw possible.
+- **Phone and touch:** layouts and control panels adapt to smaller screens. Touch buttons are a backup input for play while the camera remains enabled; they do not bypass the camera requirement.
 
 ## Controls
 
 **Solo**
-- **Pulse:** Space or J
-- **Guard:** G or Shift
-- **Phase left/right:** A/D or arrow keys
-- **NOVA:** Q or Enter when the meter is full
-- **Claim supply drop:** R
-- **Use med kit:** E
+- **Pulse:** Space or J / on-screen button
+- **Guard:** G or Shift / on-screen button
+- **Phase left/right:** A/D or arrow keys / on-screen buttons
+- **NOVA:** Q or Enter when the mana meter is full
+- **Claim supply drop:** R / on-screen button
+- **Use med kit:** E / on-screen button
 - **Pause:** Escape
 
-**Two-player duel**
+**Two-player local duel**
 - **Player 1:** Space (Pulse), G (Guard), A/D (Phase), Q (NOVA), R (claim drop), E (med kit)
 - **Player 2:** J (Pulse), L (Guard), Left/Right arrows (Phase), U (NOVA), I (claim drop), O (med kit)
-- Touch players can use each player's own on-screen control panel.
+- On-screen split panels provide touch backup controls for both players.
 
-## Health, mana and supply drops
+## Health, mana and supplies
 
-Pulses consume mana; mana regenerates over time. Guard reduces incoming damage, while a well-timed phase can evade a hit. NOVA costs a larger amount of mana, so timing matters. Med kits restore up to 28 HP and are limited; save one when health is already full. Supply drops periodically offer either a med kit or a mana orb. In local duel, one player can claim each shared drop first.
+Pulses consume mana; mana regenerates slowly. Guard reduces incoming damage, while a well-timed phase can evade an attack. NOVA costs more mana, so timing matters. Med kits restore up to 28 HP and are limited; save them when health is already full. Supply drops periodically offer either a med kit or a mana orb. In local duel, each supply drop is shared, so the first player to claim it gets the item.
 
-The prototype rewards timing, resource choices and adapting to an opponent; it intentionally avoids paid random loot boxes, punitive streak mechanics and pay-to-win upgrades.
+## Motion input and physical comfort
 
-## Motion input and privacy
+MediaPipe Pose Landmarker estimates body landmarks in camera frames. Kinetix uses calibrated gesture heuristics for wrist movement, an upper-torso guard pose and small torso leans; it does not measure actual strike force. For Duo, the prototype attempts to track up to two bodies from the same camera. Good lighting and enough space between players improve tracking reliability.
 
-Camera mode uses MediaPipe pose landmarks to recognize wrist movement, an upper-torso guard pose and a calibrated torso lean. The prototype requires one tracked body for Solo camera mode and two visible bodies for motion-based local duel. Keep both players apart and use controlled, comfortable air gestures—never make contact.
-
-These are gesture heuristics, not measurements of physical force. Camera frames and landmarks are processed locally; the prototype does not upload or record camera footage and does not request microphone access. MediaPipe's model/WASM assets are downloaded from the configured CDN on first use.
+Keep the play area clear. Use controlled, comfortable air gestures only—no physical contact, striking objects, forceful jumps or high-impact movements. If tracking is lost, the match pauses until the required player(s) are visible again.
 
 ## Current scope and limitations
 
-The game includes a solo AI, a same-device local duel, touch/keyboard fallback, health and mana bars, hit/heal feedback, basic pickups, original Canvas fighter visuals, sound effects, pause/replay and a downloadable result card. Real-time online multiplayer, accounts, cloud leaderboards, monetization and automatic camera recording are not included. Camera tracking should still be tested on multiple phones and laptops before calling it production-ready.
+The prototype includes a solo AI encounter, same-device local duel, camera permission gate, pose calibration, touch/keyboard backup, health and mana meters, med kits, supply drops, hit/heal feedback, original Canvas fighter visuals, sound effects, pause/replay and a downloadable result card. Real-time online multiplayer, accounts, cloud leaderboards, payments and automatic camera recording are not included. Camera tracking and small-screen performance still need testing on a range of real devices before this can be called production-ready.
 
 Built by **Koglesh R. Murugan**.
