@@ -28,12 +28,12 @@ jobs:
           if (!html.includes('<script type="module" src="/src/main.js"></script>')) throw new Error('Vite entry module is not wired into index.html.');
           if (!source.includes("from '@mediapipe/tasks-vision'")) throw new Error('MediaPipe must be imported from the installed package.');
           if (!source.includes("'/mediapipe/wasm'") || !source.includes("'/models/pose_landmarker_lite.task'")) throw new Error('MediaPipe WASM and model must be served from this site.');
-          if (/import\\s*\\(\\s*['"]https?:/.test(source)) throw new Error('A runtime CDN module import was found.');
-          const ids = [...html.matchAll(/\\bid="([^"]+)"/g)].map(match => match[1]);
+          if (source.includes("import('http") || source.includes('import("http')) throw new Error('A runtime CDN module import was found.');
+          const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
           const idSet = new Set(ids);
           const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
           if (duplicates.length) throw new Error('Duplicate DOM IDs: ' + [...new Set(duplicates)].join(', '));
-          const referenced = [...new Set([...source.matchAll(/\\$\\('([^']+)'\\)/g)].map(match => match[1]))];
+          const referenced = [...new Set([...source.matchAll(/\$\('([^']+)'\)/g)].map(match => match[1]))];
           const missing = referenced.filter(id => !idSet.has(id));
           if (missing.length) throw new Error('JavaScript references missing DOM IDs: ' + missing.join(', '));
           const requiredIds = ['play-keyboard','play-duo-camera','enable-camera','calibrate-start','duo-touch-start','game-canvas','player-hp','enemy-hp','pause','nova-button','p1-mana-bar','p2-mana-bar','pickup-status'];
@@ -59,7 +59,7 @@ jobs:
           const files = walk(wasmDir);
           if (!files.some(file => file.endsWith('.wasm')) || !files.some(file => file.endsWith('.js'))) throw new Error('MediaPipe runtime files are incomplete.');
           if (!fs.existsSync('dist/models/pose_landmarker_lite.task') || fs.statSync('dist/models/pose_landmarker_lite.task').size < 1000000) throw new Error('Local pose model is missing or invalid.');
-          const bundles = js.map(name => fs.readFileSync(path.join('dist/assets',name),'utf8')).join('\\n');
+          const bundles = js.map(name => fs.readFileSync(path.join('dist/assets',name),'utf8')).join('\n');
           if (bundles.includes('esm.sh/@mediapipe/tasks-vision') || bundles.includes('@mediapipe/tasks-vision@0.10.22/+esm')) throw new Error('Production bundle still references remote MediaPipe module CDNs.');
           console.log('Production output verified: bundled JS, local WASM runtime and local pose model.');
           NODE
