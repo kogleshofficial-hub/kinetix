@@ -34,9 +34,21 @@
 @media(max-width:760px){.mode-actions{max-width:none}.mode-actions .btn{justify-content:center}.duo-panels{grid-template-columns:1fr}.duo-panel{padding:12px}.duo-action-grid button{min-height:45px}.duo-help{font-size:9px}.pickup-status{font-size:7px}}
 @media(max-width:380px){.duo-action-grid button{padding:7px;font-size:7px}.duo-panel-head{gap:6px}.duo-panel-head strong{font-size:9px}.duo-panel-head small{font-size:6px}.duo-hp{font-size:8px}}
 
+.entry-gate{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:18px;background:rgba(5,6,17,.91);backdrop-filter:blur(18px)}.entry-gate.hidden{display:none}.gate-panel{width:min(460px,100%);padding:clamp(24px,5vw,38px);border:1px solid rgba(155,162,232,.27);border-radius:16px;background:radial-gradient(ellipse at 50% 0%,rgba(123,97,255,.17),transparent 55%),linear-gradient(145deg,#14152d,#0b0d1c);box-shadow:0 30px 100px rgba(0,0,0,.48);text-align:center}.gate-mark{width:50px;height:50px;display:grid;place-items:center;margin:0 auto 20px;border:1px solid rgba(163,150,255,.65);border-radius:14px;background:rgba(163,150,255,.1);color:#d3ceff;font-size:28px;font-weight:700;box-shadow:0 0 34px rgba(151,122,255,.15)}.gate-mark span{color:var(--cyan)}.gate-kicker{font:400 8px var(--mono);letter-spacing:.15em;color:#959dbc}.gate-panel h2{font-size:clamp(27px,6vw,38px);line-height:1.08;letter-spacing:-.05em;margin:19px 0 12px}.gate-panel>p{font-size:12px;line-height:1.75;color:#999fbe;margin:0 0 18px}.gate-status{min-height:40px;display:flex;align-items:center;justify-content:center;gap:10px;padding:10px;margin:18px 0 12px;border:1px solid rgba(115,225,232,.17);border-radius:8px;background:rgba(103,232,239,.045);color:#a7dce4;font:400 8px var(--mono);letter-spacing:.06em}.gate-status.error{color:#ffb9ad;border-color:rgba(255,130,117,.28);background:rgba(255,130,117,.05)}.gate-status.ready{color:#93f9d9;border-color:rgba(100,240,209,.24)}.gate-spin{width:11px;height:11px;border:1px solid rgba(122,244,242,.25);border-top-color:var(--cyan);border-radius:50%;animation:gate-spin .8s linear infinite}.gate-status.ready .gate-spin,.gate-status.error .gate-spin{display:none}.gate-panel .btn{width:100%;justify-content:center;min-height:48px}.gate-note{margin:16px 0 0!important;font-size:9px!important;color:#68708f!important;line-height:1.7!important}.setup-actions .text-btn.hidden{display:none}@keyframes gate-spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
+<div class="entry-gate" id="camera-gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+  <div class="gate-panel">
+    <div class="gate-mark">K<span>•</span></div>
+    <div class="gate-kicker"><i class="live-dot"></i> KINETIX MOTION SYSTEM</div>
+    <h2 id="gate-title">Your camera is your controller.</h2>
+    <p id="gate-copy">KINETIX needs camera access to start. We are requesting permission now. Your camera feed is processed in your browser and is not recorded or uploaded by this prototype.</p>
+    <div class="gate-status" id="gate-status"><span class="gate-spin"></span> REQUESTING CAMERA PERMISSION…</div>
+    <button class="btn primary" id="gate-retry">ENABLE CAMERA & CONTINUE <svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button>
+    <p class="gate-note">Allow camera access in your browser. Use HTTPS, good lighting, and keep the play area clear. Audio is optional and never uses the microphone.</p>
+  </div>
+</div>
 <header class="topbar">
   <button class="brand" id="brand-home" aria-label="Kinetix home"><span class="brand-mark"><b>K</b></span><span class="brand-name">KINETIX<i>.</i><small>MOTION COMBAT PROTOCOL</small></span></button>
   <div class="top-right"><span class="prototype"><i class="live-dot"></i>PROTOTYPE 01</span><button class="icon-btn" id="sound-toggle" aria-label="Toggle sound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6"/></svg></button><button class="icon-btn" id="motion-toggle" aria-label="Toggle reduced motion" title="Toggle reduced motion"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4.5 14 2.5-7H21"/></svg></button></div>
@@ -47,9 +59,9 @@
     <h1>Your body.<br><span class="gradient">Your power.</span><br>Your arena<em>.</em></h1>
     <p class="lede">No controller. No headset. Just you, a camera, and a rift that needs closing.</p>
     <p class="bodycopy">Read the warning. Find the opening. Make every movement count. Kinetix turns motion into a playable power fantasy.</p>
-    <div class="actions mode-actions"><button class="btn primary" id="play-keyboard"><svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg> SOLO VS RIFT AI</button><button class="btn secondary" id="play-duo-camera"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c.4-4 2.4-6 5.5-6s5.2 2 5.5 6m1-4c3.6-.7 6 .8 7 3.5"/></svg> 2-PLAYER LOCAL DUEL</button><button class="btn secondary" id="enable-camera"><svg viewBox="0 0 24 24"><path d="M4 7.5h3l1.7-2h6.6l1.7 2h3A1.5 1.5 0 0 1 21.5 9v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9A1.5 1.5 0 0 1 4 7.5Z"/><circle cx="12" cy="13" r="3.5"/></svg> SOLO WITH CAMERA</button></div>
+    <div class="actions mode-actions"><button class="btn primary" id="play-keyboard"><svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg> SOLO VS RIFT AI</button><button class="btn secondary" id="play-duo-camera"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c.4-4 2.4-6 5.5-6s5.2 2 5.5 6m1-4c3.6-.7 6 .8 7 3.5"/></svg> 2-PLAYER LOCAL DUEL</button></div>
     <div class="trust"><span><b>✓</b> FREE TO PLAY</span><i>•</i><span><b>✓</b> NO DOWNLOAD</span><i>•</i><span><b>◇</b> CAMERA STAYS LOCAL</span></div>
-    <section id="setup" class="setup hidden"><h3><span class="live-dot"></span><span id="setup-title">CONNECTING TO CAMERA</span></h3><p id="setup-copy">Your browser will ask for permission. The preview is processed locally and is never recorded.</p><p id="setup-error" class="error hidden"></p><div class="setup-actions"><button class="btn primary hidden" id="calibrate-start">CALIBRATE & START →</button><button class="btn secondary hidden" id="duo-touch-start">PLAY DUEL WITH TOUCH</button><button class="text-btn" id="stop-camera">STOP CAMERA</button></div></section>
+    <section id="setup" class="setup hidden"><h3><span class="live-dot"></span><span id="setup-title">CONNECTING TO CAMERA</span></h3><p id="setup-copy">Your browser will ask for permission. The preview is processed locally and is never recorded.</p><p id="setup-error" class="error hidden"></p><div class="setup-actions"><button class="btn primary hidden" id="calibrate-start">CALIBRATE & START →</button><button class="text-btn hidden" id="enable-camera">RETRY CAMERA ACCESS</button><button class="btn secondary hidden" id="duo-touch-start">PLAY DUEL WITH TOUCH</button><button class="text-btn" id="stop-camera">STOP CAMERA</button></div></section>
   </section>
   <section class="stage" aria-label="Kinetix visual preview">
     <div class="stage-top"><span>SIMULATION / LIVE CONCEPT</span><span>60 FPS TARGET <b>●</b></span></div>
@@ -90,7 +102,7 @@ const video = $('video'), cameraPanel = $('camera-panel'), setup = $('setup');
 const modelUrl = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
 const wasmUrl = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm';
 let soundOn = true, reducedMotion = false, cameraStatus = 'off', cameraMode = false, trackingOkay = false, paused = false;
-let stream = null, landmarker = null, cameraRAF = 0, cameraLoopStarted = false, lastVideoTime = -1, lastInference = 0;
+let stream = null, landmarker = null, cameraRAF = 0, cameraLoopStarted = false, cameraStarting = false, lastVideoTime = -1, lastInference = 0;
 let neutralLean = 0, calibrated = false, lastPose = null, secondPose = null, priorPose = null, priorPoseAt = 0, lastPulse = -9999, lastGuard = -9999, lastPhase = -9999, priorGuardPose = false, priorLeanSide = 0;
 let cameraTargetMode='solo',neutralLeans=[0,0];
 const motionMemory=[{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0},{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0}];
@@ -198,11 +210,11 @@ function finishDuel(winner){
  try{bestRecord=Math.max(bestRecord,g.best);localStorage.setItem('kinetix-best-combo',String(bestRecord));}catch{}sfx(winner===0?'miss':'win');syncDuelState();updateHud();showResult();
 }
 function stepDuo(dt){
- if(g.status!=='playing'||paused)return;dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.p1.mana=Math.min(100,g.p1.mana+2.7*dt);g.p2.mana=Math.min(100,g.p2.mana+2.7*dt);stepSupplyDrops();syncDuelState();
+ if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.p1.mana=Math.min(100,g.p1.mana+2.7*dt);g.p2.mana=Math.min(100,g.p2.mana+2.7*dt);stepSupplyDrops();syncDuelState();
  if(g.p1.hp<=0){finishDuel(2);return;}if(g.p2.hp<=0){finishDuel(1);return;}if(g.time<=0){finishDuel(g.p1.hp===g.p2.hp?0:g.p1.hp>g.p2.hp?1:2);return;}
 }
 function step(dt){
- if(g.mode==='duo'){stepDuo(dt);return;}if(g.status!=='playing'||paused)return;
+ if(g.mode==='duo'){stepDuo(dt);return;}if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;
  dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.phaseTimer-=dt;g.energy=Math.min(100,g.energy+1.4*dt);stepSupplyDrops();
  if(g.time<=0){finish(g.eHP<=0?'won':'time-up');return;}if(g.eHP<=0){finish('won');return;}
  if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=[0,1,-1,0,-1,1];g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=.88;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=.85;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
@@ -211,7 +223,7 @@ function step(dt){
 function updateHud(){
  $('player-hp').textContent=g.pHP;$('enemy-hp').textContent=g.eHP;$('player-hp-bar').style.width=g.pHP+'%';$('enemy-hp-bar').style.width=g.eHP+'%';$('timer').textContent='00:'+String(Math.ceil(g.time)).padStart(2,'0');$('timer').classList.toggle('urgent',g.time<=10);
  $('phase-label').textContent=g.mode==='duo'?'LOCAL DUEL':g.phase==='telegraph'?'THREAT INCOMING':g.phase==='vulnerable'?'OPENING FOUND':g.phase==='strike'?'IMPACT':'READ THE PATTERN';
- $('combo').textContent=String(g.combo).padStart(2,'0')+'×';$('combo').style.color=g.combo>=3?'#67e8ef':'';$('energy').textContent=String(Math.round(g.energy)).padStart(3,'0');$('energy-bar').style.width=g.energy+'%';$('lane').textContent=g.lane===-1?'LEFT':g.lane===1?'RIGHT':'CENTER';$('feed-text').textContent=g.msg;$('feed').className='feed '+(g.tone==='good'?'good':g.tone==='danger'?'danger':'');
+ $('combo').textContent=String(g.combo).padStart(2,'0')+'×';$('combo').style.color=g.combo>=3?'#67e8ef':'';$('energy').textContent=String(Math.round(g.energy)).padStart(3,'0');$('energy-bar').style.width=g.energy+'%';$('lane').textContent=g.lane===-1?'LEFT':g.lane===1?'RIGHT':'CENTER';$('feed-text').textContent=(cameraMode&&!trackingOkay)?(g.mode==='duo'?'TRACKING PAUSED — KEEP BOTH PLAYERS IN FRAME':'TRACKING PAUSED — RETURN TO CAMERA FRAME'):g.msg;$('feed').className='feed '+((cameraMode&&!trackingOkay)?'danger':(g.tone==='good'?'good':g.tone==='danger'?'danger':''));if(cameraMode&&!trackingOkay)$('phase-label').textContent='TRACKING PAUSED';
  $('nova-button').disabled=g.energy<100||g.status!=='playing'||paused;$('nova-button').classList.toggle('ready',g.energy>=100);$('nova-label').textContent=g.energy>=100?'READY TO RELEASE':(100-Math.round(g.energy))+'% TO CHARGE';document.querySelectorAll('.move[data-action]').forEach(b=>{b.disabled=g.status!=='playing'||paused||(b.dataset.action==='NOVA'&&g.energy<100)||(b.dataset.action==='MEDKIT'&&(!g.medkits||g.pHP>=100))||(b.dataset.action==='COLLECT'&&!g.pickup);});
  if(g.mode==='duo'){
    $('p1-mini-hp').textContent=g.p1.hp+' HP';$('p2-mini-hp').textContent=g.p2.hp+' HP';$('p1-mana').textContent=Math.round(g.p1.mana);$('p2-mana').textContent=Math.round(g.p2.mana);$('p1-mana-bar').style.width=g.p1.mana+'%';$('p2-mana-bar').style.width=g.p2.mana+'%';$('p1-kit').textContent='MED KITS · '+g.p1.medkits;$('p2-kit').textContent='MED KITS · '+g.p2.medkits;
@@ -292,36 +304,67 @@ function loop(t){
  previousFrame=t;raf=requestAnimationFrame(loop);
 }
 raf=requestAnimationFrame(loop);
-$('play-keyboard').addEventListener('click',()=>{cameraMode=false;calibrated=false;stopCamera(false);beginGame('solo');});
-$('play-duo-camera').addEventListener('click',()=>{void startCamera('duo');});
-$('enable-camera').addEventListener('click',()=>{void startCamera('solo');});
+$('play-keyboard').addEventListener('click',()=>chooseGameMode('solo'));
+$('play-duo-camera').addEventListener('click',()=>chooseGameMode('duo'));
+$('enable-camera').addEventListener('click',()=>{void startCamera('lobby');});
+$('gate-retry').addEventListener('click',()=>{void startCamera('lobby');});
 $('calibrate-start').addEventListener('click',()=>{
  const one=shape(lastPose),two=shape(secondPose);if(!one||(cameraTargetMode==='duo'&&!two)){showError(cameraTargetMode==='duo'?'Both players must be visible. Move apart so both upper bodies fit in the camera.':'I cannot see your full upper body yet. Adjust your camera and try again.');return;}
  neutralLean=one.lean;neutralLeans=[one.lean,two?two.lean:0];calibrated=true;cameraMode=true;priorGuardPose=false;priorLeanSide=0;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});showError('');$('setup-title').textContent='MOTION CALIBRATED';$('setup-copy').textContent=cameraTargetMode==='duo'?'Both players are calibrated. Use comfortable wrist movements to PULSE, raise hands near the torso to GUARD, and make a small lean to PHASE.':'PULSE with a deliberate wrist movement, GUARD with hands near your upper torso, and PHASE with a small torso lean.';beginGame(cameraTargetMode);$('mode-pill').classList.add('live');$('move-mode').textContent=cameraTargetMode==='duo'?'TWO PLAYERS · GESTURES + TOUCH':'GESTURES + BUTTON BACKUP';$('camera-hint').classList.add('hidden');
 });
 $('duo-touch-start').addEventListener('click',()=>{stopCamera(false);cameraMode=false;calibrated=false;beginGame('duo');$('mode-pill').innerHTML='<b></b>2P TOUCH DUEL';$('move-mode').textContent='SPLIT TOUCH CONTROLS';$('camera-hint').classList.add('hidden');});
-$('stop-camera').addEventListener('click',()=>stopCamera(true));$('camera-close').addEventListener('click',()=>stopCamera(true));$('brand-home').addEventListener('click',()=>{stopCamera(true);paused=false;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');});$('pause').addEventListener('click',pauseGame);
+$('stop-camera').addEventListener('click',()=>lockToCameraGate('Camera stopped. Re-enable camera access to continue.'));$('camera-close').addEventListener('click',()=>lockToCameraGate('Camera stopped. Re-enable camera access to continue.'));$('brand-home').addEventListener('click',()=>returnToModeSelection());$('pause').addEventListener('click',pauseGame);
 $('sound-toggle').addEventListener('click',()=>{soundOn=!soundOn;$('sound-toggle').innerHTML=soundOn?'<svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6"/></svg>':'<svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 5 6m0-6-5 6"/></svg>';});
 $('motion-toggle').addEventListener('click',()=>{reducedMotion=!reducedMotion;document.body.classList.toggle('reduced',reducedMotion);});
 document.querySelectorAll('.move[data-action]').forEach(b=>b.addEventListener('click',()=>action(b.dataset.action)));
 document.querySelectorAll('.duo-action-grid button[data-duo-action]').forEach(b=>b.addEventListener('click',()=>action(b.dataset.duoAction,Number(b.dataset.player))));
 window.addEventListener('keydown',e=>{if(arena.classList.contains('hidden'))return;const k=e.key.toLowerCase();if([' ','arrowleft','arrowright','enter'].includes(k))e.preventDefault();if(e.repeat)return;if(k==='escape'){if(g.status==='playing')pauseGame();else if(paused){paused=false;$('overlay').classList.add('hidden');}return;}if(paused)return;if(g.mode==='duo'){if(k===' ')action('PULSE',1);if(k==='g')action('GUARD',1);if(k==='a')action('PHASE_LEFT',1);if(k==='d')action('PHASE_RIGHT',1);if(k==='q')action('NOVA',1);if(k==='r')action('COLLECT',1);if(k==='e')action('MEDKIT',1);if(k==='j')action('PULSE',2);if(k==='l')action('GUARD',2);if(k==='arrowleft')action('PHASE_LEFT',2);if(k==='arrowright')action('PHASE_RIGHT',2);if(k==='u')action('NOVA',2);if(k==='i')action('COLLECT',2);if(k==='o')action('MEDKIT',2);return;}if(k===' '||k==='j')action('PULSE');if(k==='g'||k==='shift')action('GUARD');if(k==='a'||k==='arrowleft')action('PHASE_LEFT');if(k==='d'||k==='arrowright')action('PHASE_RIGHT');if(k==='q'||k==='enter')action('NOVA');if(k==='r')action('COLLECT');if(k==='e')action('MEDKIT');});
 window.addEventListener('resize',()=>{canvas.width=0;canvas.height=0;});
+function chooseGameMode(mode){
+ if(cameraStatus!=='ready'||!stream||!landmarker){
+  $('camera-gate').classList.remove('hidden');
+  $('gate-title').textContent='Enable your camera to continue.';
+  $('gate-copy').textContent='Both Solo and Duo use your camera for motion controls. Allow camera access and wait for motion tracking to load.';
+  if(!cameraStarting)void startCamera('lobby');
+  return;
+ }
+ cameraTargetMode=mode;calibrated=false;trackingOkay=false;lastPose=null;secondPose=null;priorPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});
+ $('camera-gate').classList.add('hidden');$('setup').classList.remove('hidden');
+ $('setup-title').textContent=mode==='duo'?'FIND BOTH PLAYERS':'CALIBRATE YOUR MOVEMENT';
+ $('setup-copy').textContent=mode==='duo'?'Stand apart so both players are visible from head to hips. Wait for TWO PLAYERS TRACKED, then calibrate together.':'Stand where your head, shoulders, wrists and hips are visible. Wait for tracking, then calibrate.';
+ $('calibrate-start').textContent=mode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';
+ $('calibrate-start').classList.remove('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');
+ $('camera-hint').textContent=mode==='duo'?'TWO PLAYERS: STAND APART, BOTH UPPER BODIES VISIBLE':'KEEP HEAD, SHOULDERS, WRISTS AND HIPS IN FRAME';
+ $('camera-hint').classList.remove('hidden');showError('');
+}
+function lockToCameraGate(message){
+ stopCamera(true);cameraStarting=false;cameraMode=false;calibrated=false;paused=false;g=freshGame('solo');showScreen('home');$('overlay').classList.add('hidden');
+ $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Camera access is required.';$('gate-copy').textContent=message+' Kinetix cannot start a round without the camera.';
+ $('gate-status').className='gate-status error';$('gate-status').textContent='CAMERA DISCONNECTED';$('gate-retry').disabled=false;
+}
+function returnToModeSelection(){
+ if(cameraStatus!=='ready'||!stream||!landmarker){lockToCameraGate('Reconnect your camera to return to the arena.');return;}
+ paused=false;calibrated=false;g=freshGame('solo');showScreen('home');$('overlay').classList.add('hidden');cameraTargetMode='lobby';$('setup').classList.remove('hidden');
+ $('setup-title').textContent='CAMERA CONNECTED';$('setup-copy').textContent='Choose Solo or Duo, then calibrate your movement before the fight.';$('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('camera-hint').classList.add('hidden');
+}
 function showError(text){$('setup-error').textContent=text;$('setup-error').classList.toggle('hidden',!text);}
-async function startCamera(targetMode='solo'){
- cameraTargetMode=targetMode;secondPose=null;
+async function startCamera(targetMode='lobby'){
+ if(cameraStarting)return;
+ if(cameraStatus==='ready'&&stream&&landmarker){cameraTargetMode=targetMode;return;}
+ cameraStarting=true;cameraTargetMode=targetMode;secondPose=null;
+ $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Your camera is your controller.';$('gate-copy').textContent='Requesting camera permission. Allow access to use Solo and Duo. Camera frames stay on this device.';$('gate-status').className='gate-status';$('gate-status').innerHTML='<span class="gate-spin"></span> REQUESTING CAMERA PERMISSION…';$('gate-retry').disabled=true;
  $('setup').classList.remove('hidden');$('setup-title').textContent='REQUESTING CAMERA';$('setup-copy').textContent='Your browser will ask for permission. Frames stay in your browser and are never recorded.';$('calibrate-start').classList.add('hidden');$('duo-touch-start').classList.add('hidden');showError('');
  $('enable-camera').disabled=true;
  try{
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Camera access requires HTTPS or localhost. You can still play with keyboard controls.');
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Camera access is unavailable. Open Kinetix over HTTPS and retry.');
   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:30,max:30}},audio:false});video.srcObject=stream;await video.play();
   cameraPanel.classList.remove('off');cameraStatus='loading';$('camera-label').textContent='LOADING MOTION AI';$('setup-title').textContent='INITIALIZING MOTION TRACKING';$('setup-copy').textContent='Downloading the pose model for local gesture detection. The camera feed is not uploaded.';
   const vision=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm');
   const files=await vision.FilesetResolver.forVisionTasks(wasmUrl);let pose;
-  try{pose=await vision.PoseLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:modelUrl,delegate:'GPU'},runningMode:'VIDEO',numPoses:cameraTargetMode==='duo'?2:1,minPoseDetectionConfidence:.55,minPosePresenceConfidence:.5,minTrackingConfidence:.5});}
-  catch{pose=await vision.PoseLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:modelUrl,delegate:'CPU'},runningMode:'VIDEO',numPoses:cameraTargetMode==='duo'?2:1,minPoseDetectionConfidence:.55,minPosePresenceConfidence:.5,minTrackingConfidence:.5});}
-  landmarker=pose;cameraStatus='ready';cameraMode=true;calibrated=false;trackingOkay=false;lastPose=null;secondPose=null;priorPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});$('setup-title').textContent=cameraTargetMode==='duo'?'CAMERA READY — FIND TWO PLAYERS':'CAMERA READY — FIND PLAYER';$('setup-copy').textContent=cameraTargetMode==='duo'?'Both players should stand apart and keep head, shoulders, wrists and hips visible. Safe air gestures only—no contact. Calibrate when both are tracked.':'Keep head, shoulders, wrists and hips in frame. Stand comfortably and calibrate when ready.';$('calibrate-start').textContent=cameraTargetMode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';$('calibrate-start').classList.remove('hidden');$('duo-touch-start').classList.toggle('hidden',cameraTargetMode!=='duo');$('camera-label').textContent='CAMERA PREVIEW';$('camera-dot').classList.remove('live');$('camera-hint').textContent=cameraTargetMode==='duo'?'TWO PLAYERS: STAND APART, BOTH UPPER BODIES VISIBLE':'KEEP YOUR UPPER BODY IN FRAME';$('camera-hint').classList.remove('hidden');$('enable-camera').textContent='CAMERA READY';$('enable-camera').disabled=false;runCameraLoop();
- }catch(err){stopCamera(false);cameraStatus='error';$('setup-title').textContent='CAMERA UNAVAILABLE';showError(err&&err.message?err.message:'Camera setup failed. Try keyboard mode instead.');$('setup-copy').textContent='The game can still be played with the keyboard and on-screen controls.';$('enable-camera').disabled=false;$('enable-camera').textContent='TRY CAMERA AGAIN';if(cameraTargetMode==='duo')$('duo-touch-start').classList.remove('hidden');}
+  try{pose=await vision.PoseLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:modelUrl,delegate:'GPU'},runningMode:'VIDEO',numPoses:cameraTargetMode==='solo'?1:2,minPoseDetectionConfidence:.55,minPosePresenceConfidence:.5,minTrackingConfidence:.5});}
+  catch{pose=await vision.PoseLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:modelUrl,delegate:'CPU'},runningMode:'VIDEO',numPoses:cameraTargetMode==='solo'?1:2,minPoseDetectionConfidence:.55,minPosePresenceConfidence:.5,minTrackingConfidence:.5});}
+  landmarker=pose;cameraStatus='ready';cameraStarting=false;cameraMode=true;calibrated=false;trackingOkay=false;lastPose=null;secondPose=null;priorPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});$('camera-gate').classList.add('hidden');$('gate-retry').disabled=false;$('setup').classList.remove('hidden');if(cameraTargetMode==='lobby'){$('setup-title').textContent='CAMERA CONNECTED';$('setup-copy').textContent='Camera permission is active. Choose Solo or Duo, then calibrate your movement before the fight.';$('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');}else{$('setup-title').textContent=cameraTargetMode==='duo'?'CAMERA READY — FIND TWO PLAYERS':'CAMERA READY — FIND PLAYER';$('setup-copy').textContent=cameraTargetMode==='duo'?'Both players should stand apart and keep head, shoulders, wrists and hips visible. Safe air gestures only—no contact. Calibrate when both are tracked.':'Keep head, shoulders, wrists and hips in frame. Stand comfortably and calibrate when ready.';$('calibrate-start').textContent=cameraTargetMode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';$('calibrate-start').classList.remove('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');}$('camera-label').textContent='CAMERA PREVIEW';$('camera-dot').classList.remove('live');$('camera-hint').textContent='CHOOSE SOLO OR DUO TO CALIBRATE';$('camera-hint').classList.remove('hidden');runCameraLoop();
+ }catch(err){stopCamera(false);cameraStarting=false;cameraStatus='error';cameraMode=false;$('camera-gate').classList.remove('hidden');$('gate-title').textContent='Camera access is required.';$('gate-copy').textContent='Kinetix cannot start a round until the browser allows camera access. Check site permissions, then retry. Your camera is not recorded.';$('gate-status').className='gate-status error';$('gate-status').textContent=(err&&err.name==='NotAllowedError')?'CAMERA PERMISSION DENIED — ALLOW IT IN BROWSER SETTINGS':(err&&err.message?err.message:'CAMERA SETUP FAILED');$('gate-retry').disabled=false;$('setup-title').textContent='CAMERA UNAVAILABLE';showError(err&&err.message?err.message:'Camera setup failed. Please retry.');$('setup-copy').textContent='Allow camera access in your browser, then select Retry. Solo and Duo both require a working camera.';$('enable-camera').disabled=false;$('enable-camera').textContent='RETRY CAMERA ACCESS';$('enable-camera').classList.remove('hidden');}
 }
 function stopCamera(resetUI){
  cancelAnimationFrame(cameraRAF);cameraLoopStarted=false;stream&&stream.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;try{landmarker&&landmarker.close();}catch{}landmarker=null;cameraPanel.classList.add('off');cameraStatus='off';cameraMode=false;calibrated=false;trackingOkay=false;lastPose=null;priorPose=null;$('calibrate-start').classList.add('hidden');$('enable-camera').disabled=false;$('enable-camera').innerHTML='<svg viewBox="0 0 24 24"><path d="M4 7.5h3l1.7-2h6.6l1.7 2h3A1.5 1.5 0 0 1 21.5 9v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9A1.5 1.5 0 0 1 4 7.5Z"/><circle cx="12" cy="13" r="3.5"/></svg> PLAY WITH CAMERA';$('mode-pill').innerHTML='<b></b>KEYBOARD MODE';$('mode-pill').classList.remove('live');$('move-mode').textContent='KEYBOARD / CLICK CONTROLS';if(resetUI){$('setup').classList.add('hidden');}$('duo-touch-start').classList.add('hidden');secondPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;}); }
@@ -370,6 +413,7 @@ function detectMotion(points,now,player=1){
  mem.priorPose=points;mem.priorAt=now;
 }
 window.addEventListener('beforeunload',()=>{cancelAnimationFrame(cameraRAF);stream&&stream.getTracks().forEach(t=>t.stop());try{landmarker&&landmarker.close();}catch{}if(audioContext)audioContext.close();});
+void startCamera('lobby');
 </script>
 </body>
 </html>
