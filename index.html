@@ -108,20 +108,20 @@ function sfx(name) {
 function action(kind) {
   if(g.status!=='playing'||paused)return;
   const before=g.event+':'+g.eventAt;
-  if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+650);return;}
+  if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+1.05);return;}
   if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){
-    g.lane=kind==='PHASE_LEFT'?-1:1;g.dodgeUntil=g.clock+520;
+    g.lane=kind==='PHASE_LEFT'?-1:1;g.dodgeUntil=g.clock+1.05;
     if(g.phase==='telegraph'&&g.target!==g.lane){g.energy=Math.min(100,g.energy+3);announce('dodge','PHASE SHIFT','good');sfx('dodge');}
     updateHud();return;
   }
   if(kind==='PULSE'){
-    if(g.clock-g.lastPulse<420)return;g.lastPulse=g.clock;g.pulses++;
+    if(g.clock-g.lastPulse<.42)return;g.lastPulse=g.clock;g.pulses++;
     if(g.phase==='vulnerable'){const d=Math.min(14,g.eHP);g.eHP=Math.max(0,g.eHP-14);g.damage+=d;g.energy=Math.min(100,g.energy+11);g.combo++;g.best=Math.max(g.best,g.combo);g.clean++;announce('pulse',g.eHP<=0?'FINISHER CONFIRMED':'RIFT PUNCTURED  −14','good');}
     else {const d=Math.min(3,g.eHP);g.eHP=Math.max(0,g.eHP-3);g.damage+=d;g.combo=0;announce('miss','GLANCING HIT — WAIT FOR THE OPENING','neutral');}
   }
   if(kind==='NOVA'){
     if(g.energy<100){announce('none','NOVA NEEDS 100 ENERGY','neutral');updateHud();return;}
-    if(g.clock-g.lastNova<1300)return;const damage=g.phase==='vulnerable'?48:28;const d=Math.min(damage,g.eHP);g.eHP=Math.max(0,g.eHP-d);g.damage+=d;g.energy=0;g.lastNova=g.clock;g.combo+=2;g.best=Math.max(g.best,g.combo);announce('nova',g.eHP<=0?'NOVA FINISHER':'NOVA RELEASED  −'+damage,'good');
+    if(g.clock-g.lastNova<1.3)return;const damage=g.phase==='vulnerable'?48:28;const d=Math.min(damage,g.eHP);g.eHP=Math.max(0,g.eHP-d);g.damage+=d;g.energy=0;g.lastNova=g.clock;g.combo+=2;g.best=Math.max(g.best,g.combo);announce('nova',g.eHP<=0?'NOVA FINISHER':'NOVA RELEASED  −'+damage,'good');
   }
   if(g.event+':'+g.eventAt!==before&&g.event!=='none')sfx(g.event);
   updateHud();
