@@ -11,15 +11,15 @@ let neutralLean = 0, calibrated = false, lastPose = null, secondPose = null, pri
 let cameraTargetMode='solo',neutralLeans=[0,0];
 const motionMemory=[{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0},{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0}];
 const DIFFICULTIES=Object.freeze({
- beginner:{label:'BEGINNER TRAINING',enemyHP:95,enemyDamage:12,firstWait:.9,telegraph:1.0,opening:1.6,recovery:.42},
- normal:{label:'NORMAL',enemyHP:115,enemyDamage:20,firstWait:.92,telegraph:.64,opening:1.08,recovery:.32},
- hard:{label:'HARD',enemyHP:145,enemyDamage:27,firstWait:.58,telegraph:.42,opening:.66,recovery:.24}
+ beginner:{label:'BEGINNER TRAINING',enemyHP:100,enemyDamage:15,firstWait:.82,telegraph:.92,opening:1.4,recovery:.38},
+ normal:{label:'NORMAL',enemyHP:135,enemyDamage:25,firstWait:.68,telegraph:.52,opening:.78,recovery:.20},
+ hard:{label:'HARD',enemyHP:165,enemyDamage:36,firstWait:.46,telegraph:.33,opening:.46,recovery:.10}
 });
-let difficulty='beginner';
+let difficulty='normal';
 function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.beginner;}
 const MOTION_SENSITIVITY=Object.freeze({
- high:{label:'HIGH',minSpeed:.72,minTravel:.085,extensionDelta:.015,travelGrowth:.012,minFrameStep:.055,globalCooldown:60,handCooldown:115,returnTravel:.16,rearmRecoil:.045},
- max:{label:'MAX',minSpeed:.50,minTravel:.060,extensionDelta:.009,travelGrowth:.008,minFrameStep:.035,globalCooldown:40,handCooldown:80,returnTravel:.135,rearmRecoil:.034}
+ high:{label:'HIGH',minSpeed:1.15,minTravel:.12,extensionDelta:.032,travelGrowth:.018,minFrameStep:.065,globalCooldown:85,handCooldown:145,returnTravel:.13,rearmRecoil:.055,confirmFrames:2,strongTravel:.235,strongSpeed:2.7,reacquireTravel:.25},
+ max:{label:'MAX',minSpeed:.78,minTravel:.09,extensionDelta:.022,travelGrowth:.012,minFrameStep:.048,globalCooldown:60,handCooldown:115,returnTravel:.115,rearmRecoil:.045,confirmFrames:2,strongTravel:.195,strongSpeed:2.3,reacquireTravel:.215}
 });
 let motionSensitivity='high';
 function sensitivityRules(){return MOTION_SENSITIVITY[motionSensitivity]||MOTION_SENSITIVITY.max;}
@@ -434,16 +434,19 @@ function detectMotion(points,now,player=1){
  const mem=motionMemory[player-1]||motionMemory[0],s=shape(points),tuning=sensitivityRules();
  if(!s){
   mem.priorPose=null;mem.guardPose=false;mem.leanSide=0;
-  if(mem.punchHands)mem.punchHands.forEach(hand=>{hand.base=null;hand.prev=null;hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;hand.armed=true;});
+  if(mem.punchHands)mem.punchHands.forEach(hand=>{hand.base=null;hand.prev=null;hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;hand.candidateFrames=0;hand.armed=true;});
   return;
  }
- if(!mem.punchHands)mem.punchHands=[{armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0,lastTravel:0,peakTravel:0,lastPunchDirection:null},{armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0,lastTravel:0,peakTravel:0,lastPunchDirection:null}];
+ if(!mem.punchHands)mem.punchHands=[
+  {armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0,lastTravel:0,peakTravel:0,lastPunchDirection:null,candidateFrames:0},
+  {armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0,lastTravel:0,peakTravel:0,lastPunchDirection:null,candidateFrames:0}
+ ];
  if(!mem.priorPose){
   mem.priorPose=points;mem.priorAt=now;
   mem.punchHands.forEach((hand,side)=>{
    const snap=armMotionSignature(points,side,s.sw);
    hand.base=snap;hand.prev=snap;hand.prevAt=now;hand.armed=true;hand.restFrames=0;
-   hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;
+   hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;hand.candidateFrames=0;
   });
   return;
  }
@@ -468,7 +471,7 @@ function detectMotion(points,now,player=1){
   mem.punchHands.forEach((hand,side)=>{
    const snap=armMotionSignature(points,side,s.sw);
    if(snap){hand.base=snap;hand.prev=snap;hand.prevAt=now;}
-   hand.armed=true;hand.restFrames=0;hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;
+   hand.armed=true;hand.restFrames=0;hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;hand.candidateFrames=0;
   });
  }else{
   mem.guardPose=false;
@@ -476,25 +479,29 @@ function detectMotion(points,now,player=1){
    mem.punchHands.forEach((hand,side)=>{
     const snap=armMotionSignature(points,side,s.sw);
     if(snap){hand.base=snap;hand.prev=snap;hand.prevAt=now;}
-    hand.armed=true;hand.restFrames=0;hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;
+    hand.armed=true;hand.restFrames=0;hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;hand.candidateFrames=0;
    });
   }else if(dt>=.008&&dt<=.35){
    for(let side=0;side<2;side++){
     const hand=mem.punchHands[side],current=armMotionSignature(points,side,s.sw),previous=hand.prev;
-    if(!current){hand.prev=null;hand.prevAt=now;hand.lastTravel=0;continue;}
+    if(!current){
+     hand.prev=null;hand.prevAt=now;hand.lastTravel=0;hand.candidateFrames=0;
+     continue;
+    }
     const canFire=now-hand.lastPunchAt>=tuning.handCooldown;
 
-    // If a wrist was occluded for a frame, a large shoulder-relative jump on reacquisition
-    // can still count as the missing jab instead of throwing away that motion cycle.
+    // Losing and regaining a wrist alone is not enough to deal damage. A reacquisition
+    // only counts when there is a clear, large reach change from the ready position.
     if(!previous||!hand.base){
      if(previous===null&&hand.armed&&hand.base&&canFire){
-      const reacquiredDelta={x:current.position.x-hand.base.position.x,y:current.position.y-hand.base.position.y,z:current.position.z-hand.base.position.z};
-      const reacquiredTravel=Math.hypot(reacquiredDelta.x,reacquiredDelta.y,reacquiredDelta.z*.8);
-      if(reacquiredTravel>=tuning.minTravel*1.25){
+      const dx=current.position.x-hand.base.position.x,dy=current.position.y-hand.base.position.y,dz=current.position.z-hand.base.position.z;
+      const reacquiredTravel=Math.hypot(dx,dy,dz*.8);
+      const reacquiredExtension=current.extension-hand.base.extension;
+      if(reacquiredTravel>=tuning.reacquireTravel&&reacquiredExtension>=tuning.extensionDelta*1.5){
        action('PULSE',player);mem.lastPulse=now;hand.lastPunchAt=now;hand.armed=false;
-       hand.peakTravel=reacquiredTravel;hand.lastTravel=reacquiredTravel;
-       const magnitude=Math.hypot(reacquiredDelta.x,reacquiredDelta.y,reacquiredDelta.z);
-       if(magnitude>.001)hand.lastPunchDirection={x:reacquiredDelta.x/magnitude,y:reacquiredDelta.y/magnitude,z:reacquiredDelta.z/magnitude};
+       hand.peakTravel=reacquiredTravel;hand.lastTravel=reacquiredTravel;hand.candidateFrames=0;
+       const magnitude=Math.hypot(dx,dy,dz);
+       if(magnitude>.001)hand.lastPunchDirection={x:dx/magnitude,y:dy/magnitude,z:dz/magnitude};
       }
      }
      hand.prev=current;hand.prevAt=now;if(!hand.base)hand.base=current;
@@ -503,48 +510,45 @@ function detectMotion(points,now,player=1){
     }
 
     const elapsed=Math.max(.008,(now-(hand.prevAt??(now-33)))/1000);
-    const delta={x:current.position.x-previous.position.x,y:current.position.y-previous.position.y,z:current.position.z-previous.position.z};
-    const stepTravel=Math.hypot(delta.x,delta.y,delta.z*.8);
-    const speed=stepTravel/elapsed;
-    const dirLength=Math.hypot(delta.x,delta.y,delta.z);
+    const dx=current.position.x-previous.position.x,dy=current.position.y-previous.position.y,dz=current.position.z-previous.position.z;
+    const stepTravel=Math.hypot(dx,dy,dz*.8),speed=stepTravel/elapsed;
+    const dirLength=Math.hypot(dx,dy,dz);
     const alignment=hand.lastPunchDirection&&dirLength>.001
-      ?(delta.x*hand.lastPunchDirection.x+delta.y*hand.lastPunchDirection.y+delta.z*hand.lastPunchDirection.z)/(dirLength||1)
+      ?(dx*hand.lastPunchDirection.x+dy*hand.lastPunchDirection.y+dz*hand.lastPunchDirection.z)/(dirLength||1)
       :0;
     const travel=vectorDistance(current.position,hand.base.position);
     const previousTravel=Number.isFinite(hand.lastTravel)?hand.lastTravel:travel;
-    const growth=travel-previousTravel;
     const extensionDelta=current.extension-hand.base.extension;
     hand.peakTravel=Math.max(hand.peakTravel||0,travel);
 
     if(!hand.armed){
-     const returnProgress=hand.peakTravel-travel;
-     const movingBack=alignment<-.28&&returnProgress>tuning.rearmRecoil;
-     const settledNearReady=travel<tuning.returnTravel&&speed<.26;
-     const slowReset=speed<.18&&now-hand.lastPunchAt>190;
-     // Re-arm on a real pull-back or reset. Direction gating below suppresses the rest of the return.
-     if(canFire&&(movingBack||settledNearReady||slowReset)){
-      hand.armed=true;hand.base=current;hand.lastTravel=0;hand.peakTravel=0;hand.restFrames=0;
+     const settledNearReady=travel<tuning.returnTravel&&speed<.48;
+     const slowReset=travel<tuning.returnTravel*1.2&&speed<.24&&now-hand.lastPunchAt>240;
+     if(canFire&&(settledNearReady||slowReset)){
+      hand.armed=true;hand.base=current;hand.lastTravel=0;hand.peakTravel=0;
+      hand.restFrames=0;hand.lastPunchDirection=null;hand.candidateFrames=0;
      }
     }else{
-     // Only follow a quiet ready stance; never move the baseline along with a live jab.
-     if(speed<.24&&travel<.12){
-      const mix=(a,b)=>a+(b-a)*.045;
+     // Adapt to tiny idle drift only. Baseline must stay fixed during purposeful movement.
+     if(speed<tuning.minSpeed*.42&&travel<tuning.minTravel*1.25){
+      const mix=(a,b)=>a+(b-a)*.06;
       hand.base={position:{x:mix(hand.base.position.x,current.position.x),y:mix(hand.base.position.y,current.position.y),z:mix(hand.base.position.z,current.position.z)},extension:mix(hand.base.extension,current.extension),hasElbow:current.hasElbow,wrist:current.wrist,shoulder:current.shoulder};
      }
      const nowTravel=vectorDistance(current.position,hand.base.position);
      const outwardGrowth=nowTravel>previousTravel+tuning.travelGrowth;
-     const directionNotReturn=!hand.lastPunchDirection||alignment>-.55;
      const forwardReach=nowTravel>=tuning.minTravel;
-     const shortJab=forwardReach&&speed>=tuning.minSpeed&&outwardGrowth;
-     const frameBurst=stepTravel>=tuning.minFrameStep&&speed>=tuning.minSpeed&&forwardReach&&outwardGrowth;
-     const extendingJab=extensionDelta>=tuning.extensionDelta&&forwardReach&&speed>=tuning.minSpeed*.9;
-     // A strike must show meaningful shoulder-relative travel plus speed or extension;
-     // small hand tremors and resting-position drift do not count as a punch.
-     const distinctPunch=directionNotReturn&&(shortJab||frameBurst||extendingJab);
-     if(distinctPunch&&canFire){
+     const directionNotReturn=!hand.lastPunchDirection||alignment>-.38;
+     const fastOutward=forwardReach&&speed>=tuning.minSpeed&&outwardGrowth;
+     const extensionOutward=forwardReach&&extensionDelta>=tuning.extensionDelta&&speed>=tuning.minSpeed*.85;
+     const candidate=directionNotReturn&&(fastOutward||extensionOutward);
+
+     hand.candidateFrames=candidate?hand.candidateFrames+1:0;
+     const confirmed=hand.candidateFrames>=tuning.confirmFrames;
+     const strongSingleFrame=directionNotReturn&&nowTravel>=tuning.strongTravel&&speed>=tuning.strongSpeed&&outwardGrowth;
+     if((confirmed||strongSingleFrame)&&canFire){
       action('PULSE',player);mem.lastPulse=now;hand.lastPunchAt=now;hand.armed=false;hand.restFrames=0;
-      hand.peakTravel=Math.max(hand.peakTravel,nowTravel);
-      if(dirLength>.001)hand.lastPunchDirection={x:delta.x/dirLength,y:delta.y/dirLength,z:delta.z/dirLength};
+      hand.peakTravel=Math.max(hand.peakTravel,nowTravel);hand.candidateFrames=0;
+      if(dirLength>.001)hand.lastPunchDirection={x:dx/dirLength,y:dy/dirLength,z:dz/dirLength};
      }
      hand.lastTravel=nowTravel;
     }
@@ -552,10 +556,11 @@ function detectMotion(points,now,player=1){
     if(!hand.armed)hand.lastTravel=vectorDistance(current.position,hand.base.position);
    }
   }else{
-   // Refresh on timing gaps instead of interpreting a stale timestamp as a high-speed jab.
-   mem.punchHands.forEach(hand=>{
-    const snap=armMotionSignature(points,hand===mem.punchHands[0]?0:1,s.sw);
+   // Timing gaps reset velocity and pending candidates rather than creating a false speed spike.
+   mem.punchHands.forEach((hand,side)=>{
+    const snap=armMotionSignature(points,side,s.sw);
     if(snap){hand.prev=snap;hand.prevAt=now;if(hand.base)hand.lastTravel=vectorDistance(snap.position,hand.base.position);}
+    hand.candidateFrames=0;
    });
   }
  }
