@@ -11,12 +11,12 @@ let neutralLean = 0, calibrated = false, lastPose = null, secondPose = null, pri
 let cameraTargetMode='solo',neutralLeans=[0,0];
 const motionMemory=[{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0},{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0}];
 const DIFFICULTIES=Object.freeze({
- beginner:{label:'BEGINNER TRAINING',enemyHP:100,enemyDamage:15,firstWait:.82,telegraph:.92,opening:1.4,recovery:.38},
- normal:{label:'NORMAL',enemyHP:135,enemyDamage:25,firstWait:.68,telegraph:.52,opening:.78,recovery:.20},
- hard:{label:'HARD',enemyHP:165,enemyDamage:36,firstWait:.46,telegraph:.33,opening:.46,recovery:.10}
+ easy:{label:'EASY / TRAINING',enemyHP:100,enemyDamage:12,firstWait:1.05,telegraph:1.05,opening:1.65,recovery:.52,guardDuration:1.25,dodgeDuration:1.2},
+ normal:{label:'NORMAL',enemyHP:210,enemyDamage:28,firstWait:.62,telegraph:.46,opening:.62,recovery:.16,guardDuration:1.0,dodgeDuration:.95},
+ hard:{label:'HARD / RIFT MASTER',enemyHP:420,enemyDamage:48,firstWait:.3,telegraph:.24,opening:.36,recovery:.08,guardDuration:.72,dodgeDuration:.68}
 });
 let difficulty='normal';
-function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.beginner;}
+function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.easy;}
 const MOTION_SENSITIVITY=Object.freeze({
  high:{label:'HIGH',minSpeed:1.15,minTravel:.12,extensionDelta:.032,travelGrowth:.018,minFrameStep:.065,globalCooldown:85,handCooldown:145,returnTravel:.13,rearmRecoil:.055,confirmFrames:2,strongTravel:.235,strongSpeed:2.7,reacquireTravel:.25},
  max:{label:'MAX',minSpeed:.78,minTravel:.09,extensionDelta:.022,travelGrowth:.012,minFrameStep:.048,globalCooldown:60,handCooldown:115,returnTravel:.115,rearmRecoil:.045,confirmFrames:2,strongTravel:.195,strongSpeed:2.3,reacquireTravel:.215}
@@ -124,8 +124,8 @@ function dualAction(kind,player=1){
 }
 function action(kind,player=1){
  if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;if(g.mode==='duo'){dualAction(kind,player);return;}if(kind==='COLLECT'){pickupDrop(1);return;}if(kind==='MEDKIT'){useMedkit(1);return;}
- const before=g.event+':'+g.eventAt;if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+1.05);return;}
- if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-g.lastPhase<.3)return;g.lastPhase=g.clock;g.lane=kind==='PHASE_LEFT'?-1:1;g.dodgeUntil=g.clock+1.05;if(g.phase==='telegraph'&&g.target!==g.lane){g.energy=Math.min(100,g.energy+3);announce('dodge','PHASE SHIFT','good');sfx('dodge');}updateHud();return;}
+ const before=g.event+':'+g.eventAt;if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+difficultyRules().guardDuration);return;}
+ if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-g.lastPhase<.3)return;g.lastPhase=g.clock;g.lane=kind==='PHASE_LEFT'?-1:1;g.dodgeUntil=g.clock+difficultyRules().dodgeDuration;if(g.phase==='telegraph'&&g.target!==g.lane){g.energy=Math.min(100,g.energy+3);announce('dodge','PHASE SHIFT','good');sfx('dodge');}updateHud();return;}
  if(kind==='PULSE'){
   if(!cameraMode&&g.clock-g.lastPulse<.02)return;
   g.lastPulse=g.clock;
@@ -141,7 +141,7 @@ function action(kind,player=1){
    g.combo++;g.best=Math.max(g.best,g.combo);g.clean++;showImpact(2,damage);
    announce('pulse',g.eHP<=0?'FINISHER CONFIRMED':'RIFT HIT  −'+damage+' HP'+(comboBonus?' · COMBO BONUS':''),'good');
   }else{
-   const damage=Math.min(powered?5:2,g.eHP);
+   const glancingDamage=difficulty==='hard'?(powered?2:1):difficulty==='normal'?(powered?5:2):(powered?7:4);const damage=Math.min(glancingDamage,g.eHP);
    g.eHP=Math.max(0,g.eHP-damage);g.damage+=damage;g.combo=0;g.enemyHurtUntil=g.clock+.2;showImpact(2,damage);
    announce('pulse','GLANCING HIT  −'+damage+' HP · FIND THE OPENING','neutral');
   }
@@ -170,7 +170,7 @@ function step(dt){
  if(g.mode==='duo'){stepDuo(dt);return;}if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;
  dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.phaseTimer-=dt;g.energy=Math.min(100,g.energy+1.4*dt);stepSupplyDrops();
  if(g.time<=0){finish(g.eHP<=0?'won':'time-up');return;}if(g.eHP<=0){finish('won');return;}
- if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=[0,1,-1,0,-1,1];g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
+ if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=difficulty==='easy'?[0,0,1,0,-1,0]:[0,1,-1,0,-1,1];if(difficulty==='hard'){const lanes=[-1,0,1].filter(lane=>lane!==g.target);g.target=lanes[Math.floor(Math.random()*lanes.length)];}else g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
  if(g.pHP<=0)finish('lost');
 }
 function updateHud(){
@@ -199,7 +199,10 @@ function accuracy(){return g.pulses?Math.round(g.clean/g.pulses*100):0;}
 function showResult(){
  if(g.mode==='duo'){const winner=g.winner;const title=winner===0?'PERFECTLY EVEN.':'PLAYER '+winner+' WINS.';const desc=winner===0?'Both fighters end the round with the same health. Run it back.':(winner===1?'Player One controlled the arena this round.':'Player Two controlled the arena this round.');
  showOverlay(title,desc,'LOCAL DUEL / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);return;}
- const won=g.status==='won';showOverlay(won?'RIFT COLLAPSED.':g.status==='time-up'?'TIME FRACTURED.':'SIGNAL LOST',won?'You read the pattern and closed the breach on '+difficultyRules().label+'.':g.status==='time-up'?'The rift is still open. Change your timing and try again.':'The Hollow won this round. Try '+(difficulty==='hard'?'Normal or Beginner Training':difficulty==='normal'?'Beginner Training':'the round again')+' when ready.','RIFT DUEL / '+difficultyRules().label+' / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
+ const won=g.status==='won';
+  const title=won?(difficulty==='hard'?'HARD CLEAR — RIFT COLLAPSED.':'RIFT COLLAPSED.'):g.status==='time-up'?'TIME FRACTURED.':'SIGNAL LOST';
+  const description=won?(difficulty==='hard'?'You survived the 420 HP Rift Master. Every counter, guard and phase mattered.':'You read the pattern and closed the breach on '+difficultyRules().label+'.'):g.status==='time-up'?'The Rift is still standing. Review your timing and try a different approach.':'The Hollow won this round. Try '+(difficulty==='hard'?'Normal to practice your timing, then return to Hard':difficulty==='normal'?'Easy to learn the moves, then return to Normal':'the round again')+' when ready.';
+  showOverlay(title,description,'RIFT DUEL / '+difficultyRules().label+' / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
 }
 function pauseGame(){if(g.status!=='playing')return;paused=true;showOverlay('Catch your breath.','The rift is frozen. Your progress is still here.','SESSION PAUSED',[{label:'RESUME ROUND →',style:'primary',action:'resume'},{label:'RESTART ROUND',style:'secondary',action:'restart'}],false);}
 function downloadCard(){
@@ -260,7 +263,7 @@ raf=requestAnimationFrame(loop);
 document.querySelectorAll('[data-difficulty]').forEach(button=>button.addEventListener('click',()=>{
  const next=button.dataset.difficulty;if(!DIFFICULTIES[next])return;difficulty=next;
  document.querySelectorAll('[data-difficulty]').forEach(option=>{const selected=option===button;option.classList.toggle('active',selected);option.setAttribute('aria-pressed',String(selected));});
- const summaries={beginner:'Beginner Training selected — slower bot attacks and longer openings.',normal:'Normal selected — balanced speed, damage and recovery.',hard:'Hard selected — faster attacks, stronger hits and shorter openings.'};
+ const summaries={easy:'Easy selected — generous warnings, light damage and wide counter windows.',normal:'Normal selected — 210 HP, 28-damage hits and a tighter practice rhythm.',hard:'Hard selected — THE RIFT MASTER: 420 HP, 48-damage hits, shifting lanes and tiny counter windows. Brutal, but beatable with clean timing.'};
  $('difficulty-summary').textContent=summaries[difficulty];
 }));
 document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventListener('click',()=>{
@@ -366,7 +369,12 @@ function runCameraLoop(){
     lastPose=poses[0]||null;secondPose=cameraTargetMode==='duo'?(poses[1]||null):null;
     const oneReady=!!shape(lastPose),twoReady=cameraTargetMode!=='duo'||!!shape(secondPose);
     if(oneReady&&twoReady){lastTrackingAt=now;trackingOkay=true;}
-    else trackingOkay=!!lastTrackingAt&&now-lastTrackingAt<650;
+    else{
+     // Duo must keep both players tracked; allow only a tiny grace for camera jitter.
+     // Solo can use a longer grace so one missed frame does not interrupt a round.
+     const graceMs=cameraTargetMode==='duo'?(calibrated&&g.status==='playing'?180:0):650;
+     trackingOkay=graceMs>0&&!!lastTrackingAt&&now-lastTrackingAt<graceMs;
+    }
 
     if(trackingOkay){
      $('camera-dot').classList.add('live');

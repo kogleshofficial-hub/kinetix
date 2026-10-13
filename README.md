@@ -1,6 +1,7 @@
 # Kinetix
 
 **Your body. Your power. Your arena.**
+*Train smart. Survive the Rift.*
 
 Kinetix is a browser-first, webcam-controlled fantasy combat prototype created by **Koglesh R. Murugan**. It includes a solo boss encounter and a local two-player duel, with readable motion gestures, health and mana management, healing supplies, impact feedback and original energy effects.
 
@@ -34,13 +35,21 @@ If the request is denied, open the browser's site permissions, allow camera acce
 - **Player 2:** J (Pulse), L (Guard), Left/Right arrows (Phase), U (NOVA), I (claim drop), O (med kit)
 - On-screen split panels provide touch backup controls for both players.
 
+## Solo difficulty
+
+- **Easy:** 100 Rift HP, 12 damage per hit, generous warnings and wide counter windows for learning the controls.
+- **Normal (default):** 210 Rift HP and 28 damage per landed hit. Use this as the regular practice challenge.
+- **Hard — The Rift Master:** 420 Rift HP, 48 damage per landed hit, a short warning, brief counter windows, reduced glancing damage and lane patterns that change between attacks. A hit can remove 40% of the solo player's 120 HP, so defensive reads matter. It is intentionally very difficult, but timed counters, blocks, dodges, supplies and NOVA keep it beatable in principle.
+
+The webcam detects gestures, not strike force. Use short, comfortable air-jabs; difficulty comes from the Rift's stats and timing—not from hitting harder or forcing unsafe speed.
+
 ## Health, mana and supplies
 
 Pulses consume mana; mana regenerates slowly. Guard reduces incoming damage, while a well-timed phase can evade an attack. NOVA costs more mana, so timing matters. Med kits restore up to 28 HP and are limited; save them when health is already full. Supply drops periodically offer either a med kit or a mana orb. In local duel, each supply drop is shared, so the first player to claim it gets the item.
 
 ## Motion input and physical comfort
 
-MediaPipe Pose Landmarker estimates body landmarks in camera frames. Kinetix uses calibrated gesture heuristics for wrist movement, an upper-torso guard pose and small torso leans; it does not measure actual strike force. For Duo, the prototype attempts to track up to two bodies from the same camera. Good lighting and enough space between players improve tracking reliability.
+MediaPipe Pose Landmarker estimates body landmarks in camera frames. Kinetix uses calibrated gesture heuristics for wrist movement, an upper-torso guard pose and small torso leans; it does not measure actual strike force. For Duo, the prototype requests up to two poses, sorts them left-to-right, requires both players before calibration, and routes each player's gestures to independent controls. Automated checks cover this wiring, but real two-person webcam tracking still needs a hands-on test on supported devices. Good lighting and enough space between players improve tracking reliability.
 
 Keep the play area clear. Use controlled, comfortable air gestures only—no physical contact, striking objects, forceful jumps or high-impact movements. If tracking is lost, the match pauses until the required player(s) are visible again.
 
