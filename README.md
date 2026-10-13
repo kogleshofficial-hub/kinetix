@@ -59,6 +59,14 @@ Solo victories award Kinets: Easy **15**, Normal **20**, and Hard **30**. Kinets
 
 The current profile is stored in browser local storage on the current device. It is not an authenticated account, cannot sync across devices, and can be cleared by browser data deletion. A server-backed account and trusted economy would be required before treating balances, usernames, or purchases as secure.
 
+## Ranks, Perfect Reads and Last Light
+
+Solo wins award Rank XP: Easy **10**, Normal **20**, and Hard **35**. The local rank ladder is Rift Recruit, Kinetic Initiate, Pulse Adept, Rift Hunter, Void Vanguard, Rift Champion, and Kinetix Sovereign. Progress is based on solo victory difficulty; Duo play does not award progression currency or rank XP.
+
+A last-moment guard or lane-changing phase can trigger a Perfect Read with brief visual hit-stop, a pulse of sound and bonus energy. Once per solo round, surviving a hit with health at or below the next incoming hit's damage opens a short Last Light window. Press **F** only during a counter opening to perform the special counter. These are skill feedback and comeback tools, not random jackpots.
+
+Combo banners cost **100** or **250 Kinets** and appear in solo play from a five-hit combo. They are cosmetic. The current profile is stored in this browser only; no authenticated account, synced wallet, or online leaderboard exists.
+
 ## Current scope and limitations
 
 The prototype includes a solo AI encounter, same-device local duel, camera permission gate, pose calibration, touch/keyboard backup, health and mana meters, med kits, supply drops, hit/heal feedback, original Canvas fighter visuals, sound effects, pause/replay and a downloadable result card. Real-time online multiplayer, accounts, cloud leaderboards, payments and automatic camera recording are not included. Camera tracking and small-screen performance still need testing on a range of real devices before this can be called production-ready.

@@ -56,6 +56,15 @@
 .reward-earned{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:14px 0;padding:13px;border:1px solid rgba(255,211,111,.26);border-radius:7px;background:linear-gradient(110deg,rgba(255,211,111,.09),rgba(103,232,239,.04))}.reward-earned>span{color:#d4c29b;font:500 8px var(--mono);letter-spacing:.08em}.reward-earned>b{color:#ffdfa0;font:600 16px var(--mono)}.reward-earned>small{flex-basis:100%;color:#a39bb7;font-size:8px}
 @media(max-width:900px){.profile-card{grid-template-columns:1fr 1fr}.rename-form{grid-column:1/-1}.character-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.store-heading{gap:10px}.wallet-card{min-width:97px;padding:10px}.wallet-card strong{font-size:20px}.profile-card{grid-template-columns:1fr;gap:14px}.profile-equipped{padding:0;border:0}.rename-form{grid-column:auto;grid-template-columns:1fr}.rename-form label{grid-column:auto}.character-art{height:100px}.character-info{padding:11px}.character-info h3{font-size:12px}.character-info p{min-height:58px}.reward-rates{align-items:stretch}.reward-rates>strong{flex-basis:100%}.reward-rates span{flex:1;text-align:center;font-size:7px}}
+
+/* Rank ladder, combo banners, Perfect Reads and Last Light */
+.game-frame.perfect-hitstop{animation:perfect-hitstop .1s steps(2,end);box-shadow:0 0 0 1px rgba(134,255,242,.75),0 0 34px rgba(134,255,242,.22)}@keyframes perfect-hitstop{0%{transform:translateX(-2px)}35%{transform:translateX(2px)}70%{transform:translateY(-1px)}100%{transform:translate(0)}}
+.game-frame.comeback-active{box-shadow:0 0 0 1px rgba(255,106,167,.34),0 0 24px rgba(255,77,147,.08)}.move.last-light{grid-column:1/-1;min-height:78px;border-color:rgba(255,106,167,.23);background:linear-gradient(120deg,rgba(255,77,147,.06),rgba(20,23,47,.55))}.move.last-light.ready{border-color:rgba(255,106,167,.85);background:linear-gradient(120deg,rgba(255,77,147,.2),rgba(20,23,47,.82));box-shadow:0 0 25px rgba(255,77,147,.12)}.move.last-light .move-icon{color:#ff8ab9}.move.last-light.ready strong{color:#ffd5e6}.move.last-light:disabled{opacity:.58}
+.rank-track{margin:12px 0 4px;padding:15px;border:1px solid rgba(151,164,224,.17);border-radius:9px;background:rgba(5,7,20,.38)}.rank-track-top{display:flex;align-items:center;justify-content:space-between;gap:14px}.rank-track-top small,.rank-track-top strong,.rank-track-top span{display:block}.rank-track-top small{margin-bottom:5px;color:#8391b1;font:500 7px var(--mono);letter-spacing:.1em}.rank-track-top strong{color:#e2dcff;font-size:15px}.rank-track-top span{margin-top:5px;color:#8eaeb7;font:400 8px var(--mono)}.rank-track-top>b{color:#bfa7ff;font:500 9px var(--mono);text-align:right}.rank-progress-track{height:6px;margin:12px 0;border-radius:99px;overflow:hidden;background:rgba(151,164,224,.13)}.rank-progress-track i{display:block;width:0;height:100%;background:linear-gradient(90deg,#67e8ef,#b29bff,#ffd16a);transition:width .24s ease}.rank-ladder{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}.rank-tier{min-width:0;padding:9px 7px;border:1px solid rgba(151,164,224,.13);border-radius:6px;background:rgba(255,255,255,.018);opacity:.58}.rank-tier.unlocked{opacity:.9}.rank-tier.current{opacity:1;border-color:rgba(178,155,255,.68);background:rgba(178,155,255,.08);box-shadow:inset 0 0 17px rgba(178,155,255,.035)}.rank-tier>span,.rank-tier>b,.rank-tier>small,.rank-tier>em{display:block}.rank-tier>span{color:#8e91b7;font:500 7px var(--mono)}.rank-tier>b{min-height:27px;margin:7px 0;color:#d3d9f0;font-size:8px;line-height:1.5;overflow-wrap:anywhere}.rank-tier small{color:#7b88a9;font:500 6px var(--mono);letter-spacing:.05em}.rank-tier.current small{color:#d3bfff}.rank-tier em{margin-top:7px;color:#8e99b7;font:400 7px var(--mono);font-style:normal}
+.combo-banner-shop{margin-top:18px;padding:15px;border:1px solid rgba(151,164,224,.15);border-radius:9px;background:rgba(5,7,20,.3)}.combo-banner-heading{display:flex;align-items:end;justify-content:space-between;margin-bottom:12px}.combo-banner-heading small{color:#8594b2;font:500 7px var(--mono);letter-spacing:.1em}.combo-banner-heading h3{margin:6px 0;font-size:15px}.combo-banner-heading p{margin:0;color:#929dbb;font-size:9px;line-height:1.6}.banner-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.banner-card{min-width:0;display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid rgba(151,164,224,.16);border-radius:7px;background:rgba(255,255,255,.025)}.banner-card.equipped{border-color:rgba(103,232,239,.6);background:rgba(103,232,239,.045)}.banner-card>span{color:#8495b7;font:500 7px var(--mono);letter-spacing:.1em}.banner-card>b{min-height:24px;color:#d7e9ff;font:600 13px var(--mono);overflow-wrap:anywhere}.banner-card:nth-child(2)>b{color:#77f2d8}.banner-card:nth-child(3)>b{color:#d3adff}.banner-card>small{color:#9aa7c8;font:400 7px var(--mono)}.banner-card .btn{margin-top:auto;justify-content:center;min-height:36px;padding:7px 5px;font-size:7px;white-space:normal}
+.rank-up-banner{margin:10px 0;padding:14px;border:1px solid rgba(178,155,255,.5);border-radius:7px;background:linear-gradient(105deg,rgba(178,155,255,.14),rgba(103,232,239,.06));text-align:center}.rank-up-banner span,.rank-up-banner b,.rank-up-banner small{display:block}.rank-up-banner span{color:#c1b2ff;font:500 7px var(--mono);letter-spacing:.15em}.rank-up-banner b{margin:7px 0;color:#fbf1ff;font-size:17px;letter-spacing:.04em}.rank-up-banner small{color:#a8a8c8;font-size:8px}
+@media(max-width:900px){.rank-ladder{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:520px){.rank-track{padding:10px}.rank-track-top{align-items:flex-start}.rank-track-top>b{font-size:7px}.rank-ladder{grid-template-columns:repeat(2,minmax(0,1fr))}.rank-tier>b{min-height:auto}.banner-grid{grid-template-columns:1fr}.banner-card{display:grid;grid-template-columns:1fr auto;gap:6px 10px}.banner-card>span,.banner-card>b,.banner-card>small{grid-column:1}.banner-card .btn{grid-column:2;grid-row:1/4;min-width:104px}}
 </style>
 </head>
 <body>
@@ -131,7 +140,20 @@
         <button class="btn secondary" type="submit">CHANGE NAME · 100 ◈</button>
       </form>
     </div>
-    <p id="store-status" class="store-status" role="status" aria-live="polite">Win solo rounds to earn Kinets. Your wallet and styles are saved in this browser.</p>
+    <div class="rank-track">
+      <div class="rank-track-top"><div><small>RANK LADDER / SOLO WINS</small><strong id="rank-name">Rift Recruit</strong><span id="rank-next-label">100 XP TO KINETIC INITIATE</span></div><b id="rank-xp-label">0 / 100 RANK XP</b></div>
+      <div class="rank-progress-track"><i id="rank-progress-fill"></i></div>
+      <div class="rank-ladder">
+        <div class="rank-tier current unlocked" data-rank-id="recruit"><span>01</span><b>Rift Recruit</b><small data-rank-state>CURRENT</small><em>0 XP</em></div>
+        <div class="rank-tier" data-rank-id="initiate"><span>02</span><b>Kinetic Initiate</b><small data-rank-state>LOCKED</small><em>100 XP</em></div>
+        <div class="rank-tier" data-rank-id="adept"><span>03</span><b>Pulse Adept</b><small data-rank-state>LOCKED</small><em>250 XP</em></div>
+        <div class="rank-tier" data-rank-id="hunter"><span>04</span><b>Rift Hunter</b><small data-rank-state>LOCKED</small><em>500 XP</em></div>
+        <div class="rank-tier" data-rank-id="vanguard"><span>05</span><b>Void Vanguard</b><small data-rank-state>LOCKED</small><em>850 XP</em></div>
+        <div class="rank-tier" data-rank-id="champion"><span>06</span><b>Rift Champion</b><small data-rank-state>LOCKED</small><em>1,300 XP</em></div>
+        <div class="rank-tier" data-rank-id="sovereign"><span>07</span><b>Kinetix Sovereign</b><small data-rank-state>LOCKED</small><em>1,900 XP</em></div>
+      </div>
+    </div>
+    <p id="store-status" class="store-status" role="status" aria-live="polite">Win solo rounds to earn Kinets and Rank XP. Rank progress is skill-earned and saved in this browser.</p>
     <div class="character-grid" aria-label="Character style shop">
       <article class="character-card rarity-starter" data-character-card="starter">
         <div class="character-art"><span class="character-orbit"></span><span class="character-mark">K</span></div>
@@ -150,7 +172,15 @@
         <div class="character-info"><span class="rarity-label" data-character-state>LEGENDARY</span><h3>Rift Sovereign</h3><p>Gold light and a twin-ring halo effect.</p><small>600 KINETS</small><button type="button" class="btn secondary" data-character-action="legendary">UNLOCK · 600 KINETS</button></div>
       </article>
     </div>
-    <div class="reward-rates"><strong>SOLO VICTORY REWARDS</strong><span><b>EASY</b> +15 Kinets</span><span><b>NORMAL</b> +20 Kinets</span><span><b>HARD</b> +30 Kinets</span></div>
+    <div class="combo-banner-shop">
+      <div class="combo-banner-heading"><div><small>PERSONAL STYLE</small><h3>COMBO BANNERS</h3><p>Choose what your combo calls itself once it reaches 5 hits in solo play.</p></div></div>
+      <div class="banner-grid">
+        <article class="banner-card equipped" data-banner-card="classic"><span>BASE</span><b>COMBO</b><small>FREE · ALWAYS AVAILABLE</small><button type="button" class="btn secondary" data-banner-action="classic">EQUIPPED</button></article>
+        <article class="banner-card" data-banner-card="unstoppable"><span>HYPE</span><b>UNSTOPPABLE</b><small>100 KINETS</small><button type="button" class="btn secondary" data-banner-action="unstoppable">UNLOCK · 100 KINETS</button></article>
+        <article class="banner-card" data-banner-card="riftbreaker"><span>FINISHER</span><b>RIFT BREAKER</b><small>250 KINETS</small><button type="button" class="btn secondary" data-banner-action="riftbreaker">UNLOCK · 250 KINETS</button></article>
+      </div>
+    </div>
+    <div class="reward-rates"><strong>SOLO VICTORY REWARDS</strong><span><b>EASY</b> +15 Kinets · 10 Rank XP</span><span><b>NORMAL</b> +20 Kinets · 20 Rank XP</span><span><b>HARD</b> +30 Kinets · 35 Rank XP</span></div>
     <p class="store-footnote">No purchase with real money. Local profile only for this browser/device right now; username and Kinets are not connected to an online account yet. Duo matches do not pay Kinets.</p>
   </section>
   <section class="features"><div class="feature"><em>01</em><div><strong>READ THE RIFT</strong><p>Every attack tells a story before it lands.</p></div></div><div class="feature"><em>02</em><div><strong>MOVE WITH INTENT</strong><p>Guard, phase, and pulse at the right moment.</p></div></div><div class="feature"><em>03</em><div><strong>OWN THE FINISH</strong><p>Build energy. Release NOVA. Claim the round.</p></div></div></section>
@@ -174,6 +204,7 @@
     <button class="move nova" data-action="NOVA" id="nova-button" disabled><span class="key">Q</span><span class="move-icon"><svg viewBox="0 0 32 32"><path d="m16 2 3.2 9.8L29 16l-9.8 3.2L16 29l-3.2-9.8L3 16l9.8-4.2L16 2Z"/><circle cx="16" cy="16" r="4"/></svg></span><strong>NOVA</strong><small id="nova-label">100% TO CHARGE</small></button>
     <button class="move" data-action="COLLECT"><span class="key">R</span><span class="move-icon"><svg viewBox="0 0 32 32"><path d="M16 3v26M3 16h26"/><circle cx="16" cy="16" r="12"/></svg></span><strong>CLAIM DROP</strong><small>SUPPLY PICKUP</small></button>
     <button class="move" data-action="MEDKIT"><span class="key">E</span><span class="move-icon"><svg viewBox="0 0 32 32"><rect x="4" y="8" width="24" height="19" rx="3"/><path d="M11 8V5h10v3M16 12v11m-5.5-5.5h11"/></svg></span><strong>MED KIT</strong><small>RESTORE UP TO 28 HP</small></button>
+    <button class="move last-light" data-action="LAST_LIGHT" id="last-light-button" disabled><span class="key">F</span><span class="move-icon"><svg viewBox="0 0 32 32"><path d="M16 2v9m0 10v9M2 16h9m10 0h9M6 6l6 6m8 8 6 6M26 6l-6 6m-8 8-6 6"/><circle cx="16" cy="16" r="6"/></svg></span><strong>LAST LIGHT</strong><small id="last-light-label">UNLOCKS AT CRITICAL HP</small></button>
   </div>
   <div class="gesture-guide" id="gesture-guide">
     <div class="gesture-guide-head"><strong>GESTURE QUICKSTART</strong><small>CAMERA CONTROLS</small></div>

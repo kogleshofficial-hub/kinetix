@@ -68,7 +68,13 @@ jobs:
           if (!source.includes("price:120") || !source.includes("price:300") || !source.includes("price:600")) throw new Error('Character style price ladder is missing.');
           if (!html.includes('id="kinet-store"') || !html.includes('id="username-form"') || !html.includes('data-character-action="legendary"')) throw new Error('Kinets shop markup is incomplete.');
           if (!html.includes('LOCAL PILOT') || !html.includes('Duo matches do not pay Kinets.')) throw new Error('Shop must explain local-only profile and Solo-only earning.');
-          console.log('Validated ' + referenced.length + ' DOM references, ' + ids.length + ' unique DOM IDs, difficulty profiles, Duo input wiring, and local Kinets/store code. Duo webcam behavior still requires manual testing.');
+          for (const rate of ["easy:10","normal:20","hard:35"]) if (!source.includes(rate)) throw new Error('Incorrect or missing rank XP reward: ' + rate);
+          for (const rank of ['Rift Recruit','Kinetic Initiate','Pulse Adept','Rift Hunter','Void Vanguard','Rift Champion','Kinetix Sovereign']) if (!source.includes(rank)) throw new Error('Missing rank ladder tier: ' + rank);
+          for (const component of ['triggerPerfectDefense','checkAdrenaline','LAST_LIGHT','perfectFxUntil','hitStopUntil']) if (!source.includes(component)) throw new Error('Missing skill-feedback mechanic: ' + component);
+          for (const item of ['COMBO_BANNERS','handleBannerAction','rank-progress-fill','rank-xp-label']) if (!(source+'\n'+html).includes(item)) throw new Error('Missing rank/banner feature: ' + item);
+          if (!source.includes("if(g.mode!=='solo'||g.rewardGranted)return;")) throw new Error('Rewards must be Solo-only and protected from duplicate claims.');
+          if (!source.includes("if(g.mode==='solo'&&g.combo>=5")) throw new Error('Combo banners must only appear from five-hit solo combos.');
+          console.log('Validated ' + referenced.length + ' DOM references, ' + ids.length + ' unique DOM IDs, difficulty profiles, Duo input wiring, Kinets wallet, ranks, combo banners and comeback feedback. Duo webcam behavior still requires manual testing.');
           NODE
       - name: Validate JavaScript syntax
         run: node --check src/main.js
