@@ -6,6 +6,7 @@ const modelUrl = '/models/pose_landmarker_lite.task';
 const wasmUrl = '/mediapipe/wasm';
 let soundOn = true, reducedMotion = false, cameraStatus = 'off', cameraMode = false, trackingOkay = false, paused = false;
 let stream = null, landmarker = null, cameraRAF = 0, cameraLoopStarted = false, cameraStarting = false, lastVideoTime = -1, lastInference = 0;
+let lastTrackingAt = 0;
 let neutralLean = 0, calibrated = false, lastPose = null, secondPose = null, priorPose = null, priorPoseAt = 0, lastPulse = -9999, lastGuard = -9999, lastPhase = -9999, priorGuardPose = false, priorLeanSide = 0;
 let cameraTargetMode='solo',neutralLeans=[0,0];
 const motionMemory=[{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0},{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0}];
@@ -212,8 +213,20 @@ $('play-duo-camera').addEventListener('click',()=>chooseGameMode('duo'));
 $('enable-camera').addEventListener('click',()=>{void startCamera('lobby');});
 $('gate-retry').addEventListener('click',()=>{void startCamera('lobby');});
 $('calibrate-start').addEventListener('click',()=>{
- const one=shape(lastPose),two=shape(secondPose);if(!one||(cameraTargetMode==='duo'&&!two)){showError(cameraTargetMode==='duo'?'Both players must be visible. Move apart so both upper bodies fit in the camera.':'I cannot see your full upper body yet. Adjust your camera and try again.');return;}
- neutralLean=one.lean;neutralLeans=[one.lean,two?two.lean:0];calibrated=true;cameraMode=true;priorGuardPose=false;priorLeanSide=0;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});showError('');$('setup-title').textContent='MOTION CALIBRATED';$('setup-copy').textContent=cameraTargetMode==='duo'?'Both players are calibrated. Use comfortable wrist movements to PULSE, raise hands near the torso to GUARD, and make a small lean to PHASE.':'PULSE with a deliberate wrist movement, GUARD with hands near your upper torso, and PHASE with a small torso lean.';beginGame(cameraTargetMode);$('mode-pill').classList.add('live');$('move-mode').textContent=cameraTargetMode==='duo'?'TWO PLAYERS · GESTURES + TOUCH':'GESTURES + BUTTON BACKUP';$('camera-hint').classList.add('hidden');
+ const one=shape(lastPose),two=shape(secondPose);
+ if(!trackingOkay||!one||(cameraTargetMode==='duo'&&!two)){
+  $('calibrate-start').disabled=true;
+  showError(cameraTargetMode==='duo'?'Waiting for both players. Stand apart and keep shoulders and hips visible in the camera.':'Waiting for a clear body track. Step back slightly and keep your shoulders and hips in frame.');
+  return;
+ }
+ neutralLean=one.lean;neutralLeans=[one.lean,two?two.lean:0];calibrated=true;cameraMode=true;priorGuardPose=false;priorLeanSide=0;
+ motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});
+ showError('');
+ $('setup-title').textContent='MOTION CALIBRATED';
+ $('setup-copy').textContent=cameraTargetMode==='duo'?'Both players are calibrated. Use the on-screen controls any time; visible wrist movements trigger PULSE, hands near the torso trigger GUARD, and small torso leans trigger PHASE.':'Ready. On-screen controls always work while tracking is live; visible wrist movements trigger PULSE, hands near the torso trigger GUARD, and small torso leans trigger PHASE.';
+ beginGame(cameraTargetMode);$('mode-pill').classList.add('live');
+ $('move-mode').textContent=cameraTargetMode==='duo'?'TWO PLAYERS · GESTURES + TOUCH':'GESTURES + BUTTON BACKUP';
+ $('camera-hint').classList.add('hidden');
 });
 $('duo-touch-start').addEventListener('click',()=>{stopCamera(false);cameraMode=false;calibrated=false;beginGame('duo');$('mode-pill').innerHTML='<b></b>2P TOUCH DUEL';$('move-mode').textContent='SPLIT TOUCH CONTROLS';$('camera-hint').classList.add('hidden');});
 $('stop-camera').addEventListener('click',()=>lockToCameraGate('Camera stopped. Re-enable camera access to continue.'));$('camera-close').addEventListener('click',()=>lockToCameraGate('Camera stopped. Re-enable camera access to continue.'));$('brand-home').addEventListener('click',()=>returnToModeSelection());$('pause').addEventListener('click',pauseGame);
@@ -231,13 +244,15 @@ function chooseGameMode(mode){
   if(!cameraStarting)void startCamera('lobby');
   return;
  }
- cameraTargetMode=mode;calibrated=false;trackingOkay=false;lastPose=null;secondPose=null;priorPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});
+ cameraTargetMode=mode;calibrated=false;trackingOkay=false;lastTrackingAt=0;lastPose=null;secondPose=null;priorPose=null;
+ motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});
  $('camera-gate').classList.add('hidden');$('setup').classList.remove('hidden');
- $('setup-title').textContent=mode==='duo'?'FIND BOTH PLAYERS':'CALIBRATE YOUR MOVEMENT';
- $('setup-copy').textContent=mode==='duo'?'Stand apart so both players are visible from head to hips. Wait for TWO PLAYERS TRACKED, then calibrate together.':'Stand where your head, shoulders, wrists and hips are visible. Wait for tracking, then calibrate.';
- $('calibrate-start').textContent=mode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';
+ $('setup-title').textContent=mode==='duo'?'LOOKING FOR BOTH PLAYERS':'LOOKING FOR PLAYER';
+ $('setup-copy').textContent=mode==='duo'?'Stand side by side with space between you. Keep both shoulders and hips visible. The start button unlocks automatically when both bodies are detected.':'Keep your shoulders and hips inside the camera frame. The start button unlocks automatically when your body is detected.';
+ $('calibrate-start').disabled=true;
+ $('calibrate-start').textContent=mode==='duo'?'WAITING FOR TWO PLAYERS…':'WAITING FOR PLAYER…';
  $('calibrate-start').classList.remove('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');
- $('camera-hint').textContent=mode==='duo'?'TWO PLAYERS: STAND APART, BOTH UPPER BODIES VISIBLE':'KEEP HEAD, SHOULDERS, WRISTS AND HIPS IN FRAME';
+ $('camera-hint').textContent=mode==='duo'?'P1 LEFT · P2 RIGHT · KEEP BOTH BODIES IN FRAME':'KEEP SHOULDERS AND HIPS IN FRAME';
  $('camera-hint').classList.remove('hidden');showError('');
 }
 function lockToCameraGate(message){
@@ -269,52 +284,97 @@ async function startCamera(targetMode='lobby'){
   let pose;
   try{pose=await PoseLandmarker.createFromOptions(files,options);}
   catch(gpuError){pose=await PoseLandmarker.createFromOptions(files,{...options,baseOptions:{...options.baseOptions,delegate:'CPU'}});}
-  landmarker=pose;cameraStatus='ready';cameraStarting=false;cameraMode=true;calibrated=false;trackingOkay=false;lastPose=null;secondPose=null;priorPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});$('camera-gate').classList.add('hidden');$('gate-retry').disabled=false;$('setup').classList.remove('hidden');if(cameraTargetMode==='lobby'){$('setup-title').textContent='CAMERA CONNECTED';$('setup-copy').textContent='Camera permission is active. Choose Solo or Duo, then calibrate your movement before the fight.';$('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');}else{$('setup-title').textContent=cameraTargetMode==='duo'?'CAMERA READY — FIND TWO PLAYERS':'CAMERA READY — FIND PLAYER';$('setup-copy').textContent=cameraTargetMode==='duo'?'Both players should stand apart and keep head, shoulders, wrists and hips visible. Safe air gestures only—no contact. Calibrate when both are tracked.':'Keep head, shoulders, wrists and hips in frame. Stand comfortably and calibrate when ready.';$('calibrate-start').textContent=cameraTargetMode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';$('calibrate-start').classList.remove('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');}$('camera-label').textContent='CAMERA PREVIEW';$('camera-dot').classList.remove('live');$('camera-hint').textContent='CHOOSE SOLO OR DUO TO CALIBRATE';$('camera-hint').classList.remove('hidden');runCameraLoop();
+  landmarker=pose;cameraStatus='ready';cameraStarting=false;cameraMode=true;calibrated=false;trackingOkay=false;lastTrackingAt=0;lastPose=null;secondPose=null;priorPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});$('camera-gate').classList.add('hidden');$('gate-retry').disabled=false;$('setup').classList.remove('hidden');if(cameraTargetMode==='lobby'){$('setup-title').textContent='CAMERA CONNECTED';$('setup-copy').textContent='Camera permission is active. Choose Solo or Duo, then calibrate your movement before the fight.';$('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');}else{$('setup-title').textContent=cameraTargetMode==='duo'?'CAMERA READY — FIND TWO PLAYERS':'CAMERA READY — FIND PLAYER';$('setup-copy').textContent=cameraTargetMode==='duo'?'Both players should stand apart and keep head, shoulders, wrists and hips visible. Safe air gestures only—no contact. Calibrate when both are tracked.':'Keep head, shoulders, wrists and hips in frame. Stand comfortably and calibrate when ready.';$('calibrate-start').textContent=cameraTargetMode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';$('calibrate-start').classList.remove('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');}$('camera-label').textContent='CAMERA PREVIEW';$('camera-dot').classList.remove('live');$('camera-hint').textContent='CHOOSE SOLO OR DUO TO CALIBRATE';$('camera-hint').classList.remove('hidden');runCameraLoop();
  }catch(err){stopCamera(false);cameraStarting=false;cameraStatus='error';cameraMode=false;$('camera-gate').classList.remove('hidden');$('gate-title').textContent='Camera access is required.';$('gate-copy').textContent='Kinetix cannot start a round until the browser allows camera access. Check site permissions, then retry. Your camera is not recorded.';$('gate-status').className='gate-status error';$('gate-status').textContent=(err&&err.name==='NotAllowedError')?'CAMERA PERMISSION DENIED — ALLOW IT IN BROWSER SETTINGS':(err&&err.message?err.message:'CAMERA SETUP FAILED');$('gate-retry').disabled=false;$('setup-title').textContent='CAMERA UNAVAILABLE';showError(err&&err.message?err.message:'Camera setup failed. Please retry.');$('setup-copy').textContent='Allow camera access in your browser, then select Retry. Solo and Duo both require a working camera.';$('enable-camera').disabled=false;$('enable-camera').textContent='RETRY CAMERA ACCESS';$('enable-camera').classList.remove('hidden');}
 }
 function stopCamera(resetUI){
- cancelAnimationFrame(cameraRAF);cameraLoopStarted=false;stream&&stream.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;try{landmarker&&landmarker.close();}catch{}landmarker=null;cameraPanel.classList.add('off');cameraStatus='off';cameraMode=false;calibrated=false;trackingOkay=false;lastPose=null;priorPose=null;$('calibrate-start').classList.add('hidden');$('enable-camera').disabled=false;$('enable-camera').innerHTML='<svg viewBox="0 0 24 24"><path d="M4 7.5h3l1.7-2h6.6l1.7 2h3A1.5 1.5 0 0 1 21.5 9v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9A1.5 1.5 0 0 1 4 7.5Z"/><circle cx="12" cy="13" r="3.5"/></svg> PLAY WITH CAMERA';$('mode-pill').innerHTML='<b></b>KEYBOARD MODE';$('mode-pill').classList.remove('live');$('move-mode').textContent='KEYBOARD / CLICK CONTROLS';if(resetUI){$('setup').classList.add('hidden');}$('duo-touch-start').classList.add('hidden');secondPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;}); }
+ cancelAnimationFrame(cameraRAF);cameraLoopStarted=false;stream&&stream.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;try{landmarker&&landmarker.close();}catch{}landmarker=null;cameraPanel.classList.add('off');cameraStatus='off';cameraMode=false;calibrated=false;trackingOkay=false;lastTrackingAt=0;lastPose=null;priorPose=null;$('calibrate-start').classList.add('hidden');$('enable-camera').disabled=false;$('enable-camera').innerHTML='<svg viewBox="0 0 24 24"><path d="M4 7.5h3l1.7-2h6.6l1.7 2h3A1.5 1.5 0 0 1 21.5 9v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9A1.5 1.5 0 0 1 4 7.5Z"/><circle cx="12" cy="13" r="3.5"/></svg> PLAY WITH CAMERA';$('mode-pill').innerHTML='<b></b>KEYBOARD MODE';$('mode-pill').classList.remove('live');$('move-mode').textContent='KEYBOARD / CLICK CONTROLS';if(resetUI){$('setup').classList.add('hidden');}$('duo-touch-start').classList.add('hidden');secondPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;}); }
 function poseCenterX(p){return ((p[11]?.x||0)+(p[12]?.x||0))/2;}
 function runCameraLoop(){
  if(cameraLoopStarted)return;cameraLoopStarted=true;
  const track=now=>{
   if(!landmarker||cameraStatus!=='ready')return;
-  if(video.readyState>=2&&now-lastInference>82&&video.currentTime!==lastVideoTime){
+  if(video.readyState>=2&&now-lastInference>65&&video.currentTime!==lastVideoTime){
    lastInference=now;lastVideoTime=video.currentTime;
    try{
     const result=landmarker.detectForVideo(video,now);
-    const poses=(result.landmarks||[]).filter(p=>p&&p.length>24).sort((a,b)=>poseCenterX(b)-poseCenterX(a));
+    // Keep player assignment consistent with the labels: Player 1 is on the left.
+    const poses=(result.landmarks||[]).filter(p=>p&&p.length>24).sort((a,b)=>poseCenterX(a)-poseCenterX(b));
     lastPose=poses[0]||null;secondPose=cameraTargetMode==='duo'?(poses[1]||null):null;
-    const oneReady=!!(lastPose&&shape(lastPose)),twoReady=cameraTargetMode!=='duo'||!!(secondPose&&shape(secondPose));
-    trackingOkay=oneReady&&twoReady;
+    const oneReady=!!shape(lastPose),twoReady=cameraTargetMode!=='duo'||!!shape(secondPose);
+    if(oneReady&&twoReady){lastTrackingAt=now;trackingOkay=true;}
+    else trackingOkay=!!lastTrackingAt&&now-lastTrackingAt<650;
+
     if(trackingOkay){
-      $('camera-dot').classList.add('live');$('camera-label').textContent=cameraTargetMode==='duo'?'TWO PLAYERS TRACKED':'MOTION LIVE';$('camera-hint').classList.add('hidden');
-      if(calibrated&&g.status==='playing'&&!paused){detectMotion(lastPose,now,1);if(cameraTargetMode==='duo')detectMotion(secondPose,now,2);}
+     $('camera-dot').classList.add('live');
+     $('camera-label').textContent=cameraTargetMode==='duo'?'TWO PLAYERS TRACKED':'MOTION LIVE';
+     $('camera-hint').classList.add('hidden');
+     if(cameraTargetMode!=='lobby'&&!home.classList.contains('hidden')&&!setup.classList.contains('hidden')){
+      $('calibrate-start').disabled=false;
+      $('calibrate-start').textContent=cameraTargetMode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';
+      $('setup-title').textContent=cameraTargetMode==='duo'?'BOTH PLAYERS DETECTED':'PLAYER DETECTED';
+      $('setup-copy').textContent=cameraTargetMode==='duo'?'Both bodies are visible. Calibrate now to begin the local duel.':'Your body is visible. Calibrate now to start the Rift encounter.';
+      showError('');
+     }
+     if(calibrated&&g.status==='playing'&&!paused){detectMotion(lastPose,now,1);if(cameraTargetMode==='duo')detectMotion(secondPose,now,2);}
     }else{
-      $('camera-dot').classList.remove('live');$('camera-label').textContent=cameraTargetMode==='duo'?'NEED TWO PLAYERS':'FINDING PLAYER';$('camera-hint').textContent=cameraTargetMode==='duo'?'BOTH PLAYERS MUST BE VISIBLE TO USE GESTURES':'KEEP YOUR UPPER BODY IN FRAME';$('camera-hint').classList.remove('hidden');
-      motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});priorPose=null;priorGuardPose=false;priorLeanSide=0;
+     $('camera-dot').classList.remove('live');
+     $('camera-label').textContent=cameraTargetMode==='duo'?'NEED TWO PLAYERS':'FINDING PLAYER';
+     $('camera-hint').textContent=cameraTargetMode==='duo'?'BOTH PLAYERS MUST BE VISIBLE':'KEEP SHOULDERS AND HIPS IN FRAME';
+     $('camera-hint').classList.remove('hidden');
+     if(cameraTargetMode!=='lobby'&&!home.classList.contains('hidden')&&!setup.classList.contains('hidden')){
+      $('calibrate-start').disabled=true;
+      $('calibrate-start').textContent=cameraTargetMode==='duo'?'WAITING FOR TWO PLAYERS…':'WAITING FOR PLAYER…';
+      $('setup-title').textContent=cameraTargetMode==='duo'?'LOOKING FOR BOTH PLAYERS':'LOOKING FOR PLAYER';
+      $('setup-copy').textContent=cameraTargetMode==='duo'?'Move apart and keep both shoulders and hips in frame. Avoid standing directly in front of one another.':'Step back enough for your shoulders and hips to fit in frame, and face the camera.';
+     }
+     if(!trackingOkay){motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});priorPose=null;priorGuardPose=false;priorLeanSide=0;}
     }
-   }catch{}
+   }catch(error){
+    console.error('Kinetix pose detection failed:',error);
+    $('camera-label').textContent='TRACKING RETRYING';
+   }
   }
   cameraRAF=requestAnimationFrame(track);
  };
  cameraRAF=requestAnimationFrame(track);
 }
+function landmarkVisible(point,threshold=.22){
+ return !!point&&(point.visibility===undefined||point.visibility>=threshold);
+}
 function shape(p){
- const pts=[p[11],p[12],p[15],p[16],p[23],p[24],p[0]];if(pts.some(q=>!q||(q.visibility!==undefined&&q.visibility<.48)))return null;const ls=p[11],rs=p[12],lw=p[15],rw=p[16],lh=p[23],rh=p[24],sc={x:(ls.x+rs.x)/2,y:(ls.y+rs.y)/2},hc={x:(lh.x+rh.x)/2,y:(lh.y+rh.y)/2},sw=Math.hypot(ls.x-rs.x,ls.y-rs.y);if(sw<.06||Math.abs(hc.y-sc.y)<.08)return null;return{sw,sy:sc.y,hy:hc.y,lean:(sc.x-hc.x)/sw,lw,rw};}
+ if(!p||p.length<=24)return null;
+ const ls=p[11],rs=p[12],lh=p[23],rh=p[24];
+ // Tracking readiness is based on the torso, not a visible nose and two perfectly visible wrists.
+ if(![ls,rs,lh,rh].every(point=>landmarkVisible(point,.2)))return null;
+ const sc={x:(ls.x+rs.x)/2,y:(ls.y+rs.y)/2};
+ const hc={x:(lh.x+rh.x)/2,y:(lh.y+rh.y)/2};
+ const sw=Math.hypot(ls.x-rs.x,ls.y-rs.y),torsoHeight=hc.y-sc.y;
+ if(sw<.035||torsoHeight<.035||torsoHeight>.8)return null;
+ const lw=landmarkVisible(p[15],.2)?p[15]:null;
+ const rw=landmarkVisible(p[16],.2)?p[16]:null;
+ return{sw,sy:sc.y,hy:hc.y,lean:(sc.x-hc.x)/sw,lw,rw,wristsReady:!!(lw&&rw)};
+}
 function detectMotion(points,now,player=1){
  const mem=motionMemory[player-1]||motionMemory[0],s=shape(points);
  if(!s){mem.priorPose=null;mem.guardPose=false;mem.leanSide=0;return;}
  if(!mem.priorPose){mem.priorPose=points;mem.priorAt=now;return;}
  const dt=Math.min((now-mem.priorAt)/1000,.25);
  if(dt>=.025&&dt<=.25){
-  const oldL=mem.priorPose[15],oldR=mem.priorPose[16],speed=(a,b)=>a&&b&&(a.visibility===undefined||a.visibility>.48)&&(b.visibility===undefined||b.visibility>.48)?Math.hypot(a.x-b.x,a.y-b.y)/Math.max(s.sw,.08)/dt:0;
-  const v=Math.max(speed(oldL,s.lw),speed(oldR,s.rw));
-  if(v>2.5&&now-mem.lastPulse>560){action('PULSE',player);mem.lastPulse=now;}
-  const guard=s.lw.y>s.sy-s.sw*.05&&s.lw.y<s.hy&&s.rw.y>s.sy-s.sw*.05&&s.rw.y<s.hy&&Math.hypot(s.lw.x-s.rw.x,s.lw.y-s.rw.y)<s.sw*.68;
-  if(guard&&!mem.guardPose&&now-mem.lastGuard>850){action('GUARD',player);mem.lastGuard=now;}mem.guardPose=guard;
-  const lean=s.lean-neutralLeans[player-1],leanSide=lean<-.23?-1:lean>.23?1:0;
-  if(leanSide!==0&&mem.leanSide===0&&now-mem.lastPhase>650){action(leanSide<0?'PHASE_LEFT':'PHASE_RIGHT',player);mem.lastPhase=now;}mem.leanSide=leanSide;
+  const oldL=mem.priorPose[15],oldR=mem.priorPose[16];
+  const visibleWrist=point=>landmarkVisible(point,.2);
+  if(s.wristsReady&&visibleWrist(oldL)&&visibleWrist(oldR)){
+   const speed=(a,b)=>visibleWrist(a)&&visibleWrist(b)?Math.hypot(a.x-b.x,a.y-b.y)/Math.max(s.sw,.06)/dt:0;
+   const v=Math.max(speed(oldL,s.lw),speed(oldR,s.rw));
+   if(v>1.65&&now-mem.lastPulse>560){action('PULSE',player);mem.lastPulse=now;}
+   const guard=s.lw.y>s.sy-s.sw*.12&&s.lw.y<s.hy&&s.rw.y>s.sy-s.sw*.12&&s.rw.y<s.hy&&Math.hypot(s.lw.x-s.rw.x,s.lw.y-s.rw.y)<s.sw*.9;
+   if(guard&&!mem.guardPose&&now-mem.lastGuard>850){action('GUARD',player);mem.lastGuard=now;}
+   mem.guardPose=guard;
+  }else mem.guardPose=false;
+  // Lean is independent of wrist visibility, so PHASE remains usable if a hand leaves frame.
+  const lean=s.lean-neutralLeans[player-1],leanSide=lean<-.2?-1:lean>.2?1:0;
+  if(leanSide!==0&&mem.leanSide===0&&now-mem.lastPhase>650){action(leanSide<0?'PHASE_LEFT':'PHASE_RIGHT',player);mem.lastPhase=now;}
+  mem.leanSide=leanSide;
  }
  mem.priorPose=points;mem.priorAt=now;
 }
