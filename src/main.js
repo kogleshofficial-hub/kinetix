@@ -17,6 +17,12 @@ const DIFFICULTIES=Object.freeze({
 });
 let difficulty='beginner';
 function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.beginner;}
+const MOTION_SENSITIVITY=Object.freeze({
+ high:{label:'HIGH',minSpeed:.5,minTravel:.065,extensionDelta:.009,travelGrowth:.008,globalCooldown:62,handCooldown:90,returnTravel:.17},
+ max:{label:'MAX',minSpeed:.36,minTravel:.045,extensionDelta:.006,travelGrowth:.005,globalCooldown:45,handCooldown:70,returnTravel:.15}
+});
+let motionSensitivity='max';
+function sensitivityRules(){return MOTION_SENSITIVITY[motionSensitivity]||MOTION_SENSITIVITY.max;}
 let impactClearTimer=0;
 let audioContext = null, raf = 0, previousFrame = 0, lastHudAt = 0, lastEventStamp = -1, eventFxAt = performance.now();
 let bestRecord = 0;
@@ -89,7 +95,7 @@ function dualAction(kind,player=1){
  if(kind==='GUARD'){const wasGuarding=actor.guardUntil>g.clock;actor.guardUntil=Math.max(actor.guardUntil,g.clock+1.05);if(!wasGuarding)announce('block','P'+player+' SHIELD ACTIVE','good');updateHud();return;}
  if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-actor.lastPhase<.3)return;actor.lastPhase=g.clock;actor.lane=kind==='PHASE_LEFT'?-1:1;actor.dodgeUntil=g.clock+.68;actor.attackUntil=g.clock+.15;actor.mana=Math.min(100,actor.mana+2);announce('dodge','P'+player+' PHASE SHIFT','good');sfx('dodge');syncDuelState();updateHud();return;}
  if(kind==='PULSE'){
-   if(g.clock-actor.lastPulse<.075)return;
+   if(g.clock-actor.lastPulse<.055)return;
    actor.lastPulse=g.clock;
    // Low mana weakens a pulse; it no longer makes a clearly detected punch disappear.
    const powered=actor.mana>=10;
@@ -121,7 +127,7 @@ function action(kind,player=1){
  const before=g.event+':'+g.eventAt;if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+1.05);return;}
  if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-g.lastPhase<.3)return;g.lastPhase=g.clock;g.lane=kind==='PHASE_LEFT'?-1:1;g.dodgeUntil=g.clock+1.05;if(g.phase==='telegraph'&&g.target!==g.lane){g.energy=Math.min(100,g.energy+3);announce('dodge','PHASE SHIFT','good');sfx('dodge');}updateHud();return;}
  if(kind==='PULSE'){
-  if(g.clock-g.lastPulse<.075)return;
+  if(g.clock-g.lastPulse<.055)return;
   g.lastPulse=g.clock;
   const powered=g.energy>=4;
   g.energy=Math.max(0,g.energy-(powered?4:1));
@@ -257,6 +263,14 @@ document.querySelectorAll('[data-difficulty]').forEach(button=>button.addEventLi
  const summaries={beginner:'Beginner Training selected — slower bot attacks and longer openings.',normal:'Normal selected — balanced speed, damage and recovery.',hard:'Hard selected — faster attacks, stronger hits and shorter openings.'};
  $('difficulty-summary').textContent=summaries[difficulty];
 }));
+document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventListener('click',()=>{
+ const next=button.dataset.sensitivity;if(!MOTION_SENSITIVITY[next])return;motionSensitivity=next;
+ document.querySelectorAll('[data-sensitivity]').forEach(option=>{
+  const selected=option.dataset.sensitivity===motionSensitivity;option.classList.toggle('active',selected);option.setAttribute('aria-pressed',String(selected));
+ });
+ const summaries={max:'MAX sensitivity selected — shorter jabs and smaller wrist movements can trigger PULSE. Extra arm movement may also trigger it.',high:'HIGH sensitivity selected — slightly stricter detection to help reduce accidental pulses.'};
+ document.querySelectorAll('[data-sensitivity-summary]').forEach(node=>node.textContent=summaries[motionSensitivity]);
+}));
 $('play-keyboard').addEventListener('click',()=>chooseGameMode('solo'));
 $('play-duo-camera').addEventListener('click',()=>chooseGameMode('duo'));
 $('enable-camera').addEventListener('click',()=>{void startCamera('lobby');});
@@ -343,7 +357,7 @@ function runCameraLoop(){
  if(cameraLoopStarted)return;cameraLoopStarted=true;
  const track=now=>{
   if(!landmarker||cameraStatus!=='ready')return;
-  if(video.readyState>=2&&now-lastInference>28&&video.currentTime!==lastVideoTime){
+  if(video.readyState>=2&&now-lastInference>24&&video.currentTime!==lastVideoTime){
    lastInference=now;lastVideoTime=video.currentTime;
    try{
     const result=landmarker.detectForVideo(video,now);
@@ -411,18 +425,25 @@ function vectorDistance(a,b){
 }
 function armMotionSignature(points,side,shoulderWidth){
  const shoulder=points[side===0?11:12],elbow=points[side===0?13:14],wrist=points[side===0?15:16];
- if(!landmarkVisible(shoulder,.15)||!landmarkVisible(wrist,.14))return null;
+ if(!landmarkVisible(shoulder,.10)||!landmarkVisible(wrist,.08))return null;
  const position={x:(wrist.x-shoulder.x)/shoulderWidth,y:(wrist.y-shoulder.y)/shoulderWidth,z:((wrist.z||0)-(shoulder.z||0))/shoulderWidth};
  const hasElbow=landmarkVisible(elbow,.1),upper=hasElbow?vectorDistance(shoulder,elbow):0,lower=hasElbow?vectorDistance(elbow,wrist):0,reach=vectorDistance(shoulder,wrist);
  return{position,extension:hasElbow?reach/Math.max(upper+lower,.001):0,hasElbow,wrist,shoulder};
 }
 function detectMotion(points,now,player=1){
- const mem=motionMemory[player-1]||motionMemory[0],s=shape(points);
- if(!s){mem.priorPose=null;mem.guardPose=false;mem.leanSide=0;if(mem.punchHands)mem.punchHands.forEach(hand=>{hand.prev=null;});return;}
- if(!mem.punchHands)mem.punchHands=[{armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0},{armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0}];
+ const mem=motionMemory[player-1]||motionMemory[0],s=shape(points),tuning=sensitivityRules();
+ if(!s){
+  mem.priorPose=null;mem.guardPose=false;mem.leanSide=0;
+  if(mem.punchHands)mem.punchHands.forEach(hand=>{hand.prev=null;hand.lastTravel=0;});
+  return;
+ }
+ if(!mem.punchHands)mem.punchHands=[{armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0,lastTravel:0,peakTravel:0},{armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0,lastTravel:0,peakTravel:0}];
  if(!mem.priorPose){
   mem.priorPose=points;mem.priorAt=now;
-  mem.punchHands.forEach((hand,side)=>{const snap=armMotionSignature(points,side,s.sw);hand.base=snap;hand.prev=snap;hand.prevAt=now;hand.armed=true;hand.restFrames=0;});
+  mem.punchHands.forEach((hand,side)=>{
+   const snap=armMotionSignature(points,side,s.sw);
+   hand.base=snap;hand.prev=snap;hand.prevAt=now;hand.armed=true;hand.restFrames=0;hand.lastTravel=0;hand.peakTravel=0;
+  });
   return;
  }
  const dt=(now-mem.priorAt)/1000;
@@ -441,48 +462,73 @@ function detectMotion(points,now,player=1){
  }
  const wasGuarding=mem.guardPose;
  if(guard){
-  // Refresh the shield while the player holds an X-block; it should not expire mid-gesture.
+  // Refresh shield while X-blocking, and ignore the arm crossover itself as a punch.
   if(now-mem.lastGuard>460){action('GUARD',player);mem.lastGuard=now;}
   mem.guardPose=true;
-  mem.punchHands.forEach((hand,side)=>{const snap=armMotionSignature(points,side,s.sw);if(snap){hand.base=snap;hand.prev=snap;hand.prevAt=now;}hand.armed=true;hand.restFrames=0;});
+  mem.punchHands.forEach((hand,side)=>{
+   const snap=armMotionSignature(points,side,s.sw);
+   if(snap){hand.base=snap;hand.prev=snap;hand.prevAt=now;}
+   hand.armed=true;hand.restFrames=0;hand.lastTravel=0;hand.peakTravel=0;
+  });
  }else{
   mem.guardPose=false;
   if(wasGuarding){
-   // Rebase on the first frame after a block so uncrossing the arms is not counted as a punch.
-   mem.punchHands.forEach((hand,side)=>{const snap=armMotionSignature(points,side,s.sw);if(snap){hand.base=snap;hand.prev=snap;hand.prevAt=now;}hand.armed=true;hand.restFrames=0;});
+   mem.punchHands.forEach((hand,side)=>{
+    const snap=armMotionSignature(points,side,s.sw);
+    if(snap){hand.base=snap;hand.prev=snap;hand.prevAt=now;}
+    hand.armed=true;hand.restFrames=0;hand.lastTravel=0;hand.peakTravel=0;
+   });
   }else if(dt>=.018&&dt<=.3){
    for(let side=0;side<2;side++){
     const hand=mem.punchHands[side],current=armMotionSignature(points,side,s.sw),previous=hand.prev;
-    if(!current){hand.prev=null;hand.prevAt=now;continue;}
-    if(!previous||!hand.base){hand.prev=current;hand.prevAt=now;if(!hand.base)hand.base=current;continue;}
+    if(!current){hand.prev=null;hand.prevAt=now;hand.lastTravel=0;continue;}
+    if(!previous||!hand.base){
+     hand.prev=current;hand.prevAt=now;if(!hand.base)hand.base=current;
+     hand.lastTravel=0;hand.peakTravel=0;continue;
+    }
     const elapsed=Math.max(.018,(now-(hand.prevAt||now-50))/1000);
     const speed=vectorDistance(current.position,previous.position)/elapsed;
     const travel=vectorDistance(current.position,hand.base.position);
+    const previousTravel=Number.isFinite(hand.lastTravel)?hand.lastTravel:travel;
+    const growth=travel-previousTravel;
     const extensionDelta=current.extension-hand.base.extension;
+    hand.peakTravel=Math.max(hand.peakTravel||0,travel);
     if(!hand.armed){
-     if(travel<.19&&speed<1.15&&now-hand.lastPunchAt>110){
-      hand.armed=true;hand.base=current;hand.restFrames=0;
-     }else if(speed<.38&&now-hand.lastPunchAt>235){
-      hand.restFrames++;if(hand.restFrames>=2){hand.armed=true;hand.base=current;hand.restFrames=0;}
+     // A jab is a cycle: outbound motion triggers once, the return re-arms it.
+     // Requiring a short return toward the ready position avoids repeated hits from one swing.
+     if(now-hand.lastPunchAt>tuning.handCooldown&&travel<tuning.returnTravel&&speed<1.55){
+      hand.armed=true;hand.base=current;hand.lastTravel=0;hand.peakTravel=0;hand.restFrames=0;
+     }else if(speed<.38&&now-hand.lastPunchAt>230){
+      hand.restFrames++;
+      if(hand.restFrames>=2){hand.armed=true;hand.base=current;hand.lastTravel=0;hand.peakTravel=0;hand.restFrames=0;}
      }else hand.restFrames=0;
     }else{
-     if(speed<.48&&travel<.14){
-      const mix=(a,b)=>a+(b-a)*.04;
+     // Slowly follow the ready stance only while calm; don't chase an active jab's baseline.
+     if(speed<.42&&travel<.16){
+      const mix=(a,b)=>a+(b-a)*.055;
       hand.base={position:{x:mix(hand.base.position.x,current.position.x),y:mix(hand.base.position.y,current.position.y),z:mix(hand.base.position.z,current.position.z)},extension:mix(hand.base.extension,current.extension),hasElbow:current.hasElbow,wrist:current.wrist,shoulder:current.shoulder};
      }
-     // Wrist travel catches jabs; elbow extension provides another signal when that landmark is clear.
-     const extended=extensionDelta>.012&&travel>.045;
-     const decisiveTravel=travel>.105&&speed>.78;
-     const distinctPunch=speed>.64&&(extended||decisiveTravel);
-     if(distinctPunch&&now-mem.lastPulse>88&&now-hand.lastPunchAt>115){
+     const nowTravel=vectorDistance(current.position,hand.base.position);
+     const outwardGrowth=nowTravel>previousTravel+tuning.travelGrowth;
+     const extensionSignal=extensionDelta>tuning.extensionDelta&&nowTravel>.025;
+     const shortJab=nowTravel>tuning.minTravel&&speed>tuning.minSpeed&&outwardGrowth;
+     const extendingJab=extensionSignal&&speed>tuning.minSpeed*.88;
+     const distinctPunch=shortJab||extendingJab;
+     if(distinctPunch&&now-mem.lastPulse>tuning.globalCooldown&&now-hand.lastPunchAt>tuning.handCooldown){
       action('PULSE',player);mem.lastPulse=now;hand.lastPunchAt=now;hand.armed=false;hand.restFrames=0;
+      hand.peakTravel=Math.max(hand.peakTravel,nowTravel);
      }
+     hand.lastTravel=nowTravel;
     }
     hand.prev=current;hand.prevAt=now;
+    if(!hand.armed)hand.lastTravel=vectorDistance(current.position,hand.base.position);
    }
   }else{
-   // Keep history fresh after a slow inference frame so velocity does not accumulate across pauses.
-   mem.punchHands.forEach((hand,side)=>{const snap=armMotionSignature(points,side,s.sw);if(snap){hand.prev=snap;hand.prevAt=now;}});
+   // Don't let a skipped inference frame turn an ordinary movement into an enormous velocity spike.
+   mem.punchHands.forEach((hand,side)=>{
+    const snap=armMotionSignature(points,side,s.sw);
+    if(snap){hand.prev=snap;hand.prevAt=now;if(hand.base)hand.lastTravel=vectorDistance(snap.position,hand.base.position);}
+   });
   }
  }
  const lean=s.lean-neutralLeans[player-1],leanSide=lean<-.2?-1:lean>.2?1:0;
