@@ -1,0 +1,16 @@
+{
+  "name": "kinetix",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/prepare-assets.mjs && vite build"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.22"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
