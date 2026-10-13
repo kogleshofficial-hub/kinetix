@@ -100,7 +100,11 @@ const $ = (id) => document.getElementById(id);
 const home = $('home'), arena = $('arena'), canvas = $('game-canvas'), ctx = canvas.getContext('2d');
 const video = $('video'), cameraPanel = $('camera-panel'), setup = $('setup');
 const modelUrl = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
-const wasmUrl = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm';
+const visionSources = [
+ {name:'jsDelivr',module:'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs',wasm:'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm'},
+ {name:'UNPKG',module:'https://unpkg.com/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs',wasm:'https://unpkg.com/@mediapipe/tasks-vision@0.10.22/wasm'},
+ {name:'esm.sh',module:'https://esm.sh/@mediapipe/tasks-vision@0.10.22?bundle',wasm:'https://unpkg.com/@mediapipe/tasks-vision@0.10.22/wasm'}
+];
 let soundOn = true, reducedMotion = false, cameraStatus = 'off', cameraMode = false, trackingOkay = false, paused = false;
 let stream = null, landmarker = null, cameraRAF = 0, cameraLoopStarted = false, cameraStarting = false, lastVideoTime = -1, lastInference = 0;
 let neutralLean = 0, calibrated = false, lastPose = null, secondPose = null, priorPose = null, priorPoseAt = 0, lastPulse = -9999, lastGuard = -9999, lastPhase = -9999, priorGuardPose = false, priorLeanSide = 0;
@@ -361,10 +365,26 @@ async function startCamera(targetMode='lobby'){
   stream.getVideoTracks().forEach(track=>track.addEventListener('ended',()=>{if(cameraStatus==='ready'&&!cameraStarting)lockToCameraGate('Your camera disconnected or stopped sharing.');}));
   video.srcObject=stream;await video.play();
   cameraPanel.classList.remove('off');cameraStatus='loading';$('camera-label').textContent='LOADING MOTION AI';$('setup-title').textContent='INITIALIZING MOTION TRACKING';$('setup-copy').textContent='Downloading the pose model for local gesture detection. The camera feed is not uploaded.';
-  const vision=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm');
-  const files=await vision.FilesetResolver.forVisionTasks(wasmUrl);let pose;
-  try{pose=await vision.PoseLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:modelUrl,delegate:'GPU'},runningMode:'VIDEO',numPoses:cameraTargetMode==='solo'?1:2,minPoseDetectionConfidence:.55,minPosePresenceConfidence:.5,minTrackingConfidence:.5});}
-  catch{pose=await vision.PoseLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:modelUrl,delegate:'CPU'},runningMode:'VIDEO',numPoses:cameraTargetMode==='solo'?1:2,minPoseDetectionConfidence:.55,minPosePresenceConfidence:.5,minTrackingConfidence:.5});}
+  let pose=null,lastVisionError=null,activeVisionSource='';
+  for(let i=0;i<visionSources.length&&!pose;i++){
+   const source=visionSources[i];
+   $('gate-status').className='gate-status';
+   $('gate-status').textContent='LOADING MOTION ENGINE · '+source.name.toUpperCase()+' ('+(i+1)+'/'+visionSources.length+')';
+   try{
+    // Try the official, unbundled MediaPipe browser module first, then independent CDN mirrors.
+    const vision=await import(source.module);
+    const files=await vision.FilesetResolver.forVisionTasks(source.wasm);
+    const options={baseOptions:{modelAssetPath:modelUrl,delegate:'GPU'},runningMode:'VIDEO',numPoses:cameraTargetMode==='solo'?1:2,minPoseDetectionConfidence:.55,minPosePresenceConfidence:.5,minTrackingConfidence:.5};
+    try{pose=await vision.PoseLandmarker.createFromOptions(files,options);}
+    catch(gpuError){pose=await vision.PoseLandmarker.createFromOptions(files,{...options,baseOptions:{...options.baseOptions,delegate:'CPU'}});}
+    if(pose)activeVisionSource=source.name;
+   }catch(loadError){
+    lastVisionError=loadError;
+    try{pose&&pose.close();}catch{}
+    pose=null;
+   }
+  }
+  if(!pose)throw new Error('Motion AI could not load from any available CDN. Check your internet connection or try another network, then tap retry.'+(lastVisionError&&lastVisionError.message?' Details: '+lastVisionError.message:''));
   landmarker=pose;cameraStatus='ready';cameraStarting=false;cameraMode=true;calibrated=false;trackingOkay=false;lastPose=null;secondPose=null;priorPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});$('camera-gate').classList.add('hidden');$('gate-retry').disabled=false;$('setup').classList.remove('hidden');if(cameraTargetMode==='lobby'){$('setup-title').textContent='CAMERA CONNECTED';$('setup-copy').textContent='Camera permission is active. Choose Solo or Duo, then calibrate your movement before the fight.';$('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');}else{$('setup-title').textContent=cameraTargetMode==='duo'?'CAMERA READY — FIND TWO PLAYERS':'CAMERA READY — FIND PLAYER';$('setup-copy').textContent=cameraTargetMode==='duo'?'Both players should stand apart and keep head, shoulders, wrists and hips visible. Safe air gestures only—no contact. Calibrate when both are tracked.':'Keep head, shoulders, wrists and hips in frame. Stand comfortably and calibrate when ready.';$('calibrate-start').textContent=cameraTargetMode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';$('calibrate-start').classList.remove('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');}$('camera-label').textContent='CAMERA PREVIEW';$('camera-dot').classList.remove('live');$('camera-hint').textContent='CHOOSE SOLO OR DUO TO CALIBRATE';$('camera-hint').classList.remove('hidden');runCameraLoop();
  }catch(err){stopCamera(false);cameraStarting=false;cameraStatus='error';cameraMode=false;$('camera-gate').classList.remove('hidden');$('gate-title').textContent='Camera access is required.';$('gate-copy').textContent='Kinetix cannot start a round until the browser allows camera access. Check site permissions, then retry. Your camera is not recorded.';$('gate-status').className='gate-status error';$('gate-status').textContent=(err&&err.name==='NotAllowedError')?'CAMERA PERMISSION DENIED — ALLOW IT IN BROWSER SETTINGS':(err&&err.message?err.message:'CAMERA SETUP FAILED');$('gate-retry').disabled=false;$('setup-title').textContent='CAMERA UNAVAILABLE';showError(err&&err.message?err.message:'Camera setup failed. Please retry.');$('setup-copy').textContent='Allow camera access in your browser, then select Retry. Solo and Duo both require a working camera.';$('enable-camera').disabled=false;$('enable-camera').textContent='RETRY CAMERA ACCESS';$('enable-camera').classList.remove('hidden');}
 }
