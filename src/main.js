@@ -268,7 +268,6 @@ function action(kind,player=1){
 }
 function triggerPerfectDefense(kind){
  g.perfectReads++;g.perfectFxUntil=performance.now()+650;g.hitStopUntil=performance.now()+100;
- g.energy=Math.min(100,g.energy+24);g.combo++;g.best=Math.max(g.best,g.combo);
  announce('perfect',kind==='guard'?'PERFECT GUARD · +24 ENERGY':'PERFECT PHASE · +24 ENERGY','good');sfx('perfect');
  const frame=canvas.parentElement;frame.classList.remove('perfect-hitstop');void frame.offsetWidth;frame.classList.add('perfect-hitstop');
 }
