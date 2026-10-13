@@ -99,3 +99,28 @@ jobs:
           if (bundles.includes('esm.sh/@mediapipe/tasks-vision') || bundles.includes('@mediapipe/tasks-vision@0.10.22/+esm')) throw new Error('Production bundle still references remote MediaPipe module CDNs.');
           console.log('Production output verified: bundled JS, local WASM runtime and local pose model.');
           NODE
+
+      - name: Validate robots.txt and sitemap.xml
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const robotsPath = 'dist/robots.txt';
+          const sitemapPath = 'dist/sitemap.xml';
+          for (const file of [robotsPath, sitemapPath]) {
+            if (!fs.existsSync(file)) throw new Error('Missing ' + file + '; Vite must copy crawler files into dist.');
+          }
+          const robots = fs.readFileSync(robotsPath, 'utf8');
+          const sitemap = fs.readFileSync(sitemapPath, 'utf8');
+          const home = 'https://kinetix-sigma-two.vercel.app/';
+          const sitemapUrl = home + 'sitemap.xml';
+          if (!/^User-agent:\\s*\\*$/m.test(robots)) throw new Error('robots.txt must include User-agent: *.');
+          if (!/^Allow:\\s*\\/\\s*$/m.test(robots)) throw new Error('robots.txt must allow public crawling.');
+          if (!robots.includes('Sitemap: ' + sitemapUrl)) throw new Error('robots.txt does not point to the production sitemap.');
+          if (!sitemap.trimStart().startsWith('<?xml')) throw new Error('sitemap.xml must start with an XML declaration.');
+          if (!sitemap.includes('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">') || !/<\\/urlset>\\s*$/.test(sitemap)) throw new Error('sitemap.xml has an invalid urlset wrapper.');
+          const locations = [...sitemap.matchAll(/<loc>(.*?)<\\/loc>/g)].map(match => match[1].trim());
+          if (locations.length !== 1 || locations[0] !== home) throw new Error('The sitemap must contain the canonical production homepage exactly once.');
+          const lastmods = [...sitemap.matchAll(/<lastmod>(.*?)<\\/lastmod>/g)].map(match => match[1].trim());
+          if (lastmods.length !== 1 || !/^\\d{4}-\\d{2}-\\d{2}$/.test(lastmods[0]) || Number.isNaN(Date.parse(lastmods[0]))) throw new Error('The sitemap must contain one valid YYYY-MM-DD lastmod value.');
+          console.log('Validated public robots.txt rules, sitemap location, homepage URL and lastmod date.');
+          NODE
