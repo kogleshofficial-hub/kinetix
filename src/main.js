@@ -19,7 +19,7 @@ let g = freshGame();
 function freshFighter(){return {hp:100,mana:70,combo:0,best:0,lane:0,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,attackUntil:0,hurtUntil:0,medkits:1,collectCooldown:0,pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0};}
 function freshGame(mode='solo'){
  const p1=freshFighter(),p2=freshFighter();
- return {status:'ready',mode:mode,phase:mode==='duo'?'duel':'idle',time:mode==='duo'?60:55,clock:0,pHP:100,eHP:100,energy:0,combo:0,best:0,lane:0,target:0,attackIndex:0,phaseTimer:1.35,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0};
+ return {status:'ready',mode:mode,phase:mode==='duo'?'duel':'idle',time:mode==='duo'?60:55,clock:0,pHP:100,eHP:100,energy:72,playerHurtUntil:0,playerAttackUntil:0,playerAttackSide:1,combo:0,best:0,lane:0,target:0,attackIndex:0,phaseTimer:1.35,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0};
 }
 function beginGame(mode='solo'){
  g=freshGame(mode);g.status='playing';g.msg=mode==='duo'?'DUEL ONLINE — MAKE YOUR MOVE':'READ THE RIFT. FIND YOUR MOMENT.';
@@ -43,7 +43,7 @@ function sfx(name) {
 }
 function showImpact(player,damage){
  const flash=$('impact-flash'),number=$('hit-number'),frame=canvas.parentElement;g.hitPlayer=player;g.damageFlashAt=performance.now();
- flash.className='impact-flash '+(player===1?'hit-p1':'');number.textContent='−'+damage;number.classList.remove('hidden');
+ flash.className='impact-flash '+(player===1?'hit-p1':'');number.textContent='−'+damage+' HP';number.classList.remove('hidden');
  frame.classList.remove('shake');void frame.offsetWidth;frame.classList.add('shake');flash.classList.remove('active');void flash.offsetWidth;flash.classList.add('active');
  setTimeout(()=>{number.classList.add('hidden');frame.classList.remove('shake');},760);
 }
@@ -80,11 +80,26 @@ function dualAction(kind,player=1){
  if(kind==='GUARD'){actor.guardUntil=Math.max(actor.guardUntil,g.clock+.92);announce('block','P'+player+' GUARD READY','good');updateHud();return;}
  if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-actor.lastPhase<.3)return;actor.lastPhase=g.clock;actor.lane=kind==='PHASE_LEFT'?-1:1;actor.dodgeUntil=g.clock+.68;actor.attackUntil=g.clock+.15;actor.mana=Math.min(100,actor.mana+2);announce('dodge','P'+player+' PHASE SHIFT','good');sfx('dodge');syncDuelState();updateHud();return;}
  if(kind==='PULSE'){
-   if(g.clock-actor.lastPulse<.38)return;if(actor.mana<10){announce('miss','P'+player+' — MANA LOW. GUARD OR WAIT TO RECHARGE.','neutral');updateHud();return;}
-   actor.lastPulse=g.clock;actor.mana-=10;actor.attackUntil=g.clock+.24;actor.pulses++;
-   if(target.dodgeUntil>g.clock){actor.combo=0;target.dodges++;target.mana=Math.min(100,target.mana+3);announce('miss','P'+player+' PULSE EVADED','neutral');sfx('miss');}
-   else if(target.guardUntil>g.clock){const damage=Math.min(3,target.hp);target.hp-=damage;target.hurtUntil=g.clock+.18;target.mana=Math.min(100,target.mana+9);target.blocks++;actor.damage+=damage;actor.combo=0;announce('block','P'+targetNum+' BLOCKED — '+damage+' CHIP DAMAGE','good');sfx('block');if(damage>0)showImpact(targetNum,damage);}
-   else{const raw=7+Math.min(5,actor.combo)+(actor.combo>0&&actor.combo%3===2?5:0),damage=Math.min(raw,target.hp);target.hp-=damage;target.hurtUntil=g.clock+.34;actor.damage+=damage;actor.combo++;actor.best=Math.max(actor.best,actor.combo);actor.clean++;actor.mana=Math.min(100,actor.mana+2);announce('pulse','P'+player+' HIT  −'+damage+' HP'+(actor.combo%3===0?' · CRITICAL COMBO':''),'good');sfx('hit');showImpact(targetNum,damage);}
+   if(g.clock-actor.lastPulse<.2)return;
+   actor.lastPulse=g.clock;
+   // Low mana weakens a pulse; it no longer makes a clearly detected punch disappear.
+   const powered=actor.mana>=10;
+   actor.mana=Math.max(0,actor.mana-(powered?10:3));
+   actor.attackUntil=g.clock+.22;actor.pulses++;
+   if(target.dodgeUntil>g.clock){
+    actor.combo=0;target.dodges++;target.mana=Math.min(100,target.mana+3);
+    announce('miss','P'+player+' PULSE EVADED','neutral');sfx('miss');
+   }else if(target.guardUntil>g.clock){
+    const damage=Math.min(powered?3:1,target.hp);target.hp-=damage;target.hurtUntil=g.clock+.18;
+    target.mana=Math.min(100,target.mana+(powered?9:4));target.blocks++;actor.damage+=damage;actor.combo=0;
+    announce('block','P'+targetNum+' BLOCKED — '+damage+' CHIP DAMAGE','good');sfx('block');if(damage>0)showImpact(targetNum,damage);
+   }else{
+    const comboBonus=actor.combo>0&&actor.combo%3===2?5:0;
+    const raw=(powered?8:4)+Math.min(powered?5:2,actor.combo)+comboBonus;
+    const damage=Math.min(raw,target.hp);target.hp-=damage;target.hurtUntil=g.clock+.34;actor.damage+=damage;
+    actor.combo++;actor.best=Math.max(actor.best,actor.combo);actor.clean++;actor.mana=Math.min(100,actor.mana+2);
+    announce('pulse','P'+player+' HIT  −'+damage+' HP'+(actor.combo%3===0?' · COMBO HIT':''),'good');sfx('hit');showImpact(targetNum,damage);
+   }
  }else if(kind==='NOVA'){
    if(g.clock-actor.lastNova<1.15)return;if(actor.mana<60){announce('miss','NOVA NEEDS 60 MANA — BUILD YOUR METER','neutral');updateHud();return;}actor.lastNova=g.clock;actor.mana-=60;actor.attackUntil=g.clock+.52;
    if(target.dodgeUntil>g.clock){actor.combo=0;target.dodges++;target.mana=Math.min(100,target.mana+5);announce('miss','NOVA MISSED — OPPONENT PHASED OUT','danger');sfx('miss');}
@@ -96,14 +111,33 @@ function action(kind,player=1){
  if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;if(g.mode==='duo'){dualAction(kind,player);return;}if(kind==='COLLECT'){pickupDrop(1);return;}if(kind==='MEDKIT'){useMedkit(1);return;}
  const before=g.event+':'+g.eventAt;if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+1.05);return;}
  if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-g.lastPhase<.3)return;g.lastPhase=g.clock;g.lane=kind==='PHASE_LEFT'?-1:1;g.dodgeUntil=g.clock+1.05;if(g.phase==='telegraph'&&g.target!==g.lane){g.energy=Math.min(100,g.energy+3);announce('dodge','PHASE SHIFT','good');sfx('dodge');}updateHud();return;}
- if(kind==='PULSE'){if(g.clock-g.lastPulse<.42)return;if(g.energy<6){announce('miss','MANA LOW — WAIT FOR A RECHARGE','neutral');updateHud();return;}g.energy=Math.max(0,g.energy-6);g.lastPulse=g.clock;g.pulses++;if(g.phase==='vulnerable'){const d=Math.min(14,g.eHP);g.eHP=Math.max(0,g.eHP-14);g.damage+=d;g.energy=Math.min(100,g.energy+11);g.combo++;g.best=Math.max(g.best,g.combo);g.clean++;announce('pulse',g.eHP<=0?'FINISHER CONFIRMED':'RIFT PUNCTURED  −14','good');}else{const d=Math.min(3,g.eHP);g.eHP=Math.max(0,g.eHP-3);g.damage+=d;g.combo=0;announce('miss','GLANCING HIT — WAIT FOR THE OPENING','neutral');}}
+ if(kind==='PULSE'){
+  if(g.clock-g.lastPulse<.2)return;
+  g.lastPulse=g.clock;
+  const powered=g.energy>=4;
+  g.energy=Math.max(0,g.energy-(powered?4:1));
+  g.playerAttackUntil=g.clock+.2;
+  g.playerAttackSide=g.pulses%2===0?1:-1;
+  g.pulses++;
+  if(g.phase==='vulnerable'){
+   const comboBonus=g.combo>0&&g.combo%3===2?5:0;
+   const damage=Math.min(powered?16+comboBonus:8+comboBonus,g.eHP);
+   g.eHP=Math.max(0,g.eHP-damage);g.damage+=damage;g.energy=Math.min(100,g.energy+(powered?10:4));
+   g.combo++;g.best=Math.max(g.best,g.combo);g.clean++;
+   announce('pulse',g.eHP<=0?'FINISHER CONFIRMED':'RIFT HIT  −'+damage+' HP'+(comboBonus?' · COMBO BONUS':''),'good');
+  }else{
+   const damage=Math.min(powered?5:2,g.eHP);
+   g.eHP=Math.max(0,g.eHP-damage);g.damage+=damage;g.combo=0;
+   announce('pulse','GLANCING HIT  −'+damage+' HP · FIND THE OPENING','neutral');
+  }
+ }
  if(kind==='NOVA'){if(g.energy<100){announce('none','NOVA NEEDS 100 ENERGY','neutral');updateHud();return;}if(g.clock-g.lastNova<1.3)return;const damage=g.phase==='vulnerable'?48:28,d=Math.min(damage,g.eHP);g.eHP=Math.max(0,g.eHP-d);g.damage+=d;g.energy=0;g.lastNova=g.clock;g.combo+=2;g.best=Math.max(g.best,g.combo);announce('nova',g.eHP<=0?'NOVA FINISHER':'NOVA RELEASED  −'+damage,'good');}
  if(g.event+':'+g.eventAt!==before&&g.event!=='none')sfx(g.event);updateHud();
 }
 function enemyAttack(){
  if(g.guardUntil>g.clock){g.energy=Math.min(100,g.energy+17);g.blocks++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=1.28;announce('block','PERFECT GUARD  +17 ENERGY','good');sfx('block');return;}
  if(g.lane!==g.target||g.dodgeUntil>g.clock){g.energy=Math.min(100,g.energy+18);g.dodges++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=1.28;announce('dodge','PHASE SHIFT  +18 ENERGY','good');sfx('dodge');return;}
- g.pHP=Math.max(0,g.pHP-18);g.hits++;g.combo=0;g.phase='vulnerable';g.phaseTimer=1.28;announce('hit','RIFT IMPACT  −18 HP','danger');sfx('hit');showImpact(1,18);if(g.pHP<=0)finish('lost');
+ g.pHP=Math.max(0,g.pHP-18);g.playerHurtUntil=g.clock+.48;g.hits++;g.combo=0;g.phase='vulnerable';g.phaseTimer=1.28;announce('hit','RIFT IMPACT  −18 HP','danger');sfx('hit');showImpact(1,18);if(g.pHP<=0)finish('lost');
 }
 function finish(status){
  g.status=status;g.winner=status==='won'?1:status==='lost'?2:null;if(status==='won'){g.event='win';g.msg='RIFT COLLAPSED';g.tone='good';}else if(status==='lost'){g.event='lose';g.msg='SIGNAL LOST';g.tone='danger';}else{g.msg='TIME FRACTURED';g.tone='danger';}
@@ -176,7 +210,7 @@ function draw(t) {
  if(g.phase==='telegraph'){ctx.save();const lx=g.target===-1?w*.22:g.target===1?w*.36:w*.29;ctx.globalAlpha=.5+(Math.sin(tm*.008)+1)*.23;ctx.strokeStyle='#ffba75';ctx.lineWidth=2;ctx.shadowBlur=16;ctx.shadowColor='#ffba75';ctx.beginPath();ctx.ellipse(lx,h*.9+5,48+Math.sin(tm*.01)*5,13,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#ffba75';ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText(g.target===-1?'LEFT':g.target===1?'RIGHT':'CENTER',lx,h*.9+35);ctx.restore();}
  const floor=h*.89,scale=Math.min(w*.21,h*.29,110);
  function player(x){
-   ctx.save();const px=x+(g.lane===-1?-scale*.23:g.lane===1?scale*.23:0)+Math.sin(tm*.002)*2;ctx.translate(px,floor);ctx.shadowBlur=20;ctx.shadowColor='#7c8bff';ctx.strokeStyle='#bac4ff';ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=scale*.115;ctx.strokeStyle='#7b8bff';ctx.beginPath();ctx.ellipse(0,-3,scale*.54,scale*.12,0,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#bac4ff';ctx.beginPath();ctx.moveTo(-scale*.1,-scale*.72);ctx.lineTo(-scale*.29,-scale*.08);ctx.lineTo(-scale*.45,-scale*.02);ctx.moveTo(scale*.1,-scale*.72);ctx.lineTo(scale*.3,-scale*.08);ctx.lineTo(scale*.44,-scale*.02);ctx.moveTo(0,-scale*1.58);ctx.lineTo(0,-scale*.76);ctx.moveTo(-scale*.28,-scale*1.48);ctx.lineTo(scale*.28,-scale*1.48);ctx.stroke();if(g.guardUntil>g.clock){ctx.strokeStyle='#61f0ff';ctx.beginPath();ctx.moveTo(-scale*.25,-scale*1.38);ctx.lineTo(-scale*.04,-scale*1.08);ctx.lineTo(scale*.04,-scale*1.08);ctx.lineTo(scale*.25,-scale*1.38);ctx.stroke();ctx.beginPath();ctx.arc(0,-scale*1.3,scale*.48,Math.PI*1.05,Math.PI*1.95);ctx.stroke();}else{const swing=Math.sin(tm*.003)*scale*.06;ctx.beginPath();ctx.moveTo(-scale*.28,-scale*1.48);ctx.lineTo(-scale*.48,-scale*1.08+swing);ctx.lineTo(-scale*.35,-scale*.9+swing);ctx.moveTo(scale*.28,-scale*1.48);ctx.lineTo(scale*.49,-scale*1.14-swing);ctx.lineTo(scale*.38,-scale*.96-swing);ctx.stroke();}ctx.fillStyle='#10152a';ctx.beginPath();ctx.ellipse(0,-scale*1.86,scale*.17,scale*.21,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.strokeStyle='#71eaff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-scale*.1,-scale*1.9);ctx.lineTo(scale*.1,-scale*1.9);ctx.stroke();ctx.restore();
+   ctx.save();const hurt=g.playerHurtUntil>g.clock,attacking=g.playerAttackUntil>g.clock;const px=x+(g.lane===-1?-scale*.23:g.lane===1?scale*.23:0)+Math.sin(tm*.002)*2;ctx.translate(px,floor);ctx.globalAlpha=hurt&&!reducedMotion&&Math.floor(tm/65)%2===0?.52:1;ctx.shadowBlur=hurt?32:attacking?36:20;ctx.shadowColor=hurt?'#ff536d':attacking?'#66f1ff':'#7c8bff';ctx.strokeStyle=hurt?'#ff9aa8':'#bac4ff';ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=scale*.115;ctx.strokeStyle='#7b8bff';ctx.beginPath();ctx.ellipse(0,-3,scale*.54,scale*.12,0,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#bac4ff';ctx.beginPath();ctx.moveTo(-scale*.1,-scale*.72);ctx.lineTo(-scale*.29,-scale*.08);ctx.lineTo(-scale*.45,-scale*.02);ctx.moveTo(scale*.1,-scale*.72);ctx.lineTo(scale*.3,-scale*.08);ctx.lineTo(scale*.44,-scale*.02);ctx.moveTo(0,-scale*1.58);ctx.lineTo(0,-scale*.76);ctx.moveTo(-scale*.28,-scale*1.48);ctx.lineTo(scale*.28,-scale*1.48);ctx.stroke();if(g.guardUntil>g.clock){ctx.strokeStyle='#61f0ff';ctx.beginPath();ctx.moveTo(-scale*.25,-scale*1.38);ctx.lineTo(-scale*.04,-scale*1.08);ctx.lineTo(scale*.04,-scale*1.08);ctx.lineTo(scale*.25,-scale*1.38);ctx.stroke();ctx.beginPath();ctx.arc(0,-scale*1.3,scale*.48,Math.PI*1.05,Math.PI*1.95);ctx.stroke();}else if(attacking){const side=g.playerAttackSide||1,other=-side;ctx.strokeStyle='#7df5ff';ctx.lineWidth=scale*.13;ctx.beginPath();ctx.moveTo(side*scale*.28,-scale*1.48);ctx.lineTo(side*scale*.5,-scale*1.3);ctx.lineTo(side*scale*.82,-scale*1.25);ctx.stroke();ctx.beginPath();ctx.arc(side*scale*.82,-scale*1.25,scale*.2,0,Math.PI*2);ctx.stroke();ctx.strokeStyle=hurt?'#ff9aa8':'#bac4ff';ctx.lineWidth=scale*.115;ctx.beginPath();ctx.moveTo(other*scale*.28,-scale*1.48);ctx.lineTo(other*scale*.47,-scale*1.08);ctx.lineTo(other*scale*.35,-scale*.9);ctx.stroke();}else{const swing=Math.sin(tm*.003)*scale*.06;ctx.beginPath();ctx.moveTo(-scale*.28,-scale*1.48);ctx.lineTo(-scale*.48,-scale*1.08+swing);ctx.lineTo(-scale*.35,-scale*.9+swing);ctx.moveTo(scale*.28,-scale*1.48);ctx.lineTo(scale*.49,-scale*1.14-swing);ctx.lineTo(scale*.38,-scale*.96-swing);ctx.stroke();}ctx.fillStyle='#10152a';ctx.beginPath();ctx.ellipse(0,-scale*1.86,scale*.17,scale*.21,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.strokeStyle='#71eaff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-scale*.1,-scale*1.9);ctx.lineTo(scale*.1,-scale*1.9);ctx.stroke();ctx.restore();
  }
  function monster(x){
    const vulnerable=g.phase==='vulnerable',tele=g.phase==='telegraph',tint=vulnerable?'#65f4dc':tele?'#ffb56b':'#c8a4ff';const aura=ctx.createRadialGradient(x,floor-scale*1.7,scale*.1,x,floor-scale*1.7,scale*1.6);aura.addColorStop(0,vulnerable?'rgba(68,242,202,.24)':'rgba(150,97,255,.28)');aura.addColorStop(1,'rgba(115,75,208,0)');ctx.fillStyle=aura;ctx.fillRect(x-scale*1.7,floor-scale*3.5,scale*3.4,scale*3.6);
@@ -294,7 +328,7 @@ function runCameraLoop(){
  if(cameraLoopStarted)return;cameraLoopStarted=true;
  const track=now=>{
   if(!landmarker||cameraStatus!=='ready')return;
-  if(video.readyState>=2&&now-lastInference>65&&video.currentTime!==lastVideoTime){
+  if(video.readyState>=2&&now-lastInference>42&&video.currentTime!==lastVideoTime){
    lastInference=now;lastVideoTime=video.currentTime;
    try{
     const result=landmarker.detectForVideo(video,now);
@@ -355,23 +389,62 @@ function shape(p){
  const rw=landmarkVisible(p[16],.2)?p[16]:null;
  return{sw,sy:sc.y,hy:hc.y,lean:(sc.x-hc.x)/sw,lw,rw,wristsReady:!!(lw&&rw)};
 }
+function vectorDistance(a,b){
+ if(!a||!b)return 0;
+ const dx=a.x-b.x,dy=a.y-b.y,dz=(a.z||0)-(b.z||0);
+ return Math.sqrt(dx*dx+dy*dy+dz*dz*.65);
+}
+function armMotionSignature(points,side,shoulderWidth){
+ const shoulder=points[side===0?11:12],elbow=points[side===0?13:14],wrist=points[side===0?15:16];
+ if(!landmarkVisible(shoulder,.18)||!landmarkVisible(elbow,.15)||!landmarkVisible(wrist,.18))return null;
+ const position={x:(wrist.x-shoulder.x)/shoulderWidth,y:(wrist.y-shoulder.y)/shoulderWidth,z:((wrist.z||0)-(shoulder.z||0))/shoulderWidth};
+ const upper=vectorDistance(shoulder,elbow),lower=vectorDistance(elbow,wrist),reach=vectorDistance(shoulder,wrist);
+ return{position,extension:reach/Math.max(upper+lower,.001),wrist,shoulder};
+}
 function detectMotion(points,now,player=1){
  const mem=motionMemory[player-1]||motionMemory[0],s=shape(points);
  if(!s){mem.priorPose=null;mem.guardPose=false;mem.leanSide=0;return;}
- if(!mem.priorPose){mem.priorPose=points;mem.priorAt=now;return;}
- const dt=Math.min((now-mem.priorAt)/1000,.25);
- if(dt>=.025&&dt<=.25){
-  const oldL=mem.priorPose[15],oldR=mem.priorPose[16];
-  const visibleWrist=point=>landmarkVisible(point,.2);
-  if(s.wristsReady&&visibleWrist(oldL)&&visibleWrist(oldR)){
-   const speed=(a,b)=>visibleWrist(a)&&visibleWrist(b)?Math.hypot(a.x-b.x,a.y-b.y)/Math.max(s.sw,.06)/dt:0;
-   const v=Math.max(speed(oldL,s.lw),speed(oldR,s.rw));
-   if(v>1.65&&now-mem.lastPulse>560){action('PULSE',player);mem.lastPulse=now;}
+ if(!mem.punchHands)mem.punchHands=[{armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0},{armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0}];
+ if(!mem.priorPose){
+  mem.priorPose=points;mem.priorAt=now;
+  mem.punchHands.forEach((hand,side)=>{const snap=armMotionSignature(points,side,s.sw);hand.base=snap;hand.prev=snap;hand.prevAt=now;hand.armed=true;});
+  return;
+ }
+ const dt=(now-mem.priorAt)/1000;
+ if(dt>=.018&&dt<=.3){
+  let punchFired=false;
+  for(let side=0;side<2;side++){
+   const hand=mem.punchHands[side],current=armMotionSignature(points,side,s.sw),previous=hand.prev;
+   if(!current){hand.prev=null;continue;}
+   if(!previous||!hand.base){hand.prev=current;hand.prevAt=now;if(!hand.base)hand.base=current;continue;}
+   const elapsed=Math.max(.018,(now-(hand.prevAt||now-50))/1000);
+   const speed=vectorDistance(current.position,previous.position)/elapsed;
+   const travel=vectorDistance(current.position,hand.base.position);
+   const extensionDelta=current.extension-hand.base.extension;
+   if(!hand.armed){
+    if(travel<.17&&speed<.92&&now-hand.lastPunchAt>205){
+     hand.armed=true;hand.base=current;hand.restFrames=0;
+    }else if(speed<.4&&now-hand.lastPunchAt>340){
+     hand.restFrames++;if(hand.restFrames>=2){hand.armed=true;hand.base=current;hand.restFrames=0;}
+    }else hand.restFrames=0;
+   }else{
+    if(speed<.62&&travel<.12){
+     const mix=(a,b)=>a+(b-a)*.035;
+     hand.base={position:{x:mix(hand.base.position.x,current.position.x),y:mix(hand.base.position.y,current.position.y),z:mix(hand.base.position.z,current.position.z)},extension:mix(hand.base.extension,current.extension),wrist:current.wrist,shoulder:current.shoulder};
+    }
+    const distinctPunch=speed>1.12&&(travel>.105||extensionDelta>.022);
+    if(distinctPunch&&now-mem.lastPulse>205&&!punchFired){
+     action('PULSE',player);mem.lastPulse=now;hand.lastPunchAt=now;hand.armed=false;hand.restFrames=0;punchFired=true;
+    }
+   }
+   hand.prev=current;hand.prevAt=now;
+  }
+  const wristsReady=s.wristsReady&&s.lw&&s.rw;
+  if(wristsReady){
    const guard=s.lw.y>s.sy-s.sw*.12&&s.lw.y<s.hy&&s.rw.y>s.sy-s.sw*.12&&s.rw.y<s.hy&&Math.hypot(s.lw.x-s.rw.x,s.lw.y-s.rw.y)<s.sw*.9;
    if(guard&&!mem.guardPose&&now-mem.lastGuard>850){action('GUARD',player);mem.lastGuard=now;}
    mem.guardPose=guard;
   }else mem.guardPose=false;
-  // Lean is independent of wrist visibility, so PHASE remains usable if a hand leaves frame.
   const lean=s.lean-neutralLeans[player-1],leanSide=lean<-.2?-1:lean>.2?1:0;
   if(leanSide!==0&&mem.leanSide===0&&now-mem.lastPhase>650){action(leanSide<0?'PHASE_LEFT':'PHASE_RIGHT',player);mem.lastPhase=now;}
   mem.leanSide=leanSide;
