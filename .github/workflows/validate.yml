@@ -58,7 +58,17 @@ jobs:
           if (!source.includes("cameraTargetMode==='duo'&&!two")) throw new Error('Duo must require both players before calibration.');
           if (!source.includes("if(k==='j')action('PULSE',2)")) throw new Error('Player 2 keyboard backup is not wired.');
           if (!html.includes('data-duo-action="PULSE" data-player="1"') || !html.includes('data-duo-action="PULSE" data-player="2"')) throw new Error('Both split-duel touch controls are required.');
-          console.log('Validated ' + referenced.length + ' DOM references, ' + ids.length + ' unique DOM IDs, difficulty profiles, and Duo input wiring. Duo webcam behavior still requires manual testing.');
+          // Check the local Kinets economy and clear Solo-vs-Duo reward separation.
+          for (const item of ['PROFILE_STORAGE_KEY','SOLO_REWARDS','USERNAME_CHANGE_COST','awardSoloWin','handleCharacterAction']) {
+            if (!source.includes(item)) throw new Error('Missing economy component: ' + item);
+          }
+          for (const rate of ["easy:15","normal:20","hard:30"]) if (!source.includes(rate)) throw new Error('Incorrect or missing solo Kinets reward: ' + rate);
+          if (!source.includes("if(g.mode!=='solo'||g.rewardGranted)return;")) throw new Error('Solo victory reward must be idempotent and excluded from Duo.');
+          if (!source.includes("if(status==='won'&&g.mode==='solo')awardSoloWin()")) throw new Error('Solo victory is not connected to rewards.');
+          if (!source.includes("price:120") || !source.includes("price:300") || !source.includes("price:600")) throw new Error('Character style price ladder is missing.');
+          if (!html.includes('id="kinet-store"') || !html.includes('id="username-form"') || !html.includes('data-character-action="legendary"')) throw new Error('Kinets shop markup is incomplete.');
+          if (!html.includes('LOCAL PILOT') || !html.includes('Duo matches do not pay Kinets.')) throw new Error('Shop must explain local-only profile and Solo-only earning.');
+          console.log('Validated ' + referenced.length + ' DOM references, ' + ids.length + ' unique DOM IDs, difficulty profiles, Duo input wiring, and local Kinets/store code. Duo webcam behavior still requires manual testing.');
           NODE
       - name: Validate JavaScript syntax
         run: node --check src/main.js

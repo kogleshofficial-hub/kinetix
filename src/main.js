@@ -25,15 +25,74 @@ let motionSensitivity='high';
 function sensitivityRules(){return MOTION_SENSITIVITY[motionSensitivity]||MOTION_SENSITIVITY.max;}
 let impactClearTimer=0;
 let audioContext = null, raf = 0, previousFrame = 0, lastHudAt = 0, lastEventStamp = -1, eventFxAt = performance.now();
+const PROFILE_STORAGE_KEY='kinetix-profile-v1';
+const SOLO_REWARDS=Object.freeze({easy:15,normal:20,hard:30});
+const USERNAME_CHANGE_COST=100;
+const CHARACTER_STYLES=Object.freeze({
+ starter:{name:'Rift Runner',rarity:'Starter',price:0,core:'#bac4ff',aura:'#7b8bff',accent:'#7df5ff',glow:'#71eaff',halo:false},
+ elite:{name:'Pulse Knight',rarity:'Elite',price:120,core:'#b7ffe4',aura:'#42d9a4',accent:'#e0fff4',glow:'#65ffd0',halo:false},
+ epic:{name:'Void Striker',rarity:'Epic',price:300,core:'#e0c6ff',aura:'#9361f6',accent:'#f8e8ff',glow:'#c18aff',halo:false},
+ legendary:{name:'Rift Sovereign',rarity:'Legendary',price:600,core:'#ffe5a4',aura:'#d69b36',accent:'#fff4cf',glow:'#ffd16a',halo:true}
+});
+function loadProfile(){
+ const fallback={kinets:0,username:'Rift Runner',ownedCharacters:['starter'],equippedCharacter:'starter',soloWins:0};
+ try{
+  const saved=JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY)||'null');
+  if(!saved||typeof saved!=='object')return fallback;
+  const owned=Array.isArray(saved.ownedCharacters)?saved.ownedCharacters.filter(id=>Object.hasOwn(CHARACTER_STYLES,id)):['starter'];
+  if(!owned.includes('starter'))owned.unshift('starter');
+  const equipped=owned.includes(saved.equippedCharacter)?saved.equippedCharacter:'starter';
+  const username=typeof saved.username==='string'&&/^[A-Za-z0-9 _-]{3,18}$/.test(saved.username.trim())?saved.username.trim():'Rift Runner';
+  return{kinets:Number.isFinite(Number(saved.kinets))?Math.max(0,Math.floor(Number(saved.kinets))):0,username,ownedCharacters:[...new Set(owned)],equippedCharacter:equipped,soloWins:Number.isFinite(Number(saved.soloWins))?Math.max(0,Math.floor(Number(saved.soloWins))):0};
+ }catch{return fallback;}
+}
+let profile=loadProfile();
+function saveProfile(){try{localStorage.setItem(PROFILE_STORAGE_KEY,JSON.stringify(profile));}catch{}}
+function refreshStore(message){
+ const name=$('profile-username'),wallet=$('wallet-balance'),wins=$('profile-wins'),equipped=$('equipped-character'),input=$('profile-name-input'),status=$('store-status');
+ if(name)name.textContent=profile.username;
+ if(wallet)wallet.textContent=String(profile.kinets);
+ if(wins)wins.textContent=profile.soloWins+' solo '+(profile.soloWins===1?'victory':'victories');
+ if(equipped)equipped.textContent=CHARACTER_STYLES[profile.equippedCharacter]?.name||CHARACTER_STYLES.starter.name;
+ if(input&&document.activeElement!==input)input.value=profile.username;
+ document.querySelectorAll('[data-character-action]').forEach(button=>{
+  const id=button.dataset.characterAction,style=CHARACTER_STYLES[id],owned=profile.ownedCharacters.includes(id);
+  if(!style)return;
+  const isEquipped=profile.equippedCharacter===id;
+  button.textContent=isEquipped?'EQUIPPED':owned?'EQUIP':'UNLOCK · '+style.price+' KINETS';
+  button.disabled=isEquipped;
+  const card=button.closest('[data-character-card]');
+  if(card)card.classList.toggle('equipped',isEquipped);
+  if(card){const state=card.querySelector('[data-character-state]');if(state)state.textContent=isEquipped?'EQUIPPED':owned?'OWNED':style.rarity.toUpperCase();}
+ });
+ if(status&&message)status.textContent=message;
+}
+function handleCharacterAction(id){
+ const style=CHARACTER_STYLES[id];if(!style)return;
+ if(profile.ownedCharacters.includes(id)){
+  profile.equippedCharacter=id;saveProfile();refreshStore(style.name+' equipped. Cosmetic only — combat stats are unchanged.');return;
+ }
+ if(profile.kinets<style.price){refreshStore('You need '+(style.price-profile.kinets)+' more Kinets to unlock '+style.name+'. Win solo rounds to earn more.');return;}
+ profile.kinets-=style.price;profile.ownedCharacters.push(id);profile.equippedCharacter=id;saveProfile();
+ refreshStore(style.name+' unlocked and equipped. Enjoy your new style.');
+}
+function awardSoloWin(){
+ if(g.mode!=='solo'||g.rewardGranted)return;
+ g.rewardGranted=true;
+ const reward=SOLO_REWARDS[g.difficulty]||SOLO_REWARDS.normal;
+ profile.kinets+=reward;profile.soloWins++;g.rewardEarned=reward;
+ saveProfile();refreshStore('Victory! +'+reward+' Kinets added to your local wallet.');
+}
 let bestRecord = 0;
 try { bestRecord = Number(localStorage.getItem('kinetix-best-combo') || 0); } catch {}
 $('best-combo').textContent = String(bestRecord).padStart(2,'0') + '×';
 let g = freshGame();
+refreshStore();
 
 function freshFighter(){return {hp:100,mana:70,combo:0,best:0,lane:0,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,attackUntil:0,hurtUntil:0,medkits:1,collectCooldown:0,pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0};}
 function freshGame(mode='solo'){
  const p1=freshFighter(),p2=freshFighter();
- return {status:'ready',mode:mode,difficulty:difficulty,phase:mode==='duo'?'duel':'idle',time:mode==='duo'?60:75,clock:0,pHP:mode==='duo'?100:120,playerMaxHP:mode==='duo'?100:120,eHP:mode==='duo'?100:difficultyRules().enemyHP,enemyMaxHP:mode==='duo'?100:difficultyRules().enemyHP,energy:72,playerHurtUntil:0,playerAttackUntil:0,playerAttackSide:1,enemyHurtUntil:0,combo:0,best:0,lane:0,target:0,attackIndex:0,phaseTimer:mode==='duo'?1.35:difficultyRules().firstWait,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0};
+ return {status:'ready',mode:mode,difficulty:difficulty,phase:mode==='duo'?'duel':'idle',time:mode==='duo'?60:75,clock:0,pHP:mode==='duo'?100:120,playerMaxHP:mode==='duo'?100:120,eHP:mode==='duo'?100:difficultyRules().enemyHP,enemyMaxHP:mode==='duo'?100:difficultyRules().enemyHP,energy:72,playerHurtUntil:0,playerAttackUntil:0,playerAttackSide:1,enemyHurtUntil:0,combo:0,best:0,lane:0,target:0,attackIndex:0,phaseTimer:mode==='duo'?1.35:difficultyRules().firstWait,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0,rewardGranted:false,rewardEarned:0};
 }
 function beginGame(mode='solo'){
  g=freshGame(mode);g.status='playing';g.msg=mode==='duo'?'DUEL ONLINE — MAKE YOUR MOVE':'READ THE RIFT. FIND YOUR MOMENT.';
@@ -155,7 +214,7 @@ function enemyAttack(){
  const damage=difficultyRules().enemyDamage;g.pHP=Math.max(0,g.pHP-damage);g.playerHurtUntil=g.clock+.48;g.hits++;g.combo=0;g.phase='vulnerable';g.phaseTimer=difficultyRules().opening;announce('hit','RIFT IMPACT  −'+damage+' HP','danger');sfx('hit');showImpact(1,damage);if(g.pHP<=0)finish('lost');
 }
 function finish(status){
- g.status=status;g.winner=status==='won'?1:status==='lost'?2:null;if(status==='won'){g.event='win';g.msg='RIFT COLLAPSED';g.tone='good';}else if(status==='lost'){g.event='lose';g.msg='SIGNAL LOST';g.tone='danger';}else{g.msg='TIME FRACTURED';g.tone='danger';}
+ g.status=status;g.winner=status==='won'?1:status==='lost'?2:null;if(status==='won'&&g.mode==='solo')awardSoloWin();if(status==='won'){g.event='win';g.msg='RIFT COLLAPSED';g.tone='good';}else if(status==='lost'){g.event='lose';g.msg='SIGNAL LOST';g.tone='danger';}else{g.msg='TIME FRACTURED';g.tone='danger';}
  g.eventAt=g.clock;eventFxAt=performance.now();sfx(status==='won'?'win':'lose');if(g.best>bestRecord){bestRecord=g.best;try{localStorage.setItem('kinetix-best-combo',String(bestRecord));}catch{}}updateHud();showResult();
 }
 function finishDuel(winner){
@@ -182,18 +241,19 @@ function updateHud(){
    $('p1-mini-hp').textContent=g.p1.hp+' HP';$('p2-mini-hp').textContent=g.p2.hp+' HP';$('p1-mana').textContent=Math.round(g.p1.mana);$('p2-mana').textContent=Math.round(g.p2.mana);$('p1-mana-bar').style.width=g.p1.mana+'%';$('p2-mana-bar').style.width=g.p2.mana+'%';$('p1-kit').textContent='MED KITS · '+g.p1.medkits;$('p2-kit').textContent='MED KITS · '+g.p2.medkits;
    const labels=document.querySelectorAll('.fighter-label');if(labels[1])labels[1].innerHTML='PLAYER TWO <i>● CHALLENGER</i>';const names=document.querySelectorAll('.fighter-data strong');if(names[1])names[1].textContent='RIFT RUNNER II';
    document.querySelectorAll('.duo-action-grid button').forEach(b=>{const p=b.dataset.player==='2'?g.p2:g.p1,k=b.dataset.duoAction;b.disabled=g.status!=='playing'||paused||(k==='NOVA'&&p.mana<60)||(k==='MEDKIT'&&(!p.medkits||p.hp>=100));});
- }else{const labels=document.querySelectorAll('.fighter-label');if(labels[1])labels[1].innerHTML='RIFT ENTITY <i>● HOSTILE</i>';const names=document.querySelectorAll('.fighter-data strong');if(names[1])names[1].textContent='THE HOLLOW';}
+ }else{const labels=document.querySelectorAll('.fighter-label');if(labels[1])labels[1].innerHTML='RIFT ENTITY <i>● HOSTILE</i>';const names=document.querySelectorAll('.fighter-data strong');if(names[0])names[0].textContent=profile.username;if(names[1])names[1].textContent='THE HOLLOW';}
  const ps=$('pickup-status');if(g.pickup){ps.textContent=(g.pickup.type==='medkit'?'MED KIT SUPPLY DROP':'MANA ORB SUPPLY DROP')+' · CLAIM NOW · '+Math.ceil(g.pickup.expires-g.clock)+'s LEFT'+(g.mode==='solo'?' · MED KITS '+g.medkits:'');ps.classList.add('active');}else{ps.textContent='NEXT SUPPLY DROP · '+Math.max(0,Math.ceil(g.nextSupplyAt-g.clock))+'s'+(g.mode==='solo'?' · MED KITS '+g.medkits:'');ps.classList.remove('active');}
  $('best-combo').textContent=String(bestRecord).padStart(2,'0')+'×';
 }
 function showOverlay(title,desc,tag,buttons,stats) {
  const overlay=$('overlay'),dialog=$('dialog');overlay.classList.remove('hidden');dialog.className='dialog'+(stats?' result':'');
  let html='<span class="tag">'+tag+'</span><h2>'+title+'</h2><p>'+desc+'</p>';
- if(stats)html+='<div class="stats"><div><span>BEST COMBO</span><b>'+String(g.best).padStart(2,'0')+'×</b></div><div><span>DAMAGE</span><b>'+String(g.damage).padStart(3,'0')+'</b></div><div><span>ACCURACY</span><b>'+accuracy()+'%</b></div><div><span>DODGES</span><b>'+String(g.dodges).padStart(2,'0')+'</b></div></div>';
+ if(stats)html+='<div class="stats"><div><span>BEST COMBO</span><b>'+String(g.best).padStart(2,'0')+'×</b></div><div><span>DAMAGE</span><b>'+String(g.damage).padStart(3,'0')+'</b></div><div><span>ACCURACY</span><b>'+accuracy()+'%</b></div><div><span>DODGES</span><b>'+String(g.dodges).padStart(2,'0')+'×</b></div></div>';
+ if(stats&&g.mode==='solo'&&g.rewardEarned>0)html+='<div class="reward-earned"><span>SOLO VICTORY REWARD</span><b>+'+g.rewardEarned+' KINETS</b><small>Wallet balance: '+profile.kinets+' Kinets · Saved in this browser</small></div>';
  buttons.forEach(b=>html+='<button class="btn '+b.style+'" data-overlay="'+b.action+'">'+b.label+'</button>');
  if(!stats)html+='<button class="text-btn" data-overlay="home">EXIT TO MAIN MENU</button>';
  dialog.innerHTML=html;
- dialog.querySelectorAll('[data-overlay]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.overlay;if(action==='resume'){paused=false;$('overlay').classList.add('hidden');updateHud();}else if(action==='restart'){beginGame(g.mode);}else if(action==='home'){stopCamera(true);paused=false;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');}else if(action==='card')downloadCard();}));
+ dialog.querySelectorAll('[data-overlay]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.overlay;if(action==='resume'){paused=false;$('overlay').classList.add('hidden');updateHud();}else if(action==='restart'){beginGame(g.mode);}else if(action==='home'){stopCamera(true);paused=false;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');}else if(action==='store'){stopCamera(true);paused=false;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');$('kinet-store').scrollIntoView({behavior:'smooth',block:'start'});}else if(action==='card')downloadCard();}));
 }
 function accuracy(){return g.pulses?Math.round(g.clean/g.pulses*100):0;}
 function showResult(){
@@ -202,7 +262,7 @@ function showResult(){
  const won=g.status==='won';
   const title=won?(difficulty==='hard'?'HARD CLEAR — RIFT COLLAPSED.':'RIFT COLLAPSED.'):g.status==='time-up'?'TIME FRACTURED.':'SIGNAL LOST';
   const description=won?(difficulty==='hard'?'You survived the 420 HP Rift Master. Every counter, guard and phase mattered.':'You read the pattern and closed the breach on '+difficultyRules().label+'.'):g.status==='time-up'?'The Rift is still standing. Review your timing and try a different approach.':'The Hollow won this round. Try '+(difficulty==='hard'?'Normal to practice your timing, then return to Hard':difficulty==='normal'?'Easy to learn the moves, then return to Normal':'the round again')+' when ready.';
-  showOverlay(title,description,'RIFT DUEL / '+difficultyRules().label+' / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
+  showOverlay(title,description,'RIFT DUEL / '+difficultyRules().label+' / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'OPEN KINET STORE ◈',style:'secondary',action:'store'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
 }
 function pauseGame(){if(g.status!=='playing')return;paused=true;showOverlay('Catch your breath.','The rift is frozen. Your progress is still here.','SESSION PAUSED',[{label:'RESUME ROUND →',style:'primary',action:'resume'},{label:'RESTART ROUND',style:'secondary',action:'restart'}],false);}
 function downloadCard(){
@@ -228,7 +288,8 @@ function draw(t) {
  if(g.phase==='telegraph'){ctx.save();const lx=g.target===-1?w*.22:g.target===1?w*.36:w*.29;ctx.globalAlpha=.5+(Math.sin(tm*.008)+1)*.23;ctx.strokeStyle='#ffba75';ctx.lineWidth=2;ctx.shadowBlur=16;ctx.shadowColor='#ffba75';ctx.beginPath();ctx.ellipse(lx,h*.9+5,48+Math.sin(tm*.01)*5,13,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#ffba75';ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText(g.target===-1?'LEFT':g.target===1?'RIGHT':'CENTER',lx,h*.9+35);ctx.restore();}
  const floor=h*.89,scale=Math.min(w*.21,h*.29,110);
  function player(x){
-   ctx.save();const hurt=g.playerHurtUntil>g.clock,attacking=g.playerAttackUntil>g.clock;const px=x+(g.lane===-1?-scale*.23:g.lane===1?scale*.23:0)+Math.sin(tm*.002)*2;ctx.translate(px,floor);ctx.globalAlpha=hurt&&!reducedMotion&&Math.floor(tm/65)%2===0?.52:1;ctx.shadowBlur=hurt?32:attacking?36:20;ctx.shadowColor=hurt?'#ff536d':attacking?'#66f1ff':'#7c8bff';ctx.strokeStyle=hurt?'#ff9aa8':'#bac4ff';ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=scale*.115;ctx.strokeStyle='#7b8bff';ctx.beginPath();ctx.ellipse(0,-3,scale*.54,scale*.12,0,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#bac4ff';ctx.beginPath();ctx.moveTo(-scale*.1,-scale*.72);ctx.lineTo(-scale*.29,-scale*.08);ctx.lineTo(-scale*.45,-scale*.02);ctx.moveTo(scale*.1,-scale*.72);ctx.lineTo(scale*.3,-scale*.08);ctx.lineTo(scale*.44,-scale*.02);ctx.moveTo(0,-scale*1.58);ctx.lineTo(0,-scale*.76);ctx.moveTo(-scale*.28,-scale*1.48);ctx.lineTo(scale*.28,-scale*1.48);ctx.stroke();if(g.guardUntil>g.clock){ctx.strokeStyle='#61f0ff';ctx.beginPath();ctx.moveTo(-scale*.25,-scale*1.38);ctx.lineTo(-scale*.04,-scale*1.08);ctx.lineTo(scale*.04,-scale*1.08);ctx.lineTo(scale*.25,-scale*1.38);ctx.stroke();ctx.beginPath();ctx.arc(0,-scale*1.3,scale*.48,Math.PI*1.05,Math.PI*1.95);ctx.stroke();}else if(attacking){const side=g.playerAttackSide||1,other=-side;ctx.strokeStyle='#7df5ff';ctx.lineWidth=scale*.13;ctx.beginPath();ctx.moveTo(side*scale*.28,-scale*1.48);ctx.lineTo(side*scale*.5,-scale*1.3);ctx.lineTo(side*scale*.82,-scale*1.25);ctx.stroke();ctx.beginPath();ctx.arc(side*scale*.82,-scale*1.25,scale*.2,0,Math.PI*2);ctx.stroke();ctx.strokeStyle=hurt?'#ff9aa8':'#bac4ff';ctx.lineWidth=scale*.115;ctx.beginPath();ctx.moveTo(other*scale*.28,-scale*1.48);ctx.lineTo(other*scale*.47,-scale*1.08);ctx.lineTo(other*scale*.35,-scale*.9);ctx.stroke();}else{const swing=Math.sin(tm*.003)*scale*.06;ctx.beginPath();ctx.moveTo(-scale*.28,-scale*1.48);ctx.lineTo(-scale*.48,-scale*1.08+swing);ctx.lineTo(-scale*.35,-scale*.9+swing);ctx.moveTo(scale*.28,-scale*1.48);ctx.lineTo(scale*.49,-scale*1.14-swing);ctx.lineTo(scale*.38,-scale*.96-swing);ctx.stroke();}ctx.fillStyle='#10152a';ctx.beginPath();ctx.ellipse(0,-scale*1.86,scale*.17,scale*.21,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.strokeStyle='#71eaff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-scale*.1,-scale*1.9);ctx.lineTo(scale*.1,-scale*1.9);ctx.stroke();ctx.restore();
+   const style=CHARACTER_STYLES[profile.equippedCharacter]||CHARACTER_STYLES.starter;
+   ctx.save();const hurt=g.playerHurtUntil>g.clock,attacking=g.playerAttackUntil>g.clock;const px=x+(g.lane===-1?-scale*.23:g.lane===1?scale*.23:0)+Math.sin(tm*.002)*2;ctx.translate(px,floor);ctx.globalAlpha=hurt&&!reducedMotion&&Math.floor(tm/65)%2===0?.52:1;ctx.shadowBlur=hurt?32:attacking?36:20;ctx.shadowColor=hurt?'#ff536d':attacking?style.glow:style.aura;ctx.strokeStyle=hurt?'#ff9aa8':style.core;ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=scale*.115;ctx.strokeStyle=style.aura;ctx.beginPath();ctx.ellipse(0,-3,scale*.54,scale*.12,0,0,Math.PI*2);ctx.stroke();ctx.strokeStyle=style.core;ctx.beginPath();ctx.moveTo(-scale*.1,-scale*.72);ctx.lineTo(-scale*.29,-scale*.08);ctx.lineTo(-scale*.45,-scale*.02);ctx.moveTo(scale*.1,-scale*.72);ctx.lineTo(scale*.3,-scale*.08);ctx.lineTo(scale*.44,-scale*.02);ctx.moveTo(0,-scale*1.58);ctx.lineTo(0,-scale*.76);ctx.moveTo(-scale*.28,-scale*1.48);ctx.lineTo(scale*.28,-scale*1.48);ctx.stroke();if(g.guardUntil>g.clock){ctx.strokeStyle='#61f0ff';ctx.beginPath();ctx.moveTo(-scale*.25,-scale*1.38);ctx.lineTo(-scale*.04,-scale*1.08);ctx.lineTo(scale*.04,-scale*1.08);ctx.lineTo(scale*.25,-scale*1.38);ctx.stroke();ctx.beginPath();ctx.arc(0,-scale*1.3,scale*.48,Math.PI*1.05,Math.PI*1.95);ctx.stroke();}else if(attacking){const side=g.playerAttackSide||1,other=-side;ctx.strokeStyle=style.accent;ctx.lineWidth=scale*.13;ctx.beginPath();ctx.moveTo(side*scale*.28,-scale*1.48);ctx.lineTo(side*scale*.5,-scale*1.3);ctx.lineTo(side*scale*.82,-scale*1.25);ctx.stroke();ctx.beginPath();ctx.arc(side*scale*.82,-scale*1.25,scale*.2,0,Math.PI*2);ctx.stroke();ctx.strokeStyle=hurt?'#ff9aa8':style.core;ctx.lineWidth=scale*.115;ctx.beginPath();ctx.moveTo(other*scale*.28,-scale*1.48);ctx.lineTo(other*scale*.47,-scale*1.08);ctx.lineTo(other*scale*.35,-scale*.9);ctx.stroke();}else{const swing=Math.sin(tm*.003)*scale*.06;ctx.beginPath();ctx.moveTo(-scale*.28,-scale*1.48);ctx.lineTo(-scale*.48,-scale*1.08+swing);ctx.lineTo(-scale*.35,-scale*.9+swing);ctx.moveTo(scale*.28,-scale*1.48);ctx.lineTo(scale*.49,-scale*1.14-swing);ctx.lineTo(scale*.38,-scale*.96-swing);ctx.stroke();}ctx.fillStyle='#10152a';ctx.beginPath();ctx.ellipse(0,-scale*1.86,scale*.17,scale*.21,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.strokeStyle=style.glow;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-scale*.1,-scale*1.9);ctx.lineTo(scale*.1,-scale*1.9);ctx.stroke();if(style.halo){ctx.save();ctx.globalAlpha=.72;ctx.strokeStyle=style.glow;ctx.lineWidth=1.7;ctx.shadowBlur=16;ctx.shadowColor=style.glow;ctx.beginPath();ctx.arc(0,-scale*1.32,scale*.7,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(0,-scale*1.32,scale*.84,0,Math.PI*2);ctx.stroke();ctx.restore();}ctx.restore();
  }
  function monster(x){
    const vulnerable=g.phase==='vulnerable',tele=g.phase==='telegraph',hurt=g.enemyHurtUntil>g.clock,tint=hurt?'#ff6b8b':vulnerable?'#65f4dc':tele?'#ffb56b':'#c8a4ff';const aura=ctx.createRadialGradient(x,floor-scale*1.7,scale*.1,x,floor-scale*1.7,scale*1.6);aura.addColorStop(0,hurt?'rgba(255,67,110,.30)':vulnerable?'rgba(68,242,202,.24)':'rgba(150,97,255,.28)');aura.addColorStop(1,'rgba(115,75,208,0)');ctx.fillStyle=aura;ctx.fillRect(x-scale*1.7,floor-scale*3.5,scale*3.4,scale*3.6);
@@ -266,6 +327,16 @@ document.querySelectorAll('[data-difficulty]').forEach(button=>button.addEventLi
  const summaries={easy:'Easy selected — generous warnings, light damage and wide counter windows.',normal:'Normal selected — 210 HP, 28-damage hits and a tighter practice rhythm.',hard:'Hard selected — THE RIFT MASTER: 420 HP, 48-damage hits, shifting lanes and tiny counter windows. Brutal, but beatable with clean timing.'};
  $('difficulty-summary').textContent=summaries[difficulty];
 }));
+document.querySelectorAll('[data-character-action]').forEach(button=>button.addEventListener('click',()=>handleCharacterAction(button.dataset.characterAction)));
+$('username-form').addEventListener('submit',event=>{
+ event.preventDefault();
+ const input=$('profile-name-input'),next=input.value.trim();
+ if(!/^[A-Za-z0-9 _-]{3,18}$/.test(next)){refreshStore('Use 3–18 characters: letters, numbers, spaces, underscores or hyphens.');return;}
+ if(next===profile.username){refreshStore('That is already your username. No Kinets spent.');return;}
+ if(profile.kinets<USERNAME_CHANGE_COST){refreshStore('Changing your username costs '+USERNAME_CHANGE_COST+' Kinets. You need '+(USERNAME_CHANGE_COST-profile.kinets)+' more.');return;}
+ profile.kinets-=USERNAME_CHANGE_COST;profile.username=next;saveProfile();refreshStore('Username updated. −'+USERNAME_CHANGE_COST+' Kinets.');
+ updateHud();
+});
 document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventListener('click',()=>{
  const next=button.dataset.sensitivity;if(!MOTION_SENSITIVITY[next])return;motionSensitivity=next;
  document.querySelectorAll('[data-sensitivity]').forEach(option=>{

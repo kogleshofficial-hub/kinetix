@@ -53,6 +53,12 @@ MediaPipe Pose Landmarker estimates body landmarks in camera frames. Kinetix use
 
 Keep the play area clear. Use controlled, comfortable air gestures only—no physical contact, striking objects, forceful jumps or high-impact movements. If tracking is lost, the match pauses until the required player(s) are visible again.
 
+## Kinets and customization
+
+Solo victories award Kinets: Easy **15**, Normal **20**, and Hard **30**. Kinets can unlock cosmetic fighter styles (Elite **120**, Epic **300**, Legendary **600**) or a username change (**100**). Cosmetics do not improve combat stats. Local Duo matches do not award Kinets.
+
+The current profile is stored in browser local storage on the current device. It is not an authenticated account, cannot sync across devices, and can be cleared by browser data deletion. A server-backed account and trusted economy would be required before treating balances, usernames, or purchases as secure.
+
 ## Current scope and limitations
 
 The prototype includes a solo AI encounter, same-device local duel, camera permission gate, pose calibration, touch/keyboard backup, health and mana meters, med kits, supply drops, hit/heal feedback, original Canvas fighter visuals, sound effects, pause/replay and a downloadable result card. Real-time online multiplayer, accounts, cloud leaderboards, payments and automatic camera recording are not included. Camera tracking and small-screen performance still need testing on a range of real devices before this can be called production-ready.
