@@ -248,7 +248,7 @@ function updateHud(){
 function showOverlay(title,desc,tag,buttons,stats) {
  const overlay=$('overlay'),dialog=$('dialog');overlay.classList.remove('hidden');dialog.className='dialog'+(stats?' result':'');
  let html='<span class="tag">'+tag+'</span><h2>'+title+'</h2><p>'+desc+'</p>';
- if(stats)html+='<div class="stats"><div><span>BEST COMBO</span><b>'+String(g.best).padStart(2,'0')+'×</b></div><div><span>DAMAGE</span><b>'+String(g.damage).padStart(3,'0')+'</b></div><div><span>ACCURACY</span><b>'+accuracy()+'%</b></div><div><span>DODGES</span><b>'+String(g.dodges).padStart(2,'0')+'×</b></div></div>';
+ if(stats)html+='<div class="stats"><div><span>BEST COMBO</span><b>'+String(g.best).padStart(2,'0')+'×</b></div><div><span>DAMAGE</span><b>'+String(g.damage).padStart(3,'0')+'</b></div><div><span>ACCURACY</span><b>'+accuracy()+'%</b></div><div><span>DODGES</span><b>'+String(g.dodges).padStart(2,'0')+'</b></div></div>';
  if(stats&&g.mode==='solo'&&g.rewardEarned>0)html+='<div class="reward-earned"><span>SOLO VICTORY REWARD</span><b>+'+g.rewardEarned+' KINETS</b><small>Wallet balance: '+profile.kinets+' Kinets · Saved in this browser</small></div>';
  buttons.forEach(b=>html+='<button class="btn '+b.style+'" data-overlay="'+b.action+'">'+b.label+'</button>');
  if(!stats)html+='<button class="text-btn" data-overlay="home">EXIT TO MAIN MENU</button>';
