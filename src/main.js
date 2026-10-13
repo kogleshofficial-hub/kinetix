@@ -11,17 +11,17 @@ let neutralLean = 0, calibrated = false, lastPose = null, secondPose = null, pri
 let cameraTargetMode='solo',neutralLeans=[0,0];
 const motionMemory=[{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0},{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0}];
 const DIFFICULTIES=Object.freeze({
- beginner:{label:'BEGINNER TRAINING',enemyHP:80,enemyDamage:10,firstWait:1.05,telegraph:1.2,opening:1.95,recovery:.65},
- normal:{label:'NORMAL',enemyHP:100,enemyDamage:18,firstWait:1.35,telegraph:.88,opening:1.28,recovery:.85},
- hard:{label:'HARD',enemyHP:130,enemyDamage:25,firstWait:.72,telegraph:.48,opening:.72,recovery:.48}
+ beginner:{label:'BEGINNER TRAINING',enemyHP:95,enemyDamage:12,firstWait:.9,telegraph:1.0,opening:1.6,recovery:.42},
+ normal:{label:'NORMAL',enemyHP:115,enemyDamage:20,firstWait:.92,telegraph:.64,opening:1.08,recovery:.32},
+ hard:{label:'HARD',enemyHP:145,enemyDamage:27,firstWait:.58,telegraph:.42,opening:.66,recovery:.24}
 });
 let difficulty='beginner';
 function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.beginner;}
 const MOTION_SENSITIVITY=Object.freeze({
- high:{label:'HIGH',minSpeed:.32,minTravel:.045,extensionDelta:.007,travelGrowth:.004,minFrameStep:.024,globalCooldown:30,handCooldown:50,returnTravel:.12,rearmRecoil:.035},
- max:{label:'MAX',minSpeed:.20,minTravel:.026,extensionDelta:.0035,travelGrowth:.0015,minFrameStep:.014,globalCooldown:18,handCooldown:32,returnTravel:.105,rearmRecoil:.024}
+ high:{label:'HIGH',minSpeed:.72,minTravel:.085,extensionDelta:.015,travelGrowth:.012,minFrameStep:.055,globalCooldown:60,handCooldown:115,returnTravel:.16,rearmRecoil:.045},
+ max:{label:'MAX',minSpeed:.50,minTravel:.060,extensionDelta:.009,travelGrowth:.008,minFrameStep:.035,globalCooldown:40,handCooldown:80,returnTravel:.135,rearmRecoil:.034}
 });
-let motionSensitivity='max';
+let motionSensitivity='high';
 function sensitivityRules(){return MOTION_SENSITIVITY[motionSensitivity]||MOTION_SENSITIVITY.max;}
 let impactClearTimer=0;
 let audioContext = null, raf = 0, previousFrame = 0, lastHudAt = 0, lastEventStamp = -1, eventFxAt = performance.now();
@@ -33,7 +33,7 @@ let g = freshGame();
 function freshFighter(){return {hp:100,mana:70,combo:0,best:0,lane:0,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,attackUntil:0,hurtUntil:0,medkits:1,collectCooldown:0,pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0};}
 function freshGame(mode='solo'){
  const p1=freshFighter(),p2=freshFighter();
- return {status:'ready',mode:mode,difficulty:difficulty,phase:mode==='duo'?'duel':'idle',time:mode==='duo'?60:55,clock:0,pHP:100,eHP:mode==='duo'?100:difficultyRules().enemyHP,enemyMaxHP:mode==='duo'?100:difficultyRules().enemyHP,energy:72,playerHurtUntil:0,playerAttackUntil:0,playerAttackSide:1,enemyHurtUntil:0,combo:0,best:0,lane:0,target:0,attackIndex:0,phaseTimer:mode==='duo'?1.35:difficultyRules().firstWait,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0};
+ return {status:'ready',mode:mode,difficulty:difficulty,phase:mode==='duo'?'duel':'idle',time:mode==='duo'?60:75,clock:0,pHP:mode==='duo'?100:120,playerMaxHP:mode==='duo'?100:120,eHP:mode==='duo'?100:difficultyRules().enemyHP,enemyMaxHP:mode==='duo'?100:difficultyRules().enemyHP,energy:72,playerHurtUntil:0,playerAttackUntil:0,playerAttackSide:1,enemyHurtUntil:0,combo:0,best:0,lane:0,target:0,attackIndex:0,phaseTimer:mode==='duo'?1.35:difficultyRules().firstWait,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0};
 }
 function beginGame(mode='solo'){
  g=freshGame(mode);g.status='playing';g.msg=mode==='duo'?'DUEL ONLINE — MAKE YOUR MOVE':'READ THE RIFT. FIND YOUR MOMENT.';
@@ -174,7 +174,7 @@ function step(dt){
  if(g.pHP<=0)finish('lost');
 }
 function updateHud(){
- $('player-hp').textContent=g.pHP;$('enemy-hp').textContent=g.eHP;$('player-hp-bar').style.width=g.pHP+'%';$('enemy-hp-bar').style.width=Math.max(0,Math.min(100,g.eHP/Math.max(1,g.enemyMaxHP)*100))+'%';const enemyHpMeta=document.querySelector('.fighter.enemy .fighter-data small span');if(enemyHpMeta)enemyHpMeta.textContent=' / '+g.enemyMaxHP+' HP';$('timer').textContent='00:'+String(Math.ceil(g.time)).padStart(2,'0');$('timer').classList.toggle('urgent',g.time<=10);
+ $('player-hp').textContent=g.pHP;$('enemy-hp').textContent=g.eHP;$('player-hp-bar').style.width=Math.max(0,Math.min(100,g.pHP/Math.max(1,g.playerMaxHP||100)*100))+'%';$('enemy-hp-bar').style.width=Math.max(0,Math.min(100,g.eHP/Math.max(1,g.enemyMaxHP)*100))+'%';const playerHpMeta=document.querySelector('.fighter:not(.enemy) .fighter-data small span');if(playerHpMeta)playerHpMeta.textContent=' / '+(g.playerMaxHP||100)+' HP';const enemyHpMeta=document.querySelector('.fighter.enemy .fighter-data small span');if(enemyHpMeta)enemyHpMeta.textContent=' / '+g.enemyMaxHP+' HP';$('timer').textContent='00:'+String(Math.ceil(g.time)).padStart(2,'0');$('timer').classList.toggle('urgent',g.time<=10);
  $('phase-label').textContent=g.mode==='duo'?'LOCAL DUEL':g.phase==='telegraph'?'THREAT INCOMING':g.phase==='vulnerable'?'OPENING FOUND':g.phase==='strike'?'IMPACT':'READ THE PATTERN';
  $('combo').textContent=String(g.combo).padStart(2,'0')+'×';$('combo').style.color=g.combo>=3?'#67e8ef':'';$('energy').textContent=String(Math.round(g.energy)).padStart(3,'0');$('energy-bar').style.width=g.energy+'%';$('lane').textContent=g.lane===-1?'LEFT':g.lane===1?'RIGHT':'CENTER';$('feed-text').textContent=(cameraMode&&!trackingOkay)?(g.mode==='duo'?'TRACKING PAUSED — KEEP BOTH PLAYERS IN FRAME':'TRACKING PAUSED — RETURN TO CAMERA FRAME'):g.msg;$('feed').className='feed '+((cameraMode&&!trackingOkay)?'danger':(g.tone==='good'?'good':g.tone==='danger'?'danger':''));if(cameraMode&&!trackingOkay)$('phase-label').textContent='TRACKING PAUSED';
  $('nova-button').disabled=g.energy<100||g.status!=='playing'||paused;$('nova-button').classList.toggle('ready',g.energy>=100);$('nova-label').textContent=g.energy>=100?'READY TO RELEASE':(100-Math.round(g.energy))+'% TO CHARGE';document.querySelectorAll('.move[data-action]').forEach(b=>{b.disabled=g.status!=='playing'||paused||(b.dataset.action==='NOVA'&&g.energy<100)||(b.dataset.action==='MEDKIT'&&(!g.medkits||g.pHP>=100))||(b.dataset.action==='COLLECT'&&!g.pickup);});
@@ -268,7 +268,7 @@ document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventL
  document.querySelectorAll('[data-sensitivity]').forEach(option=>{
   const selected=option.dataset.sensitivity===motionSensitivity;option.classList.toggle('active',selected);option.setAttribute('aria-pressed',String(selected));
  });
- const summaries={max:'MAX sensitivity selected — shorter jabs and smaller wrist movements can trigger PULSE. Extra arm movement may also trigger it.',high:'HIGH sensitivity selected — slightly stricter detection to help reduce accidental pulses.'};
+ const summaries={max:'MAX sensitivity selected — catches shorter jabs, but may also count more incidental arm movement.',high:'HIGH sensitivity selected — looks for more deliberate punches and filters small wrist jitter.'};
  document.querySelectorAll('[data-sensitivity-summary]').forEach(node=>node.textContent=summaries[motionSensitivity]);
 }));
 $('play-keyboard').addEventListener('click',()=>chooseGameMode('solo'));
@@ -518,9 +518,9 @@ function detectMotion(points,now,player=1){
 
     if(!hand.armed){
      const returnProgress=hand.peakTravel-travel;
-     const movingBack=alignment<-.18&&returnProgress>tuning.rearmRecoil;
-     const settledNearReady=travel<tuning.returnTravel&&speed<.34;
-     const slowReset=speed<.24&&now-hand.lastPunchAt>180;
+     const movingBack=alignment<-.28&&returnProgress>tuning.rearmRecoil;
+     const settledNearReady=travel<tuning.returnTravel&&speed<.26;
+     const slowReset=speed<.18&&now-hand.lastPunchAt>190;
      // Re-arm on a real pull-back or reset. Direction gating below suppresses the rest of the return.
      if(canFire&&(movingBack||settledNearReady||slowReset)){
       hand.armed=true;hand.base=current;hand.lastTravel=0;hand.peakTravel=0;hand.restFrames=0;
@@ -533,10 +533,13 @@ function detectMotion(points,now,player=1){
      }
      const nowTravel=vectorDistance(current.position,hand.base.position);
      const outwardGrowth=nowTravel>previousTravel+tuning.travelGrowth;
-     const directionNotReturn=!hand.lastPunchDirection||alignment>-.72;
-     const shortJab=nowTravel>=tuning.minTravel&&speed>=tuning.minSpeed&&outwardGrowth;
-     const frameBurst=stepTravel>=tuning.minFrameStep&&speed>=tuning.minSpeed&&nowTravel>=tuning.minTravel*.72&&outwardGrowth;
-     const extendingJab=extensionDelta>=tuning.extensionDelta&&nowTravel>=tuning.minTravel*.72&&speed>=tuning.minSpeed*.7;
+     const directionNotReturn=!hand.lastPunchDirection||alignment>-.55;
+     const forwardReach=nowTravel>=tuning.minTravel;
+     const shortJab=forwardReach&&speed>=tuning.minSpeed&&outwardGrowth;
+     const frameBurst=stepTravel>=tuning.minFrameStep&&speed>=tuning.minSpeed&&forwardReach&&outwardGrowth;
+     const extendingJab=extensionDelta>=tuning.extensionDelta&&forwardReach&&speed>=tuning.minSpeed*.9;
+     // A strike must show meaningful shoulder-relative travel plus speed or extension;
+     // small hand tremors and resting-position drift do not count as a punch.
      const distinctPunch=directionNotReturn&&(shortJab||frameBurst||extendingJab);
      if(distinctPunch&&canFire){
       action('PULSE',player);mem.lastPulse=now;hand.lastPunchAt=now;hand.armed=false;hand.restFrames=0;
