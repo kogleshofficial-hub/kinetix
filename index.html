@@ -189,7 +189,7 @@ function dualAction(kind,player=1){
  syncDuelState();if(g.p1.hp<=0){finishDuel(2);return;}if(g.p2.hp<=0){finishDuel(1);return;}updateHud();
 }
 function action(kind,player=1){
- if(g.status!=='playing'||paused)return;if(g.mode==='duo'){dualAction(kind,player);return;}if(kind==='COLLECT'){pickupDrop(1);return;}if(kind==='MEDKIT'){useMedkit(1);return;}
+ if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;if(g.mode==='duo'){dualAction(kind,player);return;}if(kind==='COLLECT'){pickupDrop(1);return;}if(kind==='MEDKIT'){useMedkit(1);return;}
  const before=g.event+':'+g.eventAt;if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+1.05);return;}
  if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-g.lastPhase<.3)return;g.lastPhase=g.clock;g.lane=kind==='PHASE_LEFT'?-1:1;g.dodgeUntil=g.clock+1.05;if(g.phase==='telegraph'&&g.target!==g.lane){g.energy=Math.min(100,g.energy+3);announce('dodge','PHASE SHIFT','good');sfx('dodge');}updateHud();return;}
  if(kind==='PULSE'){if(g.clock-g.lastPulse<.42)return;if(g.energy<6){announce('miss','MANA LOW — WAIT FOR A RECHARGE','neutral');updateHud();return;}g.energy=Math.max(0,g.energy-6);g.lastPulse=g.clock;g.pulses++;if(g.phase==='vulnerable'){const d=Math.min(14,g.eHP);g.eHP=Math.max(0,g.eHP-14);g.damage+=d;g.energy=Math.min(100,g.energy+11);g.combo++;g.best=Math.max(g.best,g.combo);g.clean++;announce('pulse',g.eHP<=0?'FINISHER CONFIRMED':'RIFT PUNCTURED  −14','good');}else{const d=Math.min(3,g.eHP);g.eHP=Math.max(0,g.eHP-3);g.damage+=d;g.combo=0;announce('miss','GLANCING HIT — WAIT FOR THE OPENING','neutral');}}
@@ -357,7 +357,9 @@ async function startCamera(targetMode='lobby'){
  $('enable-camera').disabled=true;
  try{
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Camera access is unavailable. Open Kinetix over HTTPS and retry.');
-  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:30,max:30}},audio:false});video.srcObject=stream;await video.play();
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:30,max:30}},audio:false});
+  stream.getVideoTracks().forEach(track=>track.addEventListener('ended',()=>{if(cameraStatus==='ready'&&!cameraStarting)lockToCameraGate('Your camera disconnected or stopped sharing.');}));
+  video.srcObject=stream;await video.play();
   cameraPanel.classList.remove('off');cameraStatus='loading';$('camera-label').textContent='LOADING MOTION AI';$('setup-title').textContent='INITIALIZING MOTION TRACKING';$('setup-copy').textContent='Downloading the pose model for local gesture detection. The camera feed is not uploaded.';
   const vision=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm');
   const files=await vision.FilesetResolver.forVisionTasks(wasmUrl);let pose;
