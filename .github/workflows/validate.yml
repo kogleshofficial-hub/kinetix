@@ -25,6 +25,17 @@ jobs:
           const modules = [...html.matchAll(/<script type="module">([\s\S]*?)<\/script>/g)];
           if (modules.length !== 1) throw new Error('Expected exactly one inline module script.');
           const source = modules[0][1];
+          const runtimeSources = [
+            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs',
+            'https://unpkg.com/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs',
+            'https://esm.sh/@mediapipe/tasks-vision@0.10.22?bundle'
+          ];
+          for (const url of runtimeSources) {
+            if (!source.includes(url)) throw new Error('Missing MediaPipe runtime fallback: ' + url);
+          }
+          if (source.includes('@mediapipe/tasks-vision@0.10.22/+esm')) {
+            throw new Error('Do not use the failing jsDelivr +esm transform for MediaPipe.');
+          }
           fs.writeFileSync('/tmp/kinetix-module.mjs', source);
           const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
           const idSet = new Set(ids);
