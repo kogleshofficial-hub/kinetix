@@ -10,6 +10,14 @@ let lastTrackingAt = 0;
 let neutralLean = 0, calibrated = false, lastPose = null, secondPose = null, priorPose = null, priorPoseAt = 0, lastPulse = -9999, lastGuard = -9999, lastPhase = -9999, priorGuardPose = false, priorLeanSide = 0;
 let cameraTargetMode='solo',neutralLeans=[0,0];
 const motionMemory=[{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0},{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0}];
+const DIFFICULTIES=Object.freeze({
+ beginner:{label:'BEGINNER TRAINING',enemyHP:80,enemyDamage:10,firstWait:1.05,telegraph:1.2,opening:1.95,recovery:.65},
+ normal:{label:'NORMAL',enemyHP:100,enemyDamage:18,firstWait:1.35,telegraph:.88,opening:1.28,recovery:.85},
+ hard:{label:'HARD',enemyHP:130,enemyDamage:25,firstWait:.72,telegraph:.48,opening:.72,recovery:.48}
+});
+let difficulty='beginner';
+function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.beginner;}
+let impactClearTimer=0;
 let audioContext = null, raf = 0, previousFrame = 0, lastHudAt = 0, lastEventStamp = -1, eventFxAt = performance.now();
 let bestRecord = 0;
 try { bestRecord = Number(localStorage.getItem('kinetix-best-combo') || 0); } catch {}
@@ -19,7 +27,7 @@ let g = freshGame();
 function freshFighter(){return {hp:100,mana:70,combo:0,best:0,lane:0,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,attackUntil:0,hurtUntil:0,medkits:1,collectCooldown:0,pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0};}
 function freshGame(mode='solo'){
  const p1=freshFighter(),p2=freshFighter();
- return {status:'ready',mode:mode,phase:mode==='duo'?'duel':'idle',time:mode==='duo'?60:55,clock:0,pHP:100,eHP:100,energy:72,playerHurtUntil:0,playerAttackUntil:0,playerAttackSide:1,combo:0,best:0,lane:0,target:0,attackIndex:0,phaseTimer:1.35,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0};
+ return {status:'ready',mode:mode,difficulty:difficulty,phase:mode==='duo'?'duel':'idle',time:mode==='duo'?60:55,clock:0,pHP:100,eHP:mode==='duo'?100:difficultyRules().enemyHP,enemyMaxHP:mode==='duo'?100:difficultyRules().enemyHP,energy:72,playerHurtUntil:0,playerAttackUntil:0,playerAttackSide:1,enemyHurtUntil:0,combo:0,best:0,lane:0,target:0,attackIndex:0,phaseTimer:mode==='duo'?1.35:difficultyRules().firstWait,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0};
 }
 function beginGame(mode='solo'){
  g=freshGame(mode);g.status='playing';g.msg=mode==='duo'?'DUEL ONLINE — MAKE YOUR MOVE':'READ THE RIFT. FIND YOUR MOMENT.';
@@ -43,9 +51,10 @@ function sfx(name) {
 }
 function showImpact(player,damage){
  const flash=$('impact-flash'),number=$('hit-number'),frame=canvas.parentElement;g.hitPlayer=player;g.damageFlashAt=performance.now();
- flash.className='impact-flash '+(player===1?'hit-p1':'');number.textContent='−'+damage+' HP';number.classList.remove('hidden');
+ flash.className='impact-flash '+(player===1?'hit-p1':'');number.textContent='−'+damage+' HP';number.classList.remove('hidden','healing');
+ number.style.animation='none';void number.offsetWidth;number.style.animation='';
  frame.classList.remove('shake');void frame.offsetWidth;frame.classList.add('shake');flash.classList.remove('active');void flash.offsetWidth;flash.classList.add('active');
- setTimeout(()=>{number.classList.add('hidden');frame.classList.remove('shake');},760);
+ clearTimeout(impactClearTimer);impactClearTimer=setTimeout(()=>{number.classList.add('hidden');frame.classList.remove('shake');},760);
 }
 function showHeal(player,amount){const flash=$('impact-flash'),number=$('hit-number'),frame=canvas.parentElement;flash.className='impact-flash healing '+(player===1?'hit-p1':'');number.textContent='+'+amount;number.classList.remove('hidden','healing');number.classList.add('healing');frame.classList.remove('shake');flash.classList.remove('active');void flash.offsetWidth;flash.classList.add('active');setTimeout(()=>{number.classList.add('hidden');number.classList.remove('healing');},760);}
 function stepSupplyDrops(){
@@ -77,10 +86,10 @@ function syncDuelState(){g.pHP=g.p1.hp;g.eHP=g.p2.hp;g.energy=g.p1.mana;g.combo=
 function dualAction(kind,player=1){
  if(g.status!=='playing'||paused)return;const actor=player===2?g.p2:g.p1,target=player===2?g.p1:g.p2,targetNum=player===2?1:2;
  if(kind==='COLLECT'){pickupDrop(player);return;}if(kind==='MEDKIT'){useMedkit(player);return;}
- if(kind==='GUARD'){actor.guardUntil=Math.max(actor.guardUntil,g.clock+.92);announce('block','P'+player+' GUARD READY','good');updateHud();return;}
+ if(kind==='GUARD'){const wasGuarding=actor.guardUntil>g.clock;actor.guardUntil=Math.max(actor.guardUntil,g.clock+1.05);if(!wasGuarding)announce('block','P'+player+' SHIELD ACTIVE','good');updateHud();return;}
  if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-actor.lastPhase<.3)return;actor.lastPhase=g.clock;actor.lane=kind==='PHASE_LEFT'?-1:1;actor.dodgeUntil=g.clock+.68;actor.attackUntil=g.clock+.15;actor.mana=Math.min(100,actor.mana+2);announce('dodge','P'+player+' PHASE SHIFT','good');sfx('dodge');syncDuelState();updateHud();return;}
  if(kind==='PULSE'){
-   if(g.clock-actor.lastPulse<.2)return;
+   if(g.clock-actor.lastPulse<.075)return;
    actor.lastPulse=g.clock;
    // Low mana weakens a pulse; it no longer makes a clearly detected punch disappear.
    const powered=actor.mana>=10;
@@ -112,7 +121,7 @@ function action(kind,player=1){
  const before=g.event+':'+g.eventAt;if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+1.05);return;}
  if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-g.lastPhase<.3)return;g.lastPhase=g.clock;g.lane=kind==='PHASE_LEFT'?-1:1;g.dodgeUntil=g.clock+1.05;if(g.phase==='telegraph'&&g.target!==g.lane){g.energy=Math.min(100,g.energy+3);announce('dodge','PHASE SHIFT','good');sfx('dodge');}updateHud();return;}
  if(kind==='PULSE'){
-  if(g.clock-g.lastPulse<.2)return;
+  if(g.clock-g.lastPulse<.075)return;
   g.lastPulse=g.clock;
   const powered=g.energy>=4;
   g.energy=Math.max(0,g.energy-(powered?4:1));
@@ -122,12 +131,12 @@ function action(kind,player=1){
   if(g.phase==='vulnerable'){
    const comboBonus=g.combo>0&&g.combo%3===2?5:0;
    const damage=Math.min(powered?16+comboBonus:8+comboBonus,g.eHP);
-   g.eHP=Math.max(0,g.eHP-damage);g.damage+=damage;g.energy=Math.min(100,g.energy+(powered?10:4));
-   g.combo++;g.best=Math.max(g.best,g.combo);g.clean++;
+   g.eHP=Math.max(0,g.eHP-damage);g.damage+=damage;g.energy=Math.min(100,g.energy+(powered?10:4));g.enemyHurtUntil=g.clock+.24;
+   g.combo++;g.best=Math.max(g.best,g.combo);g.clean++;showImpact(2,damage);
    announce('pulse',g.eHP<=0?'FINISHER CONFIRMED':'RIFT HIT  −'+damage+' HP'+(comboBonus?' · COMBO BONUS':''),'good');
   }else{
    const damage=Math.min(powered?5:2,g.eHP);
-   g.eHP=Math.max(0,g.eHP-damage);g.damage+=damage;g.combo=0;
+   g.eHP=Math.max(0,g.eHP-damage);g.damage+=damage;g.combo=0;g.enemyHurtUntil=g.clock+.2;showImpact(2,damage);
    announce('pulse','GLANCING HIT  −'+damage+' HP · FIND THE OPENING','neutral');
   }
  }
@@ -135,9 +144,9 @@ function action(kind,player=1){
  if(g.event+':'+g.eventAt!==before&&g.event!=='none')sfx(g.event);updateHud();
 }
 function enemyAttack(){
- if(g.guardUntil>g.clock){g.energy=Math.min(100,g.energy+17);g.blocks++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=1.28;announce('block','PERFECT GUARD  +17 ENERGY','good');sfx('block');return;}
- if(g.lane!==g.target||g.dodgeUntil>g.clock){g.energy=Math.min(100,g.energy+18);g.dodges++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=1.28;announce('dodge','PHASE SHIFT  +18 ENERGY','good');sfx('dodge');return;}
- g.pHP=Math.max(0,g.pHP-18);g.playerHurtUntil=g.clock+.48;g.hits++;g.combo=0;g.phase='vulnerable';g.phaseTimer=1.28;announce('hit','RIFT IMPACT  −18 HP','danger');sfx('hit');showImpact(1,18);if(g.pHP<=0)finish('lost');
+ if(g.guardUntil>g.clock){g.energy=Math.min(100,g.energy+17);g.blocks++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=difficultyRules().opening;announce('block','PERFECT GUARD  +17 ENERGY','good');sfx('block');return;}
+ if(g.lane!==g.target||g.dodgeUntil>g.clock){g.energy=Math.min(100,g.energy+18);g.dodges++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=difficultyRules().opening;announce('dodge','PHASE SHIFT  +18 ENERGY','good');sfx('dodge');return;}
+ const damage=difficultyRules().enemyDamage;g.pHP=Math.max(0,g.pHP-damage);g.playerHurtUntil=g.clock+.48;g.hits++;g.combo=0;g.phase='vulnerable';g.phaseTimer=difficultyRules().opening;announce('hit','RIFT IMPACT  −'+damage+' HP','danger');sfx('hit');showImpact(1,damage);if(g.pHP<=0)finish('lost');
 }
 function finish(status){
  g.status=status;g.winner=status==='won'?1:status==='lost'?2:null;if(status==='won'){g.event='win';g.msg='RIFT COLLAPSED';g.tone='good';}else if(status==='lost'){g.event='lose';g.msg='SIGNAL LOST';g.tone='danger';}else{g.msg='TIME FRACTURED';g.tone='danger';}
@@ -155,11 +164,11 @@ function step(dt){
  if(g.mode==='duo'){stepDuo(dt);return;}if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;
  dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.phaseTimer-=dt;g.energy=Math.min(100,g.energy+1.4*dt);stepSupplyDrops();
  if(g.time<=0){finish(g.eHP<=0?'won':'time-up');return;}if(g.eHP<=0){finish('won');return;}
- if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=[0,1,-1,0,-1,1];g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=.88;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=.85;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
+ if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=[0,1,-1,0,-1,1];g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
  if(g.pHP<=0)finish('lost');
 }
 function updateHud(){
- $('player-hp').textContent=g.pHP;$('enemy-hp').textContent=g.eHP;$('player-hp-bar').style.width=g.pHP+'%';$('enemy-hp-bar').style.width=g.eHP+'%';$('timer').textContent='00:'+String(Math.ceil(g.time)).padStart(2,'0');$('timer').classList.toggle('urgent',g.time<=10);
+ $('player-hp').textContent=g.pHP;$('enemy-hp').textContent=g.eHP;$('player-hp-bar').style.width=g.pHP+'%';$('enemy-hp-bar').style.width=Math.max(0,Math.min(100,g.eHP/Math.max(1,g.enemyMaxHP)*100))+'%';const enemyHpMeta=document.querySelector('.fighter.enemy .fighter-data small span');if(enemyHpMeta)enemyHpMeta.textContent=' / '+g.enemyMaxHP+' HP';$('timer').textContent='00:'+String(Math.ceil(g.time)).padStart(2,'0');$('timer').classList.toggle('urgent',g.time<=10);
  $('phase-label').textContent=g.mode==='duo'?'LOCAL DUEL':g.phase==='telegraph'?'THREAT INCOMING':g.phase==='vulnerable'?'OPENING FOUND':g.phase==='strike'?'IMPACT':'READ THE PATTERN';
  $('combo').textContent=String(g.combo).padStart(2,'0')+'×';$('combo').style.color=g.combo>=3?'#67e8ef':'';$('energy').textContent=String(Math.round(g.energy)).padStart(3,'0');$('energy-bar').style.width=g.energy+'%';$('lane').textContent=g.lane===-1?'LEFT':g.lane===1?'RIGHT':'CENTER';$('feed-text').textContent=(cameraMode&&!trackingOkay)?(g.mode==='duo'?'TRACKING PAUSED — KEEP BOTH PLAYERS IN FRAME':'TRACKING PAUSED — RETURN TO CAMERA FRAME'):g.msg;$('feed').className='feed '+((cameraMode&&!trackingOkay)?'danger':(g.tone==='good'?'good':g.tone==='danger'?'danger':''));if(cameraMode&&!trackingOkay)$('phase-label').textContent='TRACKING PAUSED';
  $('nova-button').disabled=g.energy<100||g.status!=='playing'||paused;$('nova-button').classList.toggle('ready',g.energy>=100);$('nova-label').textContent=g.energy>=100?'READY TO RELEASE':(100-Math.round(g.energy))+'% TO CHARGE';document.querySelectorAll('.move[data-action]').forEach(b=>{b.disabled=g.status!=='playing'||paused||(b.dataset.action==='NOVA'&&g.energy<100)||(b.dataset.action==='MEDKIT'&&(!g.medkits||g.pHP>=100))||(b.dataset.action==='COLLECT'&&!g.pickup);});
@@ -184,7 +193,7 @@ function accuracy(){return g.pulses?Math.round(g.clean/g.pulses*100):0;}
 function showResult(){
  if(g.mode==='duo'){const winner=g.winner;const title=winner===0?'PERFECTLY EVEN.':'PLAYER '+winner+' WINS.';const desc=winner===0?'Both fighters end the round with the same health. Run it back.':(winner===1?'Player One controlled the arena this round.':'Player Two controlled the arena this round.');
  showOverlay(title,desc,'LOCAL DUEL / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);return;}
- const won=g.status==='won';showOverlay(won?'RIFT COLLAPSED.':g.status==='time-up'?'TIME FRACTURED.':'SIGNAL LOST',won?'You read the pattern and closed the breach.':g.status==='time-up'?'The rift is still open. Change your timing and try again.':'The Hollow won this round. Re-enter when you are ready.','RIFT DUEL / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
+ const won=g.status==='won';showOverlay(won?'RIFT COLLAPSED.':g.status==='time-up'?'TIME FRACTURED.':'SIGNAL LOST',won?'You read the pattern and closed the breach on '+difficultyRules().label+'.':g.status==='time-up'?'The rift is still open. Change your timing and try again.':'The Hollow won this round. Try '+(difficulty==='hard'?'Normal or Beginner Training':difficulty==='normal'?'Beginner Training':'the round again')+' when ready.','RIFT DUEL / '+difficultyRules().label+' / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
 }
 function pauseGame(){if(g.status!=='playing')return;paused=true;showOverlay('Catch your breath.','The rift is frozen. Your progress is still here.','SESSION PAUSED',[{label:'RESUME ROUND →',style:'primary',action:'resume'},{label:'RESTART ROUND',style:'secondary',action:'restart'}],false);}
 function downloadCard(){
@@ -213,7 +222,7 @@ function draw(t) {
    ctx.save();const hurt=g.playerHurtUntil>g.clock,attacking=g.playerAttackUntil>g.clock;const px=x+(g.lane===-1?-scale*.23:g.lane===1?scale*.23:0)+Math.sin(tm*.002)*2;ctx.translate(px,floor);ctx.globalAlpha=hurt&&!reducedMotion&&Math.floor(tm/65)%2===0?.52:1;ctx.shadowBlur=hurt?32:attacking?36:20;ctx.shadowColor=hurt?'#ff536d':attacking?'#66f1ff':'#7c8bff';ctx.strokeStyle=hurt?'#ff9aa8':'#bac4ff';ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=scale*.115;ctx.strokeStyle='#7b8bff';ctx.beginPath();ctx.ellipse(0,-3,scale*.54,scale*.12,0,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#bac4ff';ctx.beginPath();ctx.moveTo(-scale*.1,-scale*.72);ctx.lineTo(-scale*.29,-scale*.08);ctx.lineTo(-scale*.45,-scale*.02);ctx.moveTo(scale*.1,-scale*.72);ctx.lineTo(scale*.3,-scale*.08);ctx.lineTo(scale*.44,-scale*.02);ctx.moveTo(0,-scale*1.58);ctx.lineTo(0,-scale*.76);ctx.moveTo(-scale*.28,-scale*1.48);ctx.lineTo(scale*.28,-scale*1.48);ctx.stroke();if(g.guardUntil>g.clock){ctx.strokeStyle='#61f0ff';ctx.beginPath();ctx.moveTo(-scale*.25,-scale*1.38);ctx.lineTo(-scale*.04,-scale*1.08);ctx.lineTo(scale*.04,-scale*1.08);ctx.lineTo(scale*.25,-scale*1.38);ctx.stroke();ctx.beginPath();ctx.arc(0,-scale*1.3,scale*.48,Math.PI*1.05,Math.PI*1.95);ctx.stroke();}else if(attacking){const side=g.playerAttackSide||1,other=-side;ctx.strokeStyle='#7df5ff';ctx.lineWidth=scale*.13;ctx.beginPath();ctx.moveTo(side*scale*.28,-scale*1.48);ctx.lineTo(side*scale*.5,-scale*1.3);ctx.lineTo(side*scale*.82,-scale*1.25);ctx.stroke();ctx.beginPath();ctx.arc(side*scale*.82,-scale*1.25,scale*.2,0,Math.PI*2);ctx.stroke();ctx.strokeStyle=hurt?'#ff9aa8':'#bac4ff';ctx.lineWidth=scale*.115;ctx.beginPath();ctx.moveTo(other*scale*.28,-scale*1.48);ctx.lineTo(other*scale*.47,-scale*1.08);ctx.lineTo(other*scale*.35,-scale*.9);ctx.stroke();}else{const swing=Math.sin(tm*.003)*scale*.06;ctx.beginPath();ctx.moveTo(-scale*.28,-scale*1.48);ctx.lineTo(-scale*.48,-scale*1.08+swing);ctx.lineTo(-scale*.35,-scale*.9+swing);ctx.moveTo(scale*.28,-scale*1.48);ctx.lineTo(scale*.49,-scale*1.14-swing);ctx.lineTo(scale*.38,-scale*.96-swing);ctx.stroke();}ctx.fillStyle='#10152a';ctx.beginPath();ctx.ellipse(0,-scale*1.86,scale*.17,scale*.21,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.strokeStyle='#71eaff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-scale*.1,-scale*1.9);ctx.lineTo(scale*.1,-scale*1.9);ctx.stroke();ctx.restore();
  }
  function monster(x){
-   const vulnerable=g.phase==='vulnerable',tele=g.phase==='telegraph',tint=vulnerable?'#65f4dc':tele?'#ffb56b':'#c8a4ff';const aura=ctx.createRadialGradient(x,floor-scale*1.7,scale*.1,x,floor-scale*1.7,scale*1.6);aura.addColorStop(0,vulnerable?'rgba(68,242,202,.24)':'rgba(150,97,255,.28)');aura.addColorStop(1,'rgba(115,75,208,0)');ctx.fillStyle=aura;ctx.fillRect(x-scale*1.7,floor-scale*3.5,scale*3.4,scale*3.6);
+   const vulnerable=g.phase==='vulnerable',tele=g.phase==='telegraph',hurt=g.enemyHurtUntil>g.clock,tint=hurt?'#ff6b8b':vulnerable?'#65f4dc':tele?'#ffb56b':'#c8a4ff';const aura=ctx.createRadialGradient(x,floor-scale*1.7,scale*.1,x,floor-scale*1.7,scale*1.6);aura.addColorStop(0,hurt?'rgba(255,67,110,.30)':vulnerable?'rgba(68,242,202,.24)':'rgba(150,97,255,.28)');aura.addColorStop(1,'rgba(115,75,208,0)');ctx.fillStyle=aura;ctx.fillRect(x-scale*1.7,floor-scale*3.5,scale*3.4,scale*3.6);
    ctx.save();ctx.translate(x,floor+Math.sin(tm*.0022)*scale*.035);ctx.shadowBlur=tele?30:21;ctx.shadowColor=tint;ctx.lineJoin='round';const b=ctx.createLinearGradient(-scale*.7,-scale*2.6,scale*.7,-scale*.2);b.addColorStop(0,vulnerable?'#2d8d9f':'#a36af5');b.addColorStop(.48,'#29264e');b.addColorStop(1,'#111429');ctx.fillStyle=b;ctx.strokeStyle=tint;ctx.lineWidth=2;for(let i=0;i<5;i++){let yy=-scale*(1.2+i*.25);ctx.beginPath();ctx.moveTo(-scale*.25,yy);ctx.lineTo(-scale*(.55+(i%2)*.15),yy-scale*.32);ctx.lineTo(-scale*.05,yy+scale*.11);ctx.closePath();ctx.fill();ctx.stroke();}ctx.beginPath();ctx.moveTo(-scale*.55,-scale*1.45);ctx.lineTo(-scale*.4,-scale*.5);ctx.lineTo(-scale*.12,-scale*.12);ctx.lineTo(scale*.37,-scale*.12);ctx.lineTo(scale*.54,-scale*.67);ctx.lineTo(scale*.42,-scale*1.55);ctx.closePath();ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(-scale*.42,-scale*1.43);ctx.lineTo(-scale*.78,-scale*.9);ctx.lineTo(-scale*.66,-scale*.62);ctx.lineTo(-scale*.48,-scale*.76);ctx.lineTo(-scale*.18,-scale*1.2);ctx.closePath();ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(scale*.4,-scale*1.44);ctx.lineTo(scale*.72,-scale*1.02);ctx.lineTo(scale*.64,-scale*.75);ctx.lineTo(scale*.49,-scale*.86);ctx.lineTo(scale*.2,-scale*1.2);ctx.closePath();ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(-scale*.42,-scale*1.63);ctx.lineTo(-scale*.32,-scale*2.13);ctx.lineTo(0,-scale*2.4);ctx.lineTo(scale*.35,-scale*2.12);ctx.lineTo(scale*.43,-scale*1.64);ctx.lineTo(0,-scale*1.44);ctx.closePath();ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(-scale*.24,-scale*2.22);ctx.lineTo(-scale*.47,-scale*2.55);ctx.lineTo(-scale*.12,-scale*2.34);ctx.closePath();ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(scale*.2,-scale*2.22);ctx.lineTo(scale*.46,-scale*2.54);ctx.lineTo(scale*.11,-scale*2.34);ctx.closePath();ctx.fill();ctx.stroke();ctx.shadowBlur=20;ctx.shadowColor=tint;ctx.fillStyle=tint;ctx.beginPath();ctx.moveTo(-scale*.19,-scale*1.86);ctx.lineTo(-scale*.05,-scale*1.91);ctx.lineTo(scale*.02,-scale*1.78);ctx.lineTo(-scale*.1,-scale*1.68);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(scale*.12,-scale*1.86);ctx.lineTo(scale*.26,-scale*1.81);ctx.lineTo(scale*.15,-scale*1.68);ctx.lineTo(scale*.08,-scale*1.76);ctx.closePath();ctx.fill();ctx.restore();
  }
  function duelHero(x,side){
@@ -242,6 +251,12 @@ function loop(t){
  previousFrame=t;raf=requestAnimationFrame(loop);
 }
 raf=requestAnimationFrame(loop);
+document.querySelectorAll('[data-difficulty]').forEach(button=>button.addEventListener('click',()=>{
+ const next=button.dataset.difficulty;if(!DIFFICULTIES[next])return;difficulty=next;
+ document.querySelectorAll('[data-difficulty]').forEach(option=>{const selected=option===button;option.classList.toggle('active',selected);option.setAttribute('aria-pressed',String(selected));});
+ const summaries={beginner:'Beginner Training selected — slower bot attacks and longer openings.',normal:'Normal selected — balanced speed, damage and recovery.',hard:'Hard selected — faster attacks, stronger hits and shorter openings.'};
+ $('difficulty-summary').textContent=summaries[difficulty];
+}));
 $('play-keyboard').addEventListener('click',()=>chooseGameMode('solo'));
 $('play-duo-camera').addEventListener('click',()=>chooseGameMode('duo'));
 $('enable-camera').addEventListener('click',()=>{void startCamera('lobby');});
@@ -257,9 +272,9 @@ $('calibrate-start').addEventListener('click',()=>{
  motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});
  showError('');
  $('setup-title').textContent='MOTION CALIBRATED';
- $('setup-copy').textContent=cameraTargetMode==='duo'?'Both players are calibrated. Use the on-screen controls any time; visible wrist movements trigger PULSE, hands near the torso trigger GUARD, and small torso leans trigger PHASE.':'Ready. On-screen controls always work while tracking is live; visible wrist movements trigger PULSE, hands near the torso trigger GUARD, and small torso leans trigger PHASE.';
+ $('setup-copy').textContent=cameraTargetMode==='duo'?'Both players are calibrated. Use comfortable air jabs to trigger PULSE, cross your forearms in an X to hold the shield, and lean slightly to PHASE.':'Ready. Use comfortable air jabs to trigger PULSE, cross your forearms in an X to hold the shield, and lean slightly to PHASE. Buttons remain available as backup.';
  beginGame(cameraTargetMode);$('mode-pill').classList.add('live');
- $('move-mode').textContent=cameraTargetMode==='duo'?'TWO PLAYERS · GESTURES + TOUCH':'GESTURES + BUTTON BACKUP';
+ $('move-mode').textContent=cameraTargetMode==='duo'?'TWO PLAYERS · GESTURES + TOUCH':'GESTURES + BUTTON BACKUP · '+difficultyRules().label;
  $('camera-hint').classList.add('hidden');
 });
 $('duo-touch-start').addEventListener('click',()=>{stopCamera(false);cameraMode=false;calibrated=false;beginGame('duo');$('mode-pill').innerHTML='<b></b>2P TOUCH DUEL';$('move-mode').textContent='SPLIT TOUCH CONTROLS';$('camera-hint').classList.add('hidden');});
@@ -328,7 +343,7 @@ function runCameraLoop(){
  if(cameraLoopStarted)return;cameraLoopStarted=true;
  const track=now=>{
   if(!landmarker||cameraStatus!=='ready')return;
-  if(video.readyState>=2&&now-lastInference>42&&video.currentTime!==lastVideoTime){
+  if(video.readyState>=2&&now-lastInference>28&&video.currentTime!==lastVideoTime){
    lastInference=now;lastVideoTime=video.currentTime;
    try{
     const result=landmarker.detectForVideo(video,now);
@@ -347,7 +362,7 @@ function runCameraLoop(){
       $('calibrate-start').disabled=false;
       $('calibrate-start').textContent=cameraTargetMode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';
       $('setup-title').textContent=cameraTargetMode==='duo'?'BOTH PLAYERS DETECTED':'PLAYER DETECTED';
-      $('setup-copy').textContent=cameraTargetMode==='duo'?'Both bodies are visible. Calibrate now to begin the local duel.':'Your body is visible. Calibrate now to start the Rift encounter.';
+      $('setup-copy').textContent=cameraTargetMode==='duo'?'Both bodies are visible. Calibrate now to begin the local duel.':'Your body is visible. Calibrate now to start '+difficultyRules().label+' mode.';
       showError('');
      }
      if(calibrated&&g.status==='playing'&&!paused){detectMotion(lastPose,now,1);if(cameraTargetMode==='duo')detectMotion(secondPose,now,2);}
@@ -396,59 +411,82 @@ function vectorDistance(a,b){
 }
 function armMotionSignature(points,side,shoulderWidth){
  const shoulder=points[side===0?11:12],elbow=points[side===0?13:14],wrist=points[side===0?15:16];
- if(!landmarkVisible(shoulder,.18)||!landmarkVisible(elbow,.15)||!landmarkVisible(wrist,.18))return null;
+ if(!landmarkVisible(shoulder,.15)||!landmarkVisible(wrist,.14))return null;
  const position={x:(wrist.x-shoulder.x)/shoulderWidth,y:(wrist.y-shoulder.y)/shoulderWidth,z:((wrist.z||0)-(shoulder.z||0))/shoulderWidth};
- const upper=vectorDistance(shoulder,elbow),lower=vectorDistance(elbow,wrist),reach=vectorDistance(shoulder,wrist);
- return{position,extension:reach/Math.max(upper+lower,.001),wrist,shoulder};
+ const hasElbow=landmarkVisible(elbow,.1),upper=hasElbow?vectorDistance(shoulder,elbow):0,lower=hasElbow?vectorDistance(elbow,wrist):0,reach=vectorDistance(shoulder,wrist);
+ return{position,extension:hasElbow?reach/Math.max(upper+lower,.001):0,hasElbow,wrist,shoulder};
 }
 function detectMotion(points,now,player=1){
  const mem=motionMemory[player-1]||motionMemory[0],s=shape(points);
- if(!s){mem.priorPose=null;mem.guardPose=false;mem.leanSide=0;return;}
+ if(!s){mem.priorPose=null;mem.guardPose=false;mem.leanSide=0;if(mem.punchHands)mem.punchHands.forEach(hand=>{hand.prev=null;});return;}
  if(!mem.punchHands)mem.punchHands=[{armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0},{armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0}];
  if(!mem.priorPose){
   mem.priorPose=points;mem.priorAt=now;
-  mem.punchHands.forEach((hand,side)=>{const snap=armMotionSignature(points,side,s.sw);hand.base=snap;hand.prev=snap;hand.prevAt=now;hand.armed=true;});
+  mem.punchHands.forEach((hand,side)=>{const snap=armMotionSignature(points,side,s.sw);hand.base=snap;hand.prev=snap;hand.prevAt=now;hand.armed=true;hand.restFrames=0;});
   return;
  }
  const dt=(now-mem.priorAt)/1000;
- if(dt>=.018&&dt<=.3){
-  let punchFired=false;
-  for(let side=0;side<2;side++){
-   const hand=mem.punchHands[side],current=armMotionSignature(points,side,s.sw),previous=hand.prev;
-   if(!current){hand.prev=null;continue;}
-   if(!previous||!hand.base){hand.prev=current;hand.prevAt=now;if(!hand.base)hand.base=current;continue;}
-   const elapsed=Math.max(.018,(now-(hand.prevAt||now-50))/1000);
-   const speed=vectorDistance(current.position,previous.position)/elapsed;
-   const travel=vectorDistance(current.position,hand.base.position);
-   const extensionDelta=current.extension-hand.base.extension;
-   if(!hand.armed){
-    if(travel<.17&&speed<.92&&now-hand.lastPunchAt>205){
-     hand.armed=true;hand.base=current;hand.restFrames=0;
-    }else if(speed<.4&&now-hand.lastPunchAt>340){
-     hand.restFrames++;if(hand.restFrames>=2){hand.armed=true;hand.base=current;hand.restFrames=0;}
-    }else hand.restFrames=0;
-   }else{
-    if(speed<.62&&travel<.12){
-     const mix=(a,b)=>a+(b-a)*.035;
-     hand.base={position:{x:mix(hand.base.position.x,current.position.x),y:mix(hand.base.position.y,current.position.y),z:mix(hand.base.position.z,current.position.z)},extension:mix(hand.base.extension,current.extension),wrist:current.wrist,shoulder:current.shoulder};
-    }
-    const distinctPunch=speed>1.12&&(travel>.105||extensionDelta>.022);
-    if(distinctPunch&&now-mem.lastPulse>205&&!punchFired){
-     action('PULSE',player);mem.lastPulse=now;hand.lastPunchAt=now;hand.armed=false;hand.restFrames=0;punchFired=true;
-    }
-   }
-   hand.prev=current;hand.prevAt=now;
-  }
-  const wristsReady=s.wristsReady&&s.lw&&s.rw;
-  if(wristsReady){
-   const guard=s.lw.y>s.sy-s.sw*.12&&s.lw.y<s.hy&&s.rw.y>s.sy-s.sw*.12&&s.rw.y<s.hy&&Math.hypot(s.lw.x-s.rw.x,s.lw.y-s.rw.y)<s.sw*.9;
-   if(guard&&!mem.guardPose&&now-mem.lastGuard>850){action('GUARD',player);mem.lastGuard=now;}
-   mem.guardPose=guard;
-  }else mem.guardPose=false;
-  const lean=s.lean-neutralLeans[player-1],leanSide=lean<-.2?-1:lean>.2?1:0;
-  if(leanSide!==0&&mem.leanSide===0&&now-mem.lastPhase>650){action(leanSide<0?'PHASE_LEFT':'PHASE_RIGHT',player);mem.lastPhase=now;}
-  mem.leanSide=leanSide;
+ const wristsReady=!!(s.lw&&s.rw);
+ let guard=false;
+ if(wristsReady){
+  const ls=points[11],rs=points[12],cx=(ls.x+rs.x)/2;
+  const gap=Math.hypot(s.lw.x-s.rw.x,s.lw.y-s.rw.y);
+  const top=s.sy-s.sw*.42,bottom=s.hy+s.sw*.16;
+  const inGuardZone=[s.lw,s.rw].every(w=>w.y>=top&&w.y<=bottom);
+  const armsAcrossMidline=(s.lw.x-cx)*(s.rw.x-cx)<0;
+  const crossedX=armsAcrossMidline&&gap<s.sw*1.28;
+  const handsTogether=gap<s.sw*.78;
+  guard=inGuardZone&&(crossedX||handsTogether);
  }
+ const wasGuarding=mem.guardPose;
+ if(guard){
+  // Refresh the shield while the player holds an X-block; it should not expire mid-gesture.
+  if(now-mem.lastGuard>460){action('GUARD',player);mem.lastGuard=now;}
+  mem.guardPose=true;
+  mem.punchHands.forEach((hand,side)=>{const snap=armMotionSignature(points,side,s.sw);if(snap){hand.base=snap;hand.prev=snap;hand.prevAt=now;}hand.armed=true;hand.restFrames=0;});
+ }else{
+  mem.guardPose=false;
+  if(wasGuarding){
+   // Rebase on the first frame after a block so uncrossing the arms is not counted as a punch.
+   mem.punchHands.forEach((hand,side)=>{const snap=armMotionSignature(points,side,s.sw);if(snap){hand.base=snap;hand.prev=snap;hand.prevAt=now;}hand.armed=true;hand.restFrames=0;});
+  }else if(dt>=.018&&dt<=.3){
+   for(let side=0;side<2;side++){
+    const hand=mem.punchHands[side],current=armMotionSignature(points,side,s.sw),previous=hand.prev;
+    if(!current){hand.prev=null;hand.prevAt=now;continue;}
+    if(!previous||!hand.base){hand.prev=current;hand.prevAt=now;if(!hand.base)hand.base=current;continue;}
+    const elapsed=Math.max(.018,(now-(hand.prevAt||now-50))/1000);
+    const speed=vectorDistance(current.position,previous.position)/elapsed;
+    const travel=vectorDistance(current.position,hand.base.position);
+    const extensionDelta=current.extension-hand.base.extension;
+    if(!hand.armed){
+     if(travel<.19&&speed<1.15&&now-hand.lastPunchAt>110){
+      hand.armed=true;hand.base=current;hand.restFrames=0;
+     }else if(speed<.38&&now-hand.lastPunchAt>235){
+      hand.restFrames++;if(hand.restFrames>=2){hand.armed=true;hand.base=current;hand.restFrames=0;}
+     }else hand.restFrames=0;
+    }else{
+     if(speed<.48&&travel<.14){
+      const mix=(a,b)=>a+(b-a)*.04;
+      hand.base={position:{x:mix(hand.base.position.x,current.position.x),y:mix(hand.base.position.y,current.position.y),z:mix(hand.base.position.z,current.position.z)},extension:mix(hand.base.extension,current.extension),hasElbow:current.hasElbow,wrist:current.wrist,shoulder:current.shoulder};
+     }
+     // Wrist travel catches jabs; elbow extension provides another signal when that landmark is clear.
+     const extended=extensionDelta>.012&&travel>.045;
+     const decisiveTravel=travel>.105&&speed>.78;
+     const distinctPunch=speed>.64&&(extended||decisiveTravel);
+     if(distinctPunch&&now-mem.lastPulse>88&&now-hand.lastPunchAt>115){
+      action('PULSE',player);mem.lastPulse=now;hand.lastPunchAt=now;hand.armed=false;hand.restFrames=0;
+     }
+    }
+    hand.prev=current;hand.prevAt=now;
+   }
+  }else{
+   // Keep history fresh after a slow inference frame so velocity does not accumulate across pauses.
+   mem.punchHands.forEach((hand,side)=>{const snap=armMotionSignature(points,side,s.sw);if(snap){hand.prev=snap;hand.prevAt=now;}});
+  }
+ }
+ const lean=s.lean-neutralLeans[player-1],leanSide=lean<-.2?-1:lean>.2?1:0;
+ if(!guard&&leanSide!==0&&mem.leanSide===0&&now-mem.lastPhase>650){action(leanSide<0?'PHASE_LEFT':'PHASE_RIGHT',player);mem.lastPhase=now;}
+ mem.leanSide=guard?0:leanSide;
  mem.priorPose=points;mem.priorAt=now;
 }
 window.addEventListener('beforeunload',()=>{cancelAnimationFrame(cameraRAF);stream&&stream.getTracks().forEach(t=>t.stop());try{landmarker&&landmarker.close();}catch{}if(audioContext)audioContext.close();});
