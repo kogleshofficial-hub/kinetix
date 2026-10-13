@@ -88,17 +88,27 @@ const modelUrl = 'https://storage.googleapis.com/mediapipe-models/pose_landmarke
 const wasmUrl = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm';
 let soundOn = true, reducedMotion = false, cameraStatus = 'off', cameraMode = false, trackingOkay = false, paused = false;
 let stream = null, landmarker = null, cameraRAF = 0, cameraLoopStarted = false, lastVideoTime = -1, lastInference = 0;
-let neutralLean = 0, calibrated = false, lastPose = null, priorPose = null, priorPoseAt = 0, lastPulse = -9999, lastGuard = -9999, lastPhase = -9999, priorGuardPose = false, priorLeanSide = 0;
+let neutralLean = 0, calibrated = false, lastPose = null, secondPose = null, priorPose = null, priorPoseAt = 0, lastPulse = -9999, lastGuard = -9999, lastPhase = -9999, priorGuardPose = false, priorLeanSide = 0;
+let cameraTargetMode='solo',neutralLeans=[0,0];
+const motionMemory=[{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0},{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0}];
 let audioContext = null, raf = 0, previousFrame = 0, lastHudAt = 0, lastEventStamp = -1, eventFxAt = performance.now();
 let bestRecord = 0;
 try { bestRecord = Number(localStorage.getItem('kinetix-best-combo') || 0); } catch {}
 $('best-combo').textContent = String(bestRecord).padStart(2,'0') + '×';
 let g = freshGame();
 
-function freshGame() {
-  return { status:'ready', phase:'idle', time:55, clock:0, pHP:100, eHP:100, energy:0, combo:0, best:0, lane:0, target:0, attackIndex:0, phaseTimer:1.35, guardUntil:0, dodgeUntil:0, lastPulse:-9999, lastNova:-9999, lastPhase:-9999, event:'none', eventAt:0, msg:'THE RIFT IS STIRRING', tone:'neutral', pulses:0, clean:0, dodges:0, blocks:0, hits:0, damage:0 };
+function freshFighter(){return {hp:100,mana:70,combo:0,best:0,lane:0,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,attackUntil:0,hurtUntil:0,medkits:1,collectCooldown:0,pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0};}
+function freshGame(mode='solo'){
+ const p1=freshFighter(),p2=freshFighter();
+ return {status:'ready',mode:mode,phase:mode==='duo'?'duel':'idle',time:mode==='duo'?60:55,clock:0,pHP:100,eHP:100,energy:0,combo:0,best:0,lane:0,target:0,attackIndex:0,phaseTimer:1.35,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0};
 }
-function beginGame() { g = freshGame(); g.status = 'playing'; g.msg='READ THE RIFT. FIND YOUR MOMENT.'; paused=false; lastEventStamp=-1; $('overlay').classList.add('hidden'); eventFxAt=performance.now(); previousFrame=performance.now(); showScreen('arena'); updateHud(); }
+function beginGame(mode='solo'){
+ g=freshGame(mode);g.status='playing';g.msg=mode==='duo'?'DUEL ONLINE — MAKE YOUR MOVE':'READ THE RIFT. FIND YOUR MOMENT.';
+ paused=false;lastEventStamp=-1;$('overlay').classList.add('hidden');eventFxAt=performance.now();previousFrame=performance.now();showScreen('arena');
+ $('moves-main').classList.toggle('hidden',mode==='duo');$('duo-controls').classList.toggle('hidden',mode!=='duo');
+ $('mode-pill').innerHTML='<b></b>'+(mode==='duo'?(cameraMode?'2P MOTION ONLINE':'2P LOCAL DUEL'):(cameraMode?'MOTION ONLINE':'SOLO VS AI'));
+ $('mode-pill').classList.add('live');$('move-mode').textContent=mode==='duo'?'TWO PLAYER TOUCH CONTROLS':'KEYBOARD / CLICK CONTROLS';updateHud();
+}
 function showScreen(which) { home.classList.toggle('hidden',which!=='home'); arena.classList.toggle('hidden',which!=='arena'); }
 function announce(event,msg,tone) { g.event=event; g.eventAt=g.clock; eventFxAt=performance.now(); g.msg=msg; g.tone=tone||'neutral'; }
 function sfx(name) {
@@ -112,54 +122,100 @@ function sfx(name) {
     a.gain.setValueAtTime(.0001,now);a.gain.exponentialRampToValueAtTime(name==='nova'?.25:.12,now+.012);a.gain.exponentialRampToValueAtTime(.0001,now+dur);o.connect(a);a.connect(audioContext.destination);o.start(now);o.stop(now+dur+.02);
   } catch {}
 }
-function action(kind) {
-  if(g.status!=='playing'||paused)return;
-  const before=g.event+':'+g.eventAt;
-  if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+1.05);return;}
-  if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){
-    if(g.clock-g.lastPhase<.3)return;g.lastPhase=g.clock;g.lane=kind==='PHASE_LEFT'?-1:1;g.dodgeUntil=g.clock+1.05;
-    if(g.phase==='telegraph'&&g.target!==g.lane){g.energy=Math.min(100,g.energy+3);announce('dodge','PHASE SHIFT','good');sfx('dodge');}
-    updateHud();return;
-  }
-  if(kind==='PULSE'){
-    if(g.clock-g.lastPulse<.42)return;g.lastPulse=g.clock;g.pulses++;
-    if(g.phase==='vulnerable'){const d=Math.min(14,g.eHP);g.eHP=Math.max(0,g.eHP-14);g.damage+=d;g.energy=Math.min(100,g.energy+11);g.combo++;g.best=Math.max(g.best,g.combo);g.clean++;announce('pulse',g.eHP<=0?'FINISHER CONFIRMED':'RIFT PUNCTURED  −14','good');}
-    else {const d=Math.min(3,g.eHP);g.eHP=Math.max(0,g.eHP-3);g.damage+=d;g.combo=0;announce('miss','GLANCING HIT — WAIT FOR THE OPENING','neutral');}
-  }
-  if(kind==='NOVA'){
-    if(g.energy<100){announce('none','NOVA NEEDS 100 ENERGY','neutral');updateHud();return;}
-    if(g.clock-g.lastNova<1.3)return;const damage=g.phase==='vulnerable'?48:28;const d=Math.min(damage,g.eHP);g.eHP=Math.max(0,g.eHP-d);g.damage+=d;g.energy=0;g.lastNova=g.clock;g.combo+=2;g.best=Math.max(g.best,g.combo);announce('nova',g.eHP<=0?'NOVA FINISHER':'NOVA RELEASED  −'+damage,'good');
-  }
-  if(g.event+':'+g.eventAt!==before&&g.event!=='none')sfx(g.event);
-  updateHud();
+function showImpact(player,damage){
+ const flash=$('impact-flash'),number=$('hit-number'),frame=canvas.parentElement;g.hitPlayer=player;g.damageFlashAt=performance.now();
+ flash.className='impact-flash '+(player===1?'hit-p1':'');number.textContent='−'+damage;number.classList.remove('hidden');
+ frame.classList.remove('shake');void frame.offsetWidth;frame.classList.add('shake');flash.classList.remove('active');void flash.offsetWidth;flash.classList.add('active');
+ setTimeout(()=>{number.classList.add('hidden');frame.classList.remove('shake');},760);
 }
-function enemyAttack() {
-  if(g.guardUntil>g.clock){g.energy=Math.min(100,g.energy+17);g.blocks++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=1.28;announce('block','PERFECT GUARD  +17 ENERGY','good');sfx('block');return;}
-  if(g.lane!==g.target||g.dodgeUntil>g.clock){g.energy=Math.min(100,g.energy+18);g.dodges++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=1.28;announce('dodge','PHASE SHIFT  +18 ENERGY','good');sfx('dodge');return;}
-  g.pHP=Math.max(0,g.pHP-18);g.hits++;g.combo=0;g.phase='vulnerable';g.phaseTimer=1.28;announce('hit','RIFT IMPACT  −18 HP','danger');sfx('hit');
-  if(g.pHP<=0)finish('lost');
+function stepSupplyDrops(){
+ if(!g.pickup&&g.clock>=g.nextSupplyAt){const type=g.supplyCount%3===1?'medkit':'mana';g.pickup={type:type,expires:g.clock+8};g.supplyCount++;g.nextSupplyAt=g.clock+13;announce('pickup',type==='medkit'?'SUPPLY DROP — MED KIT':'SUPPLY DROP — MANA ORB','good');}
+ if(g.pickup&&g.clock>=g.pickup.expires){g.pickup=null;announce('none','SUPPLY DROP EXPIRED — NEXT ONE SOON','neutral');}
 }
-function finish(status) { eventFxAt=performance.now();g.status=status; if(status==='won'){g.event='win';g.msg='RIFT COLLAPSED';g.tone='good';}else if(status==='lost'){g.event='lose';g.msg='SIGNAL LOST';g.tone='danger';}else{g.msg='TIME FRACTURED';g.tone='danger';}g.eventAt=g.clock;sfx(status==='won'?'win':'lose');if(g.best>bestRecord){bestRecord=g.best;try{localStorage.setItem('kinetix-best-combo',String(bestRecord));}catch{} }updateHud();showResult(); }
-function step(dt) {
- if(g.status!=='playing'||paused)return;
- dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.phaseTimer-=dt;
- if(g.time<=0){finish(g.eHP<=0?'won':'time-up');return;}
- if(g.eHP<=0){finish('won');return;}
- if(g.phaseTimer<=0){
-   if(g.phase==='idle'){const pattern=[0,1,-1,0,-1,1];g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=.88;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}
-   else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}
-   else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}
-   else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=.85;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}
+function pickupDrop(player=1){
+ if(!g.pickup){announce('miss','NO DROP AVAILABLE — WATCH THE ARENA','neutral');updateHud();return;}
+ if(g.mode==='duo'){
+   const p=player===2?g.p2:g.p1;
+   if(g.pickup.type==='medkit'){if(p.medkits>=2){announce('miss','MED KIT SLOTS FULL — USE ONE FIRST','neutral');updateHud();return;}p.medkits++;announce('pickup','P'+player+' CLAIMED A MED KIT','good');}
+   else{const gained=Math.min(30,100-p.mana);if(gained<=0){announce('miss','MANA ALREADY FULL — DROP LEFT IN ARENA','neutral');updateHud();return;}p.mana+=gained;announce('pickup','P'+player+' CLAIMED +'+gained+' MANA','good');}
+   g.pickup=null;syncDuelState();sfx('block');updateHud();return;
  }
+ if(g.pickup.type==='medkit'){if(g.medkits>=2){announce('miss','MED KIT SLOTS FULL — USE ONE FIRST','neutral');updateHud();return;}g.medkits++;g.p1.medkits=g.medkits;announce('pickup','MED KIT SECURED — PRESS E TO HEAL','good');}
+ else{const gained=Math.min(30,100-g.energy);if(gained<=0){announce('miss','MANA ALREADY FULL — ORB LEFT IN ARENA','neutral');updateHud();return;}g.energy+=gained;announce('pickup','MANA ORB +'+gained,'good');}
+ g.pickup=null;sfx('block');updateHud();
+}
+function useMedkit(player=1){
+ if(g.mode==='duo'){
+   const p=player===2?g.p2:g.p1;if(!p.medkits){announce('miss','NO MED KITS — CLAIM THE NEXT DROP','neutral');updateHud();return;}
+   if(p.hp>=100){announce('miss','HEALTH ALREADY FULL — SAVE THE KIT','neutral');updateHud();return;}if(g.clock-p.collectCooldown<1)return;
+   const healed=Math.min(28,100-p.hp);p.hp+=healed;p.medkits--;p.collectCooldown=g.clock;announce('heal','P'+player+' MED KIT +'+healed+' HP','good');syncDuelState();sfx('block');updateHud();return;
+ }
+ if(!g.medkits){announce('miss','NO MED KITS — CLAIM THE NEXT DROP','neutral');updateHud();return;}if(g.pHP>=100){announce('miss','HEALTH ALREADY FULL — SAVE THE KIT','neutral');updateHud();return;}
+ const healed=Math.min(28,100-g.pHP);g.pHP+=healed;g.medkits--;g.p1.medkits=g.medkits;announce('heal','MED KIT +'+healed+' HP','good');sfx('block');updateHud();
+}
+function syncDuelState(){g.pHP=g.p1.hp;g.eHP=g.p2.hp;g.energy=g.p1.mana;g.combo=g.p1.combo;g.best=Math.max(g.p1.best,g.p2.best);g.damage=g.p1.damage+g.p2.damage;g.dodges=g.p1.dodges+g.p2.dodges;g.blocks=g.p1.blocks+g.p2.blocks;g.hits=g.p1.hits+g.p2.hits;g.pulses=g.p1.pulses+g.p2.pulses;g.clean=g.p1.clean+g.p2.clean;}
+function dualAction(kind,player=1){
+ if(g.status!=='playing'||paused)return;const actor=player===2?g.p2:g.p1,target=player===2?g.p1:g.p2,targetNum=player===2?1:2;
+ if(kind==='COLLECT'){pickupDrop(player);return;}if(kind==='MEDKIT'){useMedkit(player);return;}
+ if(kind==='GUARD'){actor.guardUntil=Math.max(actor.guardUntil,g.clock+.92);announce('block','P'+player+' GUARD READY','good');updateHud();return;}
+ if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-actor.lastPhase<.3)return;actor.lastPhase=g.clock;actor.lane=kind==='PHASE_LEFT'?-1:1;actor.dodgeUntil=g.clock+.68;actor.attackUntil=g.clock+.15;actor.mana=Math.min(100,actor.mana+2);announce('dodge','P'+player+' PHASE SHIFT','good');sfx('dodge');syncDuelState();updateHud();return;}
+ if(kind==='PULSE'){
+   if(g.clock-actor.lastPulse<.38)return;if(actor.mana<10){announce('miss','P'+player+' — MANA LOW. GUARD OR WAIT TO RECHARGE.','neutral');updateHud();return;}
+   actor.lastPulse=g.clock;actor.mana-=10;actor.attackUntil=g.clock+.24;actor.pulses++;
+   if(target.dodgeUntil>g.clock){actor.combo=0;target.mana=Math.min(100,target.mana+3);announce('miss','P'+player+' PULSE EVADED','neutral');sfx('miss');}
+   else if(target.guardUntil>g.clock){const damage=Math.min(3,target.hp);target.hp-=damage;target.hurtUntil=g.clock+.18;target.mana=Math.min(100,target.mana+9);target.blocks++;actor.damage+=damage;actor.combo=0;announce('block','P'+targetNum+' BLOCKED — '+damage+' CHIP DAMAGE','good');sfx('block');if(damage>0)showImpact(targetNum,damage);}
+   else{const raw=7+Math.min(5,actor.combo)+(actor.combo>0&&actor.combo%3===2?5:0),damage=Math.min(raw,target.hp);target.hp-=damage;target.hurtUntil=g.clock+.34;actor.damage+=damage;actor.combo++;actor.best=Math.max(actor.best,actor.combo);actor.clean++;actor.mana=Math.min(100,actor.mana+2);announce('pulse','P'+player+' HIT  −'+damage+' HP'+(actor.combo%3===0?' · CRITICAL COMBO':''),'good');sfx('hit');showImpact(targetNum,damage);}
+ }else if(kind==='NOVA'){
+   if(g.clock-actor.lastNova<1.15)return;if(actor.mana<60){announce('miss','NOVA NEEDS 60 MANA — BUILD YOUR METER','neutral');updateHud();return;}actor.lastNova=g.clock;actor.mana-=60;actor.attackUntil=g.clock+.52;
+   if(target.dodgeUntil>g.clock){actor.combo=0;target.mana=Math.min(100,target.mana+5);announce('miss','NOVA MISSED — OPPONENT PHASED OUT','danger');sfx('miss');}
+   else{const raw=target.guardUntil>g.clock?8:26,damage=Math.min(raw,target.hp);target.hp-=damage;target.hurtUntil=g.clock+.48;actor.damage+=damage;actor.combo+=2;actor.best=Math.max(actor.best,actor.combo);if(target.guardUntil>g.clock){target.mana=Math.min(100,target.mana+12);target.blocks++;announce('block','NOVA DEFLECTED — '+damage+' HP CHIP','good');}else announce('nova','NOVA RELEASED  −'+damage+' HP','good');sfx('nova');showImpact(targetNum,damage);}
+ }
+ syncDuelState();if(g.p1.hp<=0){finishDuel(2);return;}if(g.p2.hp<=0){finishDuel(1);return;}updateHud();
+}
+function action(kind,player=1){
+ if(g.status!=='playing'||paused)return;if(g.mode==='duo'){dualAction(kind,player);return;}if(kind==='COLLECT'){pickupDrop(1);return;}if(kind==='MEDKIT'){useMedkit(1);return;}
+ const before=g.event+':'+g.eventAt;if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+1.05);return;}
+ if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-g.lastPhase<.3)return;g.lastPhase=g.clock;g.lane=kind==='PHASE_LEFT'?-1:1;g.dodgeUntil=g.clock+1.05;if(g.phase==='telegraph'&&g.target!==g.lane){g.energy=Math.min(100,g.energy+3);announce('dodge','PHASE SHIFT','good');sfx('dodge');}updateHud();return;}
+ if(kind==='PULSE'){if(g.clock-g.lastPulse<.42)return;g.lastPulse=g.clock;g.pulses++;if(g.phase==='vulnerable'){const d=Math.min(14,g.eHP);g.eHP=Math.max(0,g.eHP-14);g.damage+=d;g.energy=Math.min(100,g.energy+11);g.combo++;g.best=Math.max(g.best,g.combo);g.clean++;announce('pulse',g.eHP<=0?'FINISHER CONFIRMED':'RIFT PUNCTURED  −14','good');}else{const d=Math.min(3,g.eHP);g.eHP=Math.max(0,g.eHP-3);g.damage+=d;g.combo=0;announce('miss','GLANCING HIT — WAIT FOR THE OPENING','neutral');}}
+ if(kind==='NOVA'){if(g.energy<100){announce('none','NOVA NEEDS 100 ENERGY','neutral');updateHud();return;}if(g.clock-g.lastNova<1.3)return;const damage=g.phase==='vulnerable'?48:28,d=Math.min(damage,g.eHP);g.eHP=Math.max(0,g.eHP-d);g.damage+=d;g.energy=0;g.lastNova=g.clock;g.combo+=2;g.best=Math.max(g.best,g.combo);announce('nova',g.eHP<=0?'NOVA FINISHER':'NOVA RELEASED  −'+damage,'good');}
+ if(g.event+':'+g.eventAt!==before&&g.event!=='none')sfx(g.event);updateHud();
+}
+function enemyAttack(){
+ if(g.guardUntil>g.clock){g.energy=Math.min(100,g.energy+17);g.blocks++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=1.28;announce('block','PERFECT GUARD  +17 ENERGY','good');sfx('block');return;}
+ if(g.lane!==g.target||g.dodgeUntil>g.clock){g.energy=Math.min(100,g.energy+18);g.dodges++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=1.28;announce('dodge','PHASE SHIFT  +18 ENERGY','good');sfx('dodge');return;}
+ g.pHP=Math.max(0,g.pHP-18);g.hits++;g.combo=0;g.phase='vulnerable';g.phaseTimer=1.28;announce('hit','RIFT IMPACT  −18 HP','danger');sfx('hit');showImpact(1,18);if(g.pHP<=0)finish('lost');
+}
+function finish(status){
+ g.status=status;g.winner=status==='won'?1:status==='lost'?2:null;if(status==='won'){g.event='win';g.msg='RIFT COLLAPSED';g.tone='good';}else if(status==='lost'){g.event='lose';g.msg='SIGNAL LOST';g.tone='danger';}else{g.msg='TIME FRACTURED';g.tone='danger';}
+ g.eventAt=g.clock;eventFxAt=performance.now();sfx(status==='won'?'win':'lose');if(g.best>bestRecord){bestRecord=g.best;try{localStorage.setItem('kinetix-best-combo',String(bestRecord));}catch{}}updateHud();showResult();
+}
+function finishDuel(winner){
+ if(g.status!=='playing')return;g.winner=winner;g.status='won';g.event=winner===0?'none':'win';g.tone=winner===0?'neutral':'good';g.msg=winner===0?'DUEL DRAW':'PLAYER '+winner+' WINS';g.eventAt=g.clock;eventFxAt=performance.now();g.best=Math.max(g.p1.best,g.p2.best);
+ try{bestRecord=Math.max(bestRecord,g.best);localStorage.setItem('kinetix-best-combo',String(bestRecord));}catch{}sfx(winner===0?'miss':'win');syncDuelState();updateHud();showResult();
+}
+function stepDuo(dt){
+ if(g.status!=='playing'||paused)return;dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.p1.mana=Math.min(100,g.p1.mana+2.7*dt);g.p2.mana=Math.min(100,g.p2.mana+2.7*dt);stepSupplyDrops();syncDuelState();
+ if(g.p1.hp<=0){finishDuel(2);return;}if(g.p2.hp<=0){finishDuel(1);return;}if(g.time<=0){finishDuel(g.p1.hp===g.p2.hp?0:g.p1.hp>g.p2.hp?1:2);return;}
+}
+function step(dt){
+ if(g.mode==='duo'){stepDuo(dt);return;}if(g.status!=='playing'||paused)return;
+ dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.phaseTimer-=dt;g.energy=Math.min(100,g.energy+1.4*dt);stepSupplyDrops();
+ if(g.time<=0){finish(g.eHP<=0?'won':'time-up');return;}if(g.eHP<=0){finish('won');return;}
+ if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=[0,1,-1,0,-1,1];g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=.88;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=.85;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
  if(g.pHP<=0)finish('lost');
 }
 function updateHud(){
- $('player-hp').textContent=g.pHP;$('enemy-hp').textContent=g.eHP;$('player-hp-bar').style.width=g.pHP+'%';$('enemy-hp-bar').style.width=g.eHP+'%';
- $('timer').textContent='00:'+String(Math.ceil(g.time)).padStart(2,'0');$('timer').classList.toggle('urgent',g.time<=10);
- $('phase-label').textContent=g.phase==='telegraph'?'THREAT INCOMING':g.phase==='vulnerable'?'OPENING FOUND':g.phase==='strike'?'IMPACT':'READ THE PATTERN';
- $('combo').textContent=String(g.combo).padStart(2,'0')+'×';$('combo').style.color=g.combo>=3?'#67e8ef':'';$('energy').textContent=String(g.energy).padStart(3,'0')+'%';$('energy-bar').style.width=g.energy+'%';$('lane').textContent=g.lane===-1?'LEFT':g.lane===1?'RIGHT':'CENTER';$('feed-text').textContent=g.msg;$('feed').className='feed '+(g.tone==='good'?'good':g.tone==='danger'?'danger':'');
- $('nova-button').disabled=g.energy<100||g.status!=='playing'||paused;$('nova-button').classList.toggle('ready',g.energy>=100);$('nova-label').textContent=g.energy>=100?'READY TO RELEASE':(100-g.energy)+'% TO CHARGE';$('best-combo').textContent=String(bestRecord).padStart(2,'0')+'×';
- document.querySelectorAll('.move[data-action]').forEach(b=>{b.disabled=g.status!=='playing'||paused||(b.dataset.action==='NOVA'&&g.energy<100);});
+ $('player-hp').textContent=g.pHP;$('enemy-hp').textContent=g.eHP;$('player-hp-bar').style.width=g.pHP+'%';$('enemy-hp-bar').style.width=g.eHP+'%';$('timer').textContent='00:'+String(Math.ceil(g.time)).padStart(2,'0');$('timer').classList.toggle('urgent',g.time<=10);
+ $('phase-label').textContent=g.mode==='duo'?'LOCAL DUEL':g.phase==='telegraph'?'THREAT INCOMING':g.phase==='vulnerable'?'OPENING FOUND':g.phase==='strike'?'IMPACT':'READ THE PATTERN';
+ $('combo').textContent=String(g.combo).padStart(2,'0')+'×';$('combo').style.color=g.combo>=3?'#67e8ef':'';$('energy').textContent=String(Math.round(g.energy)).padStart(3,'0');$('energy-bar').style.width=g.energy+'%';$('lane').textContent=g.lane===-1?'LEFT':g.lane===1?'RIGHT':'CENTER';$('feed-text').textContent=g.msg;$('feed').className='feed '+(g.tone==='good'?'good':g.tone==='danger'?'danger':'');
+ $('nova-button').disabled=g.energy<100||g.status!=='playing'||paused;$('nova-button').classList.toggle('ready',g.energy>=100);$('nova-label').textContent=g.energy>=100?'READY TO RELEASE':(100-Math.round(g.energy))+'% TO CHARGE';document.querySelectorAll('.move[data-action]').forEach(b=>{b.disabled=g.status!=='playing'||paused||(b.dataset.action==='NOVA'&&g.energy<100);});
+ if(g.mode==='duo'){
+   $('p1-mini-hp').textContent=g.p1.hp+' HP';$('p2-mini-hp').textContent=g.p2.hp+' HP';$('p1-mana').textContent=Math.round(g.p1.mana);$('p2-mana').textContent=Math.round(g.p2.mana);$('p1-mana-bar').style.width=g.p1.mana+'%';$('p2-mana-bar').style.width=g.p2.mana+'%';$('p1-kit').textContent='MED KITS · '+g.p1.medkits;$('p2-kit').textContent='MED KITS · '+g.p2.medkits;
+   const labels=document.querySelectorAll('.fighter-label');if(labels[1])labels[1].innerHTML='PLAYER TWO <i>● CHALLENGER</i>';const names=document.querySelectorAll('.fighter-data strong');if(names[1])names[1].textContent='RIFT RUNNER II';
+   document.querySelectorAll('.duo-action-grid button').forEach(b=>{const p=b.dataset.player==='2'?g.p2:g.p1,k=b.dataset.duoAction;b.disabled=g.status!=='playing'||paused||(k==='NOVA'&&p.mana<60)||(k==='MEDKIT'&&(!p.medkits||p.hp>=100));});
+ }else{const labels=document.querySelectorAll('.fighter-label');if(labels[1])labels[1].innerHTML='RIFT ENTITY <i>● HOSTILE</i>';const names=document.querySelectorAll('.fighter-data strong');if(names[1])names[1].textContent='THE HOLLOW';}
+ const ps=$('pickup-status');if(g.pickup){ps.textContent=(g.pickup.type==='medkit'?'MED KIT SUPPLY DROP':'MANA ORB SUPPLY DROP')+' · CLAIM NOW · '+Math.ceil(g.pickup.expires-g.clock)+'s LEFT';ps.classList.add('active');}else{ps.textContent='NEXT SUPPLY DROP · '+Math.max(0,Math.ceil(g.nextSupplyAt-g.clock))+'s';ps.classList.remove('active');}
+ $('best-combo').textContent=String(bestRecord).padStart(2,'0')+'×';
 }
 function showOverlay(title,desc,tag,buttons,stats) {
  const overlay=$('overlay'),dialog=$('dialog');overlay.classList.remove('hidden');dialog.className='dialog'+(stats?' result':'');
@@ -171,16 +227,20 @@ function showOverlay(title,desc,tag,buttons,stats) {
  dialog.querySelectorAll('[data-overlay]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.overlay;if(action==='resume'){paused=false;$('overlay').classList.add('hidden');updateHud();}else if(action==='restart'){beginGame();}else if(action==='home'){paused=false;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');}else if(action==='card')downloadCard();}));
 }
 function accuracy(){return g.pulses?Math.round(g.clean/g.pulses*100):0;}
-function showResult(){const won=g.status==='won';showOverlay(won?'RIFT COLLAPSED.':g.status==='time-up'?'TIME FRACTURED.':'SIGNAL LOST.',won?'You read the pattern and closed the breach.':g.status==='time-up'?'The rift is still open. Change your timing and try again.':'The Hollow won this round. Re-enter when you are ready.','RIFT DUEL / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);}
+function showResult(){
+ if(g.mode==='duo'){const winner=g.winner;const title=winner===0?'PERFECTLY EVEN.':'PLAYER '+winner+' WINS.';const desc=winner===0?'Both fighters end the round with the same health. Run it back.':(winner===1?'Player One controlled the arena this round.':'Player Two controlled the arena this round.');
+ showOverlay(title,desc,'LOCAL DUEL / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);return;}
+ const won=g.status==='won';showOverlay(won?'RIFT COLLAPSED.':g.status==='time-up'?'TIME FRACTURED.':'SIGNAL LOST',won?'You read the pattern and closed the breach.':g.status==='time-up'?'The rift is still open. Change your timing and try again.':'The Hollow won this round. Re-enter when you are ready.','RIFT DUEL / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
+}
 function pauseGame(){if(g.status!=='playing')return;paused=true;showOverlay('Catch your breath.','The rift is frozen. Your progress is still here.','SESSION PAUSED',[{label:'RESUME ROUND →',style:'primary',action:'resume'},{label:'RESTART ROUND',style:'secondary',action:'restart'}],false);}
 function downloadCard(){
  const c=document.createElement('canvas');c.width=1200;c.height=630;const x=c.getContext('2d');if(!x)return;
  const bg=x.createLinearGradient(0,0,1200,630);bg.addColorStop(0,'#0b0d20');bg.addColorStop(.55,'#171632');bg.addColorStop(1,'#080a14');x.fillStyle=bg;x.fillRect(0,0,1200,630);
  const glow=x.createRadialGradient(880,270,5,880,270,430);glow.addColorStop(0,g.status==='won'?'rgba(85,240,215,.24)':'rgba(143,111,255,.22)');glow.addColorStop(1,'rgba(10,12,25,0)');x.fillStyle=glow;x.fillRect(0,0,1200,630);
  x.strokeStyle='rgba(145,160,255,.12)';for(let xx=0;xx<1200;xx+=42){x.beginPath();x.moveTo(xx,0);x.lineTo(xx,630);x.stroke();}
- x.fillStyle='#a99bff';x.font='500 23px monospace';x.fillText('KINETIX / RIFT DUEL',74,83);x.fillStyle='#f7f5ff';x.font='700 77px sans-serif';x.fillText(g.status==='won'?'RIFT COLLAPSED':g.status==='time-up'?'TIME FRACTURED':'SIGNAL LOST',72,205);x.fillStyle='#9aa3c6';x.font='500 24px sans-serif';x.fillText('YOUR BODY. YOUR POWER. YOUR ARENA.',76,251);
+ x.fillStyle='#a99bff';x.font='500 23px monospace';x.fillText('KINETIX / RIFT DUEL',74,83);x.fillStyle='#f7f5ff';x.font='700 77px sans-serif';x.fillText(g.mode==='duo'?(g.winner===0?'DUEL DRAW':'PLAYER '+g.winner+' WINS'):g.status==='won'?'RIFT COLLAPSED':g.status==='time-up'?'TIME FRACTURED':'SIGNAL LOST',72,205);x.fillStyle='#9aa3c6';x.font='500 24px sans-serif';x.fillText('YOUR BODY. YOUR POWER. YOUR ARENA.',76,251);
  [['BEST COMBO',String(g.best).padStart(2,'0')],['DAMAGE DEALT',String(g.damage).padStart(3,'0')],['CLEAN PULSES',accuracy()+'%'],['PHASE DODGES',String(g.dodges).padStart(2,'0')]].forEach((item,i)=>{const xx=76+i*274;x.fillStyle='rgba(255,255,255,.045)';x.beginPath();x.roundRect(xx,346,245,116,18);x.fill();x.fillStyle='#8c96bc';x.font='14px monospace';x.fillText(item[0],xx+19,379);x.fillStyle='#f7f5ff';x.font='700 43px sans-serif';x.fillText(item[1],xx+19,432);});
- x.fillStyle='#6c7395';x.font='17px monospace';x.fillText('A PLAYABLE PROTOTYPE BY KOGLESH R. MURUGAN',77,564);const a=document.createElement('a');a.download='kinetix-rift-duel.png';a.href=c.toDataURL('image/png');a.click();
+ if(g.mode==='duo'){x.fillStyle='#b3a2ff';x.font='18px monospace';x.fillText('P1 HP '+g.p1.hp+'   /   P2 HP '+g.p2.hp,77,505);}x.fillStyle='#6c7395';x.font='17px monospace';x.fillText('A PLAYABLE PROTOTYPE BY KOGLESH R. MURUGAN',77,564);const a=document.createElement('a');a.download='kinetix-rift-duel.png';a.href=c.toDataURL('image/png');a.click();
 }
 function draw(t) {
  const r=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);
@@ -214,8 +274,9 @@ function loop(t){
  previousFrame=t;raf=requestAnimationFrame(loop);
 }
 raf=requestAnimationFrame(loop);
-$('play-keyboard').addEventListener('click',()=>{cameraMode=false;calibrated=false;stopCamera(false);beginGame();});
-$('enable-camera').addEventListener('click',()=>{void startCamera();});
+$('play-keyboard').addEventListener('click',()=>{cameraMode=false;calibrated=false;stopCamera(false);beginGame('solo');});
+$('play-duo-camera').addEventListener('click',()=>{void startCamera('duo');});
+$('enable-camera').addEventListener('click',()=>{void startCamera('solo');});
 $('calibrate-start').addEventListener('click',()=>{
  if(!lastPose||!shape(lastPose)){showError('I cannot see your full upper body yet. Adjust your camera and try again.');return;}
  neutralLean=shape(lastPose).lean;calibrated=true;cameraMode=true;priorGuardPose=false;priorLeanSide=0;showError('');$('setup-title').textContent='MOTION CALIBRATED';$('setup-copy').textContent='PULSE with a deliberate wrist movement, GUARD with hands close at your upper torso, and PHASE with a small torso lean.';beginGame();$('mode-pill').innerHTML='<b></b>MOTION ONLINE';$('mode-pill').classList.add('live');$('move-mode').textContent='GESTURES + BUTTON BACKUP';$('camera-hint').classList.add('hidden');
@@ -224,6 +285,7 @@ $('stop-camera').addEventListener('click',()=>stopCamera(true));$('camera-close'
 $('sound-toggle').addEventListener('click',()=>{soundOn=!soundOn;$('sound-toggle').innerHTML=soundOn?'<svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6"/></svg>':'<svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 5 6m0-6-5 6"/></svg>';});
 $('motion-toggle').addEventListener('click',()=>{reducedMotion=!reducedMotion;document.body.classList.toggle('reduced',reducedMotion);});
 document.querySelectorAll('.move[data-action]').forEach(b=>b.addEventListener('click',()=>action(b.dataset.action)));
+document.querySelectorAll('.duo-action-grid button[data-duo-action]').forEach(b=>b.addEventListener('click',()=>action(b.dataset.duoAction,Number(b.dataset.player))));
 window.addEventListener('keydown',e=>{if(arena.classList.contains('hidden'))return;const k=e.key.toLowerCase();if([' ','arrowleft','arrowright'].includes(k))e.preventDefault();if(e.repeat)return;if(k==='escape'){if(g.status==='playing')pauseGame();else if(paused){paused=false;$('overlay').classList.add('hidden');}return;}if(paused)return;if(k===' '||k==='j')action('PULSE');if(k==='g'||k==='shift')action('GUARD');if(k==='a'||k==='arrowleft')action('PHASE_LEFT');if(k==='d'||k==='arrowright')action('PHASE_RIGHT');if(k==='q'||k==='enter')action('NOVA');});
 window.addEventListener('resize',()=>{canvas.width=0;canvas.height=0;});
 function showError(text){$('setup-error').textContent=text;$('setup-error').classList.toggle('hidden',!text);}
