@@ -433,8 +433,9 @@ function detectMotion(points,now,player=1){
   const gap=Math.hypot(s.lw.x-s.rw.x,s.lw.y-s.rw.y);
   const top=s.sy-s.sw*.42,bottom=s.hy+s.sw*.16;
   const inGuardZone=[s.lw,s.rw].every(w=>w.y>=top&&w.y<=bottom);
-  const armsAcrossMidline=(s.lw.x-cx)*(s.rw.x-cx)<0;
-  const crossedX=armsAcrossMidline&&gap<s.sw*1.28;
+  const leftWristCrosses=(s.lw.x-cx)*(ls.x-cx)<0;
+  const rightWristCrosses=(s.rw.x-cx)*(rs.x-cx)<0;
+  const crossedX=leftWristCrosses&&rightWristCrosses&&gap<s.sw*1.28;
   const handsTogether=gap<s.sw*.78;
   guard=inGuardZone&&(crossedX||handsTogether);
  }
