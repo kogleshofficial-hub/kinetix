@@ -9,7 +9,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          const normalizedId = id.replaceAll('\\\\', '/');
+          const normalizedId = id.replaceAll('\\', '/');
           if (normalizedId.includes('/node_modules/@mediapipe/tasks-vision/')) {
             return 'mediapipe-vendor';
           }
