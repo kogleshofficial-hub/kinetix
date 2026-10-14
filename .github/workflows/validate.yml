@@ -95,6 +95,10 @@ jobs:
           if (!source.includes('function exportBlueprint') || !source.includes('async function importBlueprint')) throw new Error('Blueprint export/import is missing.');
           if (/getUserMedia|PoseLandmarker|detectForVideo/.test(source)) throw new Error('Creator Studio must not request or process camera frames in the editor.');
           if (!html.includes('CAMERA IS NOT USED IN THIS EDITOR')) throw new Error('Creator Studio camera scope must be communicated to users.');
+          const game = fs.readFileSync('src/main.js', 'utf8');
+          if (!game.includes("minSpeed:1.0,minTravel:.105,extensionDelta:.027")) throw new Error('HIGH motion sensitivity profile was not updated.');
+          if (!game.includes('minPoseDetectionConfidence:.5,minPosePresenceConfidence:.45,minTrackingConfidence:.45')) throw new Error('Cross-device pose tracking thresholds were not updated.');
+          if (!game.includes('landmarkVisible(point,.16)')) throw new Error('Torso visibility compatibility threshold was not updated.');
           console.log('Validated Creator Studio controls, local draft/export/import flow and camera-free editor scope.');
           NODE
 
