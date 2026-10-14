@@ -67,6 +67,11 @@
 @media(max-width:900px){.rank-ladder{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:520px){.rank-track{padding:10px}.rank-track-top{align-items:flex-start}.rank-track-top>b{font-size:7px}.rank-ladder{grid-template-columns:repeat(2,minmax(0,1fr))}.rank-tier>b{min-height:auto}.banner-grid{grid-template-columns:1fr}.banner-card{display:grid;grid-template-columns:1fr auto;gap:6px 10px}.banner-card>span,.banner-card>b,.banner-card>small{grid-column:1}.banner-card .btn{grid-column:2;grid-row:1/4;min-width:104px}}
 </style>
+<style>
+.creator-launch{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 12px;border:1px solid rgba(103,232,239,.33);border-radius:7px;background:rgba(23,42,56,.66);color:#aafaff;font:500 8px "DM Mono",monospace;letter-spacing:.075em;text-decoration:none;white-space:nowrap;transition:background .15s,border-color .15s}
+.creator-launch:hover{background:rgba(35,77,91,.45);border-color:rgba(103,232,239,.75)}
+@media(max-width:600px){.creator-launch{min-height:30px;padding:0 8px;font-size:7px}.prototype{display:none}}
+</style>
 </head>
 <body>
 <div class="entry-gate" id="camera-gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
@@ -82,7 +87,7 @@
 </div>
 <header class="topbar">
   <button class="brand" id="brand-home" aria-label="Kinetix home"><span class="brand-mark"><b>K</b></span><span class="brand-name">KINETIX<i>.</i><small>MOTION COMBAT PROTOCOL</small></span></button>
-  <div class="top-right"><span class="prototype"><i class="live-dot"></i>PROTOTYPE 01</span><button class="icon-btn" id="sound-toggle" aria-label="Toggle sound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6"/></svg></button><button class="icon-btn" id="motion-toggle" aria-label="Toggle reduced motion" title="Toggle reduced motion"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4.5 14 2.5-7H21"/></svg></button></div>
+  <div class="top-right"><a class="creator-launch" href="/creator.html" title="Build a motion-game blueprint">✦ CREATE GAME</a><span class="prototype"><i class="live-dot"></i>PROTOTYPE 01</span><button class="icon-btn" id="sound-toggle" aria-label="Toggle sound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6"/></svg></button><button class="icon-btn" id="motion-toggle" aria-label="Toggle reduced motion" title="Toggle reduced motion"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4.5 14 2.5-7H21"/></svg></button></div>
 </header>
 <main id="home" class="wrap home">
   <section class="copy">
