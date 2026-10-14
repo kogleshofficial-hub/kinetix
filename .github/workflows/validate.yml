@@ -78,6 +78,26 @@ jobs:
           NODE
       - name: Validate JavaScript syntax
         run: node --check src/main.js
+
+      - name: Validate Creator Studio source and browser-local controls
+        run: |
+          node --check src/creator.js
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const html = fs.readFileSync('creator.html', 'utf8');
+          const source = fs.readFileSync('src/creator.js', 'utf8');
+          if (!html.includes('<script type="module" src="/src/creator.js"></script>')) throw new Error('Creator Studio module is not connected.');
+          const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
+          for (const id of ['project-name','gesture','rule','goal','duration','difficulty','theme','countdown','sound','preview-canvas','start-test','reset-test','save-draft','export-button','import-button','import-file','toast']) {
+            if (!ids.has(id)) throw new Error('Creator Studio is missing required DOM ID: ' + id);
+          }
+          if (!source.includes('kinetix-creator-draft-v1') || !source.includes('kinetix-motion-blueprint')) throw new Error('Local draft storage or blueprint format is missing.');
+          if (!source.includes('function exportBlueprint') || !source.includes('async function importBlueprint')) throw new Error('Blueprint export/import is missing.');
+          if (/getUserMedia|PoseLandmarker|detectForVideo/.test(source)) throw new Error('Creator Studio must not request or process camera frames in the editor.');
+          if (!html.includes('CAMERA IS NOT USED IN THIS EDITOR')) throw new Error('Creator Studio camera scope must be communicated to users.');
+          console.log('Validated Creator Studio controls, local draft/export/import flow and camera-free editor scope.');
+          NODE
+
       - name: Build production app and local assets
         run: npm run build
 
@@ -88,23 +108,32 @@ jobs:
           import path from 'node:path';
           import { execFileSync } from 'node:child_process';
           const dist = path.resolve('dist');
-          const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
-          const match = html.match(/<script\b[^>]*\bsrc="([^"]+\.js)"[^>]*><\/script>/i);
-          if (!match) throw new Error('Production entry script could not be identified.');
-          const relative = decodeURIComponent(new URL(match[1], 'https://kinetix.invalid').pathname).replace(/^\/+/, '');
-          const entry = path.resolve(dist, relative);
-          if (!entry.startsWith(dist + path.sep) || !fs.existsSync(entry)) throw new Error('Production entry path is invalid.');
           const assetDir = path.join(dist, 'assets');
           const files = fs.readdirSync(assetDir);
           const maps = files.filter(name => name.endsWith('.map'));
           if (maps.length) throw new Error('Production source maps were emitted: ' + maps.join(', '));
           const vendors = files.filter(name => /^mediapipe-vendor-.*\.js$/.test(name));
           if (vendors.length !== 1) throw new Error('Expected exactly one isolated MediaPipe vendor bundle.');
-          const code = fs.readFileSync(entry, 'utf8');
-          if (!code.includes(vendors[0])) throw new Error('Obfuscated app entry lost its MediaPipe import.');
-          if (code.includes('sourceMappingURL=')) throw new Error('Production entry contains a source-map reference.');
-          execFileSync(process.execPath, ['--check', entry], {stdio:'inherit'});
-          console.log('Verified: minified/obfuscated app entry parses, MediaPipe remains isolated, and source maps are absent.');
+
+          function getEntry(pageName) {
+            const html = fs.readFileSync(path.join(dist, pageName), 'utf8');
+            const match = html.match(/<script\b[^>]*\bsrc="([^"]+\.js)"[^>]*><\/script>/i);
+            if (!match) throw new Error('Production entry script could not be identified for ' + pageName);
+            const relative = decodeURIComponent(new URL(match[1], 'https://kinetix.invalid').pathname).replace(/^\/+/, '');
+            const entry = path.resolve(dist, relative);
+            if (!entry.startsWith(dist + path.sep) || !fs.existsSync(entry)) throw new Error('Production entry path is invalid for ' + pageName);
+            const code = fs.readFileSync(entry, 'utf8');
+            if (code.includes('sourceMappingURL=')) throw new Error(pageName + ' entry contains a source-map reference.');
+            execFileSync(process.execPath, ['--check', entry], {stdio:'inherit'});
+            return {entry, code};
+          }
+
+          const main = getEntry('index.html');
+          const creator = getEntry('creator.html');
+          if (!main.code.includes(vendors[0])) throw new Error('Main game entry lost its MediaPipe import.');
+          if (main.entry === creator.entry) throw new Error('Main game and Creator Studio unexpectedly share the same entry.');
+          if (!creator.code.trim()) throw new Error('Creator Studio production entry is empty.');
+          console.log('Verified both production entries parse, MediaPipe remains isolated, and source maps are absent.');
           NODE
 
       - name: Verify deployable output
