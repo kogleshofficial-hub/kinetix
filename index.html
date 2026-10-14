@@ -66,6 +66,58 @@
 .rank-up-banner{margin:10px 0;padding:14px;border:1px solid rgba(178,155,255,.5);border-radius:7px;background:linear-gradient(105deg,rgba(178,155,255,.14),rgba(103,232,239,.06));text-align:center}.rank-up-banner span,.rank-up-banner b,.rank-up-banner small{display:block}.rank-up-banner span{color:#c1b2ff;font:500 7px var(--mono);letter-spacing:.15em}.rank-up-banner b{margin:7px 0;color:#fbf1ff;font-size:17px;letter-spacing:.04em}.rank-up-banner small{color:#a8a8c8;font-size:8px}
 @media(max-width:900px){.rank-ladder{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:520px){.rank-track{padding:10px}.rank-track-top{align-items:flex-start}.rank-track-top>b{font-size:7px}.rank-ladder{grid-template-columns:repeat(2,minmax(0,1fr))}.rank-tier>b{min-height:auto}.banner-grid{grid-template-columns:1fr}.banner-card{display:grid;grid-template-columns:1fr auto;gap:6px 10px}.banner-card>span,.banner-card>b,.banner-card>small{grid-column:1}.banner-card .btn{grid-column:2;grid-row:1/4;min-width:104px}}
+
+/* Results use a viewport-level layer so phone browsers never clip the report
+   to the fixed-height arena. Long reports can scroll independently. */
+.overlay.overlay-global{
+ position:fixed;
+ inset:0;
+ z-index:1200;
+ display:grid;
+ place-items:center;
+ width:100%;
+ height:100vh;
+ height:100dvh;
+ padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
+ overflow-y:auto;
+ overscroll-behavior:contain;
+}
+.overlay.overlay-global .dialog.result{
+ width:min(500px,100%);
+ max-height:calc(100vh - 24px);
+ max-height:calc(100dvh - max(12px,env(safe-area-inset-top)) - max(12px,env(safe-area-inset-bottom)));
+ overflow-y:auto;
+ overscroll-behavior:contain;
+ margin:auto;
+ padding:clamp(16px,4vw,27px);
+ scrollbar-gutter:stable;
+ overflow-wrap:anywhere;
+}
+.overlay.overlay-global .dialog.result .stats{
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:7px;
+ margin:14px 0 12px;
+}
+.overlay.overlay-global .dialog.result .stats b{font-size:clamp(17px,5vw,21px)}
+@media(max-width:520px){
+ .overlay.overlay-global{
+  padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+ }
+ .overlay.overlay-global .dialog.result{
+  width:100%;
+  max-height:calc(100vh - 20px);
+  max-height:calc(100dvh - max(10px,env(safe-area-inset-top)) - max(10px,env(safe-area-inset-bottom)));
+  padding:17px;
+  border-radius:10px;
+ }
+ .overlay.overlay-global .dialog.result h2{font-size:clamp(22px,7vw,30px);margin:9px 0 8px}
+ .overlay.overlay-global .dialog.result p{font-size:11px;line-height:1.6;margin-bottom:12px}
+ .overlay.overlay-global .dialog.result .stats div{padding:9px 8px}
+ .overlay.overlay-global .dialog.result .btn{min-height:42px;padding:10px 12px;white-space:normal;line-height:1.35}
+ .overlay.overlay-global .dialog.result .text-btn{padding:8px 12px}
+ .overlay.overlay-global .dialog.result .reward-earned{align-items:flex-start}
+}
+
 </style>
 <style>
 .creator-launch{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 12px;border:1px solid rgba(103,232,239,.33);border-radius:7px;background:rgba(23,42,56,.66);color:#aafaff;font:500 8px "DM Mono",monospace;letter-spacing:.075em;text-decoration:none;white-space:nowrap;transition:background .15s,border-color .15s}
