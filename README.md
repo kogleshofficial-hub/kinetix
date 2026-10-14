@@ -72,3 +72,12 @@ Combo banners cost **100** or **250 Kinets** and appear in solo play from a five
 The prototype includes a solo AI encounter, same-device local duel, camera permission gate, pose calibration, touch/keyboard backup, health and mana meters, med kits, supply drops, hit/heal feedback, original Canvas fighter visuals, sound effects, pause/replay and a downloadable result card. Real-time online multiplayer, accounts, cloud leaderboards, payments and automatic camera recording are not included. Camera tracking and small-screen performance still need testing on a range of real devices before this can be called production-ready.
 
 Built by **Koglesh R. Murugan**.
+
+
+## Copyright and source-code policy
+
+Copyright © 2026 Koglesh R. Murugan. All rights reserved for the original Kinetix-authored source code, text, interface design, and original game materials, except where a component or asset is identified as third-party material.
+
+Unless permission is granted in writing, public access to this repository or the live game does not grant permission to copy, redistribute, adapt, or commercially reuse the original materials. Third-party libraries and assets remain governed by their own licenses. This notice is not a claim that every game mechanic or general idea is exclusive, and it does not replace technical access controls.
+
+The production build is minified and applies conservative obfuscation to Kinetix-authored client logic. Source maps are disabled, and third-party MediaPipe runtime code is kept separate rather than obfuscated. Because a browser must receive client-side code to run it, these measures only add friction; they cannot make browser code secret. Keep credentials and any future authoritative online economy or account logic on a trusted server, never in frontend JavaScript.
