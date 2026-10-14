@@ -331,7 +331,21 @@ function updateHud(){
  $('best-combo').textContent=String(bestRecord).padStart(2,'0')+'×';
 }
 function showOverlay(title,desc,tag,buttons,stats) {
- const overlay=$('overlay'),dialog=$('dialog');overlay.classList.remove('hidden');dialog.className='dialog'+(stats?' result':'');
+ const overlay=$('overlay'),dialog=$('dialog');
+ if(stats){
+  // Results can contain long descriptions, four stats, rewards and several actions.
+  // Render them against the viewport rather than inside the clipped arena canvas.
+  overlay.classList.add('overlay-global');
+  document.body.appendChild(overlay);
+ }else{
+  // Pause dialogs stay attached to the arena; move the shared overlay back from
+  // the viewport portal so existing in-game pause behavior remains unchanged.
+  overlay.classList.remove('overlay-global');
+  const frame=canvas.closest('.game-frame');
+  if(frame&&overlay.parentElement!==frame)frame.appendChild(overlay);
+ }
+ overlay.classList.remove('hidden');
+ dialog.className='dialog'+(stats?' result':'');
  let html='<span class="tag">'+tag+'</span><h2>'+title+'</h2><p>'+desc+'</p>';
  if(stats)html+='<div class="stats"><div><span>BEST COMBO</span><b>'+String(g.best).padStart(2,'0')+'×</b></div><div><span>DAMAGE</span><b>'+String(g.damage).padStart(3,'0')+'</b></div><div><span>ACCURACY</span><b>'+accuracy()+'%</b></div><div><span>DODGES</span><b>'+String(g.dodges).padStart(2,'0')+'</b></div></div>';
  if(stats&&g.mode==='solo'&&g.rewardEarned>0)html+='<div class="reward-earned"><span>SOLO VICTORY REWARD</span><b>+'+g.rewardEarned+' KINETS</b><small>+'+g.rankXpEarned+' RANK XP · '+rankForXp(profile.rankXp).name+' · Wallet: '+profile.kinets+' Kinets</small></div>';
