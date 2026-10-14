@@ -18,8 +18,8 @@ const DIFFICULTIES=Object.freeze({
 let difficulty='normal';
 function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.easy;}
 const MOTION_SENSITIVITY=Object.freeze({
- high:{label:'HIGH',minSpeed:1.15,minTravel:.12,extensionDelta:.032,travelGrowth:.018,minFrameStep:.065,globalCooldown:85,handCooldown:145,returnTravel:.13,rearmRecoil:.055,confirmFrames:2,strongTravel:.235,strongSpeed:2.7,reacquireTravel:.25},
- max:{label:'MAX',minSpeed:.78,minTravel:.09,extensionDelta:.022,travelGrowth:.012,minFrameStep:.048,globalCooldown:60,handCooldown:115,returnTravel:.115,rearmRecoil:.045,confirmFrames:2,strongTravel:.195,strongSpeed:2.3,reacquireTravel:.215}
+ high:{label:'HIGH',minSpeed:1.0,minTravel:.105,extensionDelta:.027,travelGrowth:.014,minFrameStep:.06,globalCooldown:80,handCooldown:135,returnTravel:.13,rearmRecoil:.055,confirmFrames:2,strongTravel:.215,strongSpeed:2.45,reacquireTravel:.22},
+ max:{label:'MAX',minSpeed:.72,minTravel:.082,extensionDelta:.019,travelGrowth:.01,minFrameStep:.045,globalCooldown:60,handCooldown:110,returnTravel:.112,rearmRecoil:.044,confirmFrames:2,strongTravel:.185,strongSpeed:2.15,reacquireTravel:.20}
 });
 let motionSensitivity='high';
 function sensitivityRules(){return MOTION_SENSITIVITY[motionSensitivity]||MOTION_SENSITIVITY.max;}
@@ -505,7 +505,7 @@ async function startCamera(targetMode='lobby'){
   video.srcObject=stream;await video.play();
   cameraPanel.classList.remove('off');cameraStatus='loading';$('camera-label').textContent='LOADING MOTION AI';$('setup-title').textContent='INITIALIZING MOTION TRACKING';$('setup-copy').textContent='Loading the locally hosted motion engine and pose model. Camera frames stay on this device.';
   const files=await FilesetResolver.forVisionTasks(wasmUrl);
-  const options={baseOptions:{modelAssetPath:modelUrl,delegate:'GPU'},runningMode:'VIDEO',numPoses:cameraTargetMode==='solo'?1:2,minPoseDetectionConfidence:.55,minPosePresenceConfidence:.5,minTrackingConfidence:.5};
+  const options={baseOptions:{modelAssetPath:modelUrl,delegate:'GPU'},runningMode:'VIDEO',numPoses:cameraTargetMode==='solo'?1:2,minPoseDetectionConfidence:.5,minPosePresenceConfidence:.45,minTrackingConfidence:.45};
   let pose;
   try{pose=await PoseLandmarker.createFromOptions(files,options);}
   catch(gpuError){pose=await PoseLandmarker.createFromOptions(files,{...options,baseOptions:{...options.baseOptions,delegate:'CPU'}});}
@@ -576,13 +576,13 @@ function shape(p){
  if(!p||p.length<=24)return null;
  const ls=p[11],rs=p[12],lh=p[23],rh=p[24];
  // Tracking readiness is based on the torso, not a visible nose and two perfectly visible wrists.
- if(![ls,rs,lh,rh].every(point=>landmarkVisible(point,.2)))return null;
+ if(![ls,rs,lh,rh].every(point=>landmarkVisible(point,.16)))return null;
  const sc={x:(ls.x+rs.x)/2,y:(ls.y+rs.y)/2};
  const hc={x:(lh.x+rh.x)/2,y:(lh.y+rh.y)/2};
  const sw=Math.hypot(ls.x-rs.x,ls.y-rs.y),torsoHeight=hc.y-sc.y;
  if(sw<.035||torsoHeight<.035||torsoHeight>.8)return null;
- const lw=landmarkVisible(p[15],.2)?p[15]:null;
- const rw=landmarkVisible(p[16],.2)?p[16]:null;
+ const lw=landmarkVisible(p[15],.15)?p[15]:null;
+ const rw=landmarkVisible(p[16],.15)?p[16]:null;
  return{sw,sy:sc.y,hy:hc.y,lean:(sc.x-hc.x)/sw,lw,rw,wristsReady:!!(lw&&rw)};
 }
 function vectorDistance(a,b){
@@ -648,7 +648,7 @@ function detectMotion(points,now,player=1){
     if(snap){hand.base=snap;hand.prev=snap;hand.prevAt=now;}
     hand.armed=true;hand.restFrames=0;hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;hand.candidateFrames=0;
    });
-  }else if(dt>=.008&&dt<=.35){
+  }else if(dt>=.008&&dt<=.5){
    for(let side=0;side<2;side++){
     const hand=mem.punchHands[side],current=armMotionSignature(points,side,s.sw),previous=hand.prev;
     if(!current){
