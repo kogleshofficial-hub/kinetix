@@ -67,6 +67,12 @@ A last-moment guard or lane-changing phase can trigger a Perfect Read with brief
 
 Combo banners cost **100** or **250 Kinets** and appear in solo play from a five-hit combo. They are cosmetic. The current profile is stored in this browser only; no authenticated account, synced wallet, or online leaderboard exists.
 
+## Creator Studio (alpha)
+
+Open the **Create Game** link or visit `/creator.html` to use the local-first Creator Studio. It offers three starter templates, configurable gesture/rule/goal/duration/difficulty/theme settings, a simulated local test, browser-local draft saving, and portable JSON export/import.
+
+This is currently a **game blueprint editor**, not a fully generated motion-game runtime. Preview gestures are simulated and do not activate the camera. The blueprint describes the intended configuration for a future engine runtime; it is not yet a published custom game. No creator accounts, sharing platform, paid passes, marketplace, revenue share, cloud project storage, or server-backed game logic exists yet.
+
 ## Current scope and limitations
 
 The prototype includes a solo AI encounter, same-device local duel, camera permission gate, pose calibration, touch/keyboard backup, health and mana meters, med kits, supply drops, hit/heal feedback, original Canvas fighter visuals, sound effects, pause/replay and a downloadable result card. Real-time online multiplayer, accounts, cloud leaderboards, payments and automatic camera recording are not included. Camera tracking and small-screen performance still need testing on a range of real devices before this can be called production-ready.
