@@ -97,6 +97,7 @@ let test = {
   startedAt: 0,
   countdownUntil: 0,
   endAt: 0,
+  stopRemaining: 0,
   lastGesture: '',
   message: 'Configure it, then start a local test.'
 };
@@ -235,7 +236,7 @@ function updateOutputs() {
 
 function remainingSeconds(now = performance.now()) {
   if (test.status === 'idle') return config.duration;
-  if (test.status === 'won' || test.status === 'failed') return Math.max(0, Math.ceil((test.endAt - test.startedAt) / 1000));
+  if (test.status === 'won' || test.status === 'failed') return Math.max(0, Math.ceil(Number(test.stopRemaining ?? 0)));
   if (test.status === 'countdown') {
     return config.duration;
   }
@@ -249,6 +250,7 @@ function resetTest(message = 'Configure it, then start a local test.') {
     startedAt: 0,
     countdownUntil: 0,
     endAt: 0,
+    stopRemaining: config.duration,
     lastGesture: '',
     message
   };
@@ -298,6 +300,7 @@ function tickTest(now) {
     }
   } else if (test.status === 'running' && now >= test.endAt) {
     test.status = 'failed';
+    test.stopRemaining = 0;
     test.message = 'Time is up. Adjust the blueprint or start another test.';
     $('preview-state').textContent = 'ROUND ENDED';
   }
@@ -330,8 +333,8 @@ function handleGesture(requestedGesture) {
   test.score = Math.min(config.goal, test.score + 1);
   test.message = 'Registered ' + gestureLabel(actualGesture) + ' · ' + test.score + ' of ' + config.goal + '.';
   if (test.score >= config.goal) {
+    test.stopRemaining = remainingSeconds();
     test.status = 'won';
-    test.endAt = performance.now();
     test.message = 'Blueprint cleared! You reached the goal in this simulated test.';
     $('preview-state').textContent = 'GOAL REACHED';
     cancelAnimationFrame(animationFrame);
