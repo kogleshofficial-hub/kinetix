@@ -74,6 +74,8 @@ jobs:
           for (const item of ['COMBO_BANNERS','handleBannerAction','rank-progress-fill','rank-xp-label']) if (!(source+'\n'+html).includes(item)) throw new Error('Missing rank/banner feature: ' + item);
           if (!source.includes("if(g.mode!=='solo'||g.rewardGranted)return;")) throw new Error('Rewards must be Solo-only and protected from duplicate claims.');
           if (!source.includes("g.mode==='solo'&&g.combo>=5")) throw new Error('Combo banners must only appear from five-hit solo combos.');
+          if (!html.includes('.overlay.overlay-global') || !html.includes('max-height:calc(100dvh - max(10px,env(safe-area-inset-top))')) throw new Error('Viewport-safe mobile result dialog styles are missing.');
+          if (!source.includes("overlay.classList.add('overlay-global')") || !source.includes("document.body.appendChild(overlay)")) throw new Error('Result dialog is not lifted out of the clipped game arena.');
           console.log('Validated ' + referenced.length + ' DOM references, ' + ids.length + ' unique DOM IDs, difficulty profiles, Duo input wiring, Kinets wallet, ranks, combo banners and comeback feedback. Duo webcam behavior still requires manual testing.');
           NODE
       - name: Validate JavaScript syntax
