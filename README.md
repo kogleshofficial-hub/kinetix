@@ -49,6 +49,12 @@ The app checks for a newer service worker and exposes an update control when one
 
 The webcam detects controlled movement, not strike force. Raise one hand comfortably from its neutral position and return it to rest to trigger PULSE; bring both wrists close together in the upper-chest area for GUARD; shift the upper torso slightly to change lanes. Difficulty comes from the Rift's stats and timing—not from hitting harder or forcing speed.
 
+## Daily Rift challenge
+
+The lobby offers a local **Daily Rift** challenge. It derives a deterministic seed from the current UTC date and uses that seed for the encounter's lane sequence. Players using the same ruleset and UTC date receive the same sequence; the result card includes the date and seed code so friends can compare runs.
+
+Daily Rift uses your selected solo difficulty and the normal solo victory reward table. It does not award bonus currency, require an account, upload camera footage, or submit scores to an online leaderboard. The current build does not verify results on a server, so the seed is a reproducibility aid—not an anti-cheat or competitive ranking system. The challenge can be played again on the same date.
+
 ## Health, mana and supplies
 
 Pulses consume mana; mana regenerates slowly. Guard reduces incoming damage, while a well-timed phase can evade an attack. NOVA costs more mana, so timing matters. Med kits restore up to 28 HP and are limited; save them when health is already full. Supply drops periodically offer either a med kit or a mana orb. In local duel, each supply drop is shared, so the first player to claim it gets the item.
