@@ -126,7 +126,7 @@
 .creator-launch{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 12px;border:1px solid rgba(103,232,239,.33);border-radius:7px;background:rgba(23,42,56,.66);color:#aafaff;font:500 8px "DM Mono",monospace;letter-spacing:.075em;text-decoration:none;white-space:nowrap;transition:background .15s,border-color .15s}
 .creator-launch:hover{background:rgba(35,77,91,.45);border-color:rgba(103,232,239,.75)}
 @media(max-width:600px){.creator-launch{min-height:30px;padding:0 8px;font-size:7px}.prototype{display:none}}
-.daily-rift-card{max-width:540px;margin:14px 0 4px;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid rgba(103,232,239,.22);border-radius:9px;background:linear-gradient(115deg,rgba(23,38,58,.86),rgba(14,18,36,.92))}.daily-rift-copy{min-width:0}.daily-rift-copy small{display:block;font:400 7px var(--mono);letter-spacing:.12em;color:var(--cyan)}.daily-rift-copy strong{display:block;margin-top:5px;font:500 10px var(--mono);letter-spacing:.04em;color:#f0f3ff}.daily-rift-copy p{font-size:10px;line-height:1.5;color:#858eae;margin:6px 0 0;max-width:320px}.daily-rift-copy .daily-rift-record{display:block;margin-top:9px;color:#aeb8d8;font-size:7px;line-height:1.5;letter-spacing:.05em}.daily-rift-card .btn{min-height:39px;flex:0 0 auto}
+.daily-rift-card{max-width:540px;margin:14px 0 4px;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid rgba(103,232,239,.22);border-radius:9px;background:linear-gradient(115deg,rgba(23,38,58,.86),rgba(14,18,36,.92))}.gate-skip{display:block;width:100%;margin-top:10px;padding:10px;color:#98a2c5;font:400 8px var(--mono);letter-spacing:.08em}.gate-skip:disabled{opacity:.45;cursor:wait}.mode-actions{max-width:450px}.mode-actions .btn{min-height:45px}.daily-rift-actions{display:flex;flex-direction:column;gap:5px;min-width:180px}.daily-rift-actions .btn{width:100%}.daily-rift-actions .text-btn{font:400 7px var(--mono);letter-spacing:.06em;color:#9eadd0;padding:8px}.creator-youtube{display:inline-flex;align-items:center;color:#aeb8d8;font:400 7px var(--mono);letter-spacing:.06em;text-decoration:none}.creator-youtube:hover{color:#ff9a9a;text-decoration:underline}.daily-rift-copy{min-width:0}.daily-rift-copy small{display:block;font:400 7px var(--mono);letter-spacing:.12em;color:var(--cyan)}.daily-rift-copy strong{display:block;margin-top:5px;font:500 10px var(--mono);letter-spacing:.04em;color:#f0f3ff}.daily-rift-copy p{font-size:10px;line-height:1.5;color:#858eae;margin:6px 0 0;max-width:320px}.daily-rift-copy .daily-rift-record{display:block;margin-top:9px;color:#aeb8d8;font-size:7px;line-height:1.5;letter-spacing:.05em}.daily-rift-card .btn{min-height:39px;flex:0 0 auto}
 @media(max-width:760px){.daily-rift-card{max-width:none;align-items:flex-start;flex-direction:column}.daily-rift-card .btn{width:100%}}
 </style>
 </head>
@@ -139,6 +139,7 @@
     <p id="gate-copy">KINETIX will request camera access only after you press the button below. Camera frames are processed in your browser and are not recorded or uploaded by this prototype.</p>
     <div class="gate-status" id="gate-status">CAMERA OFF · WAITING FOR YOUR PERMISSION</div>
     <button class="btn primary" id="gate-retry">ENABLE CAMERA & CONTINUE <svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button>
+    <button type="button" class="text-btn gate-skip" id="gate-skip">CONTINUE WITHOUT CAMERA</button>
     <p class="gate-note">Allow camera access in your browser. Use HTTPS, good lighting, and keep the play area clear. Audio is optional and never uses the microphone.</p>
   </div>
 </div>
@@ -150,12 +151,17 @@
   <section class="copy">
     <div class="eyebrow">A NEW KIND OF PLAYER INPUT</div>
     <h1>Your body.<br><span class="gradient">Your power.</span><br>Your arena<em>.</em></h1>
-    <p class="lede">No controller. No headset. Just you, a camera, and a rift that needs closing.</p>
+    <p class="lede">No download. No account. Play with touch, keyboard, or optional camera motion.</p>
     <p class="bodycopy">Train smart. Survive the Rift. Read the warning, find the opening, and make every counter count.</p>
-    <div class="actions mode-actions"><button class="btn primary" id="play-keyboard"><svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg> SOLO VS RIFT AI</button><button class="btn secondary" id="play-duo-camera"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c.4-4 2.4-6 5.5-6s5.2 2 5.5 6m1-4c3.6-.7 6 .8 7 3.5"/></svg> 2-PLAYER LOCAL DUEL</button></div>
+    <div class="actions mode-actions">
+      <button class="btn primary" id="play-keyboard"><svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg> SOLO VS RIFT AI · TOUCH / KEYBOARD</button>
+      <button class="btn secondary" id="play-camera"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg> SOLO · CAMERA MOTION</button>
+      <button class="btn secondary" id="play-duo-touch"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c.4-4 2.4-6 5.5-6s5.2 2 5.5 6m1-4c3.6-.7 6 .8 7 3.5"/></svg> 2-PLAYER LOCAL DUEL · TOUCH</button>
+      <button class="btn secondary" id="play-duo-camera"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg> 2-PLAYER LOCAL DUEL · CAMERA</button>
+    </div>
     <section class="daily-rift-card" aria-label="Daily seeded Rift challenge">
-      <div class="daily-rift-copy"><small>DAILY RIFT / UTC</small><strong id="daily-challenge-date">LOADING TODAY'S SEED…</strong><p>The same UTC date uses the same seeded lane sequence. Choose your difficulty and try to close the Rift.</p><small class="daily-rift-record" id="daily-challenge-record">NO PERSONAL RECORD YET · YOUR FIRST RUN SETS IT</small></div>
-      <button type="button" class="btn secondary" id="play-daily">ENTER TODAY'S RIFT →</button>
+      <div class="daily-rift-copy"><small>DAILY RIFT / UTC</small><strong id="daily-challenge-date">LOADING TODAY'S SEED…</strong><p>Same UTC date, same seeded encounter. Play with touch/keyboard or optional camera motion.</p><small class="daily-rift-record" id="daily-challenge-record">NO PERSONAL RECORD YET · YOUR FIRST RUN SETS IT</small></div>
+      <div class="daily-rift-actions"><button type="button" class="btn secondary" id="play-daily">PLAY TODAY'S RIFT →</button><button type="button" class="text-btn" id="play-daily-camera">PLAY WITH CAMERA MOTION</button></div>
     </section>
     <section class="difficulty-picker" aria-label="Solo robot difficulty">
       <div class="difficulty-picker-head"><strong>RIFT DIFFICULTY</strong><small>CHOOSE YOUR TRAINING LEVEL</small></div>
@@ -288,7 +294,7 @@
   <div class="pickup-status" id="pickup-status">SUPPLY DROP · ARRIVING SOON</div><div class="note"><span>ⓘ NO PHYSICAL CONTACT. MOVE COMFORTABLY AND KEEP YOUR SPACE CLEAR.</span><span>BEST COMBO <b id="best-combo">00×</b></span></div>
 </main>
 <div class="camera off" id="camera-panel"><video id="video" autoplay muted playsinline></video><div class="camera-hint hidden" id="camera-hint">STEP BACK UNTIL YOUR UPPER BODY IS VISIBLE</div><div class="camera-bar"><i class="camera-dot" id="camera-dot"></i><span id="camera-label">CAMERA PREVIEW</span><button id="camera-close" aria-label="Stop camera">×</button></div></div>
-<footer class="footerbar"><span>KINETIX / EARLY ACCESS PROTOTYPE</span><span>CAMERA PROCESSING STAYS IN YOUR BROWSER&nbsp; ◇</span><span class="creator-credit">Created By Koglesh R. Murugan</span></footer>
+<footer class="footerbar"><span>KINETIX 3.0 / DEVELOPMENT PREVIEW</span><span>CAMERA IS OPTIONAL · PROCESSING STAYS LOCAL&nbsp; ◇</span><span class="creator-credit">Created By Koglesh R. Murugan</span><a class="creator-youtube" href="https://www.youtube.com/@ItsAero_Official" target="_blank" rel="noopener noreferrer">SUPPORT THE CREATOR · YOUTUBE ↗</a></footer>
 <script type="module" src="/src/main.js"></script>
 </body>
 </html>
