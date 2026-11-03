@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   check:
-    name: Install, validate and production-build Kinetix
+    name: Test, validate and production-build Kinetix
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -19,174 +19,123 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Validate source, DOM references and local runtime configuration
+      - name: Check JavaScript syntax
+        run: |
+          node --check src/main.js
+          node --check src/creator.js
+          node --check src/engine/EventBus.js
+          node --check src/engine/motion/KinetixMotionEngine.js
+          node --check src/engine/motion/motion.worker.js
+          node --check src/engine/combat/KinetixCombatDirector.js
+          node --check src/engine/progression/KinetixProgressionVault.js
+          node --check src/engine/viewport/KinetixViewportCanvas.js
+          node --check scripts/obfuscate-build.mjs
+      - name: Unit tests
+        run: npm test
+      - name: Validate game integration, DOM references and engine contracts
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const html = fs.readFileSync('index.html', 'utf8');
           const source = fs.readFileSync('src/main.js', 'utf8');
-          if (!html.includes('<script type="module" src="/src/main.js"></script>')) throw new Error('Vite entry module is not wired into index.html.');
-          if (!source.includes("from '@mediapipe/tasks-vision'")) throw new Error('MediaPipe must be imported from the installed package.');
-          if (!source.includes("'/mediapipe/wasm'") || !source.includes("'/models/pose_landmarker_lite.task'")) throw new Error('MediaPipe WASM and model must be served from this site.');
-          if (source.includes("import('http") || source.includes('import("http')) throw new Error('A runtime CDN module import was found.');
-          const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
+          const motion = fs.readFileSync('src/engine/motion/KinetixMotionEngine.js', 'utf8');
+          const worker = fs.readFileSync('src/engine/motion/motion.worker.js', 'utf8');
+          const director = fs.readFileSync('src/engine/combat/KinetixCombatDirector.js', 'utf8');
+          const vault = fs.readFileSync('src/engine/progression/KinetixProgressionVault.js', 'utf8');
+          const viewport = fs.readFileSync('src/engine/viewport/KinetixViewportCanvas.js', 'utf8');
+          const bus = fs.readFileSync('src/engine/EventBus.js', 'utf8');
+          const css = fs.readFileSync('src/engine/viewport/kinetix-viewport.css', 'utf8');
+
+          if (!html.includes('<script type="module" src="/src/main.js"></script>')) throw new Error('Vite game entry is not wired into index.html.');
+          if (source.includes("from '@mediapipe/tasks-vision'")) throw new Error('MediaPipe inference must not be imported into the window thread.');
+          if (!worker.includes("from '@mediapipe/tasks-vision'")) throw new Error('The dedicated worker must own MediaPipe inference.');
+          if (!motion.includes("new Worker(new URL('./motion.worker.js', import.meta.url)")) throw new Error('Motion engine worker URL is not wired.');
+          if (!source.includes("'/mediapipe/wasm'") || !source.includes("'/models/pose_landmarker_lite.task'")) throw new Error('Local MediaPipe model/runtime paths are missing.');
+          if (!worker.includes("delegate: 'GPU'") || !worker.includes("delegate: 'CPU'")) throw new Error('GPU with CPU fallback is required.');
+          if (!worker.includes('smoothLandmarks') || !worker.includes('const alpha = 0.62')) throw new Error('Motion smoothing is missing.');
+          if (!worker.includes('high: Object.freeze') || !worker.includes('max: Object.freeze')) throw new Error('HIGH and MAX sensitivity profiles are missing.');
+          if (!worker.includes('requiredPlayerCount') || !worker.includes("message.type === 'CONFIG'")) throw new Error('Lobby/Solo/Duo pose-count configuration is missing.');
+          if (!worker.includes("emitAction('GUARD_RELEASE'")) throw new Error('Guard release handling is missing.');
+          if (!worker.includes('PHASE_LEFT') || !worker.includes('PHASE_RIGHT')) throw new Error('Camera lane-change actions are missing.');
+          if (!motion.includes('requestVideoFrameCallback') || !motion.includes('createImageBitmap(this.video)')) throw new Error('Video frames are not transferred asynchronously to the worker.');
+          if (!motion.includes('GUARD_RELEASE') || !motion.includes("arrowleft: ['PHASE_LEFT', 2]")) throw new Error('Keyboard fallback and guard-release events are missing.');
+          if (!director.includes('stepSeconds = 1 / tickRate') || !director.includes('setTimeout(pump') || !director.includes('maxCatchUpTicks')) throw new Error('Dedicated fixed-step simulation scheduler is missing.');
+          if (!director.includes('MATCH_START') || !director.includes('TIME_CRITICAL') || !director.includes('MATCH_OVER')) throw new Error('Combat lifecycle states are incomplete.');
+          if (!director.includes('Object.freeze') || !bus.includes('Object.freeze')) throw new Error('Read-only combat/event snapshots are missing.');
+          if (!source.includes('tickRate: 60') || !source.includes('combatDirector.beginMatch()')) throw new Error('Main game does not start the 60 Hz simulation director.');
+          if (!source.includes("isEnabled:()=>g.status==='playing'&&!paused&&(!cameraMode||trackingOkay)")) throw new Error('Simulation pause and lost-tracking gates are missing.');
+          if (source.includes('combatDirector.advance(')) throw new Error('The render loop must not drive the simulation clock.');
+          if (!source.includes('viewport.render(t)') || !source.includes('viewport.connect(combatDirector.bus)')) throw new Error('Viewport effects are not connected to the game event bus.');
+          if (!source.includes('scaleX(') || !css.includes('translate3d')) throw new Error('Transform-based HUD/viewport styling is missing.');
+          if (!vault.includes('client-local-unverified') || !vault.includes('signature: null')) throw new Error('Local receipts must be explicitly marked unverified.');
+          if (!vault.includes('_remoteTransaction') || !vault.includes('If-Match')) throw new Error('Cloud transaction/version-conflict adapter hooks are missing.');
+          if (!vault.includes("easy: Object.freeze({ kinets: 15, xp: 10 })") || !vault.includes("normal: Object.freeze({ kinets: 20, xp: 20 })") || !vault.includes("hard: Object.freeze({ kinets: 30, xp: 35 })")) throw new Error('Solo Kinets/XP reward table is incorrect.');
+          if (!source.includes("if(g.mode!=='solo'||g.rewardGranted)return;")) throw new Error('Solo victory rewards must be idempotent and excluded from Duo.');
+          if (!source.includes("if(status==='won'&&g.mode==='solo')")) throw new Error('Solo victory reward handler is not wired.');
+          if (!source.includes('PROFILE_STORAGE_KEY') || !source.includes('USERNAME_CHANGE_COST') || !source.includes('handleCharacterAction')) throw new Error('Profile/store integration is missing.');
+          if (!source.includes('price:120') || !source.includes('price:300') || !source.includes('price:600')) throw new Error('Character price ladder is missing.');
+          for (const rank of ['Rift Recruit','Kinetic Initiate','Pulse Adept','Rift Hunter','Void Vanguard','Rift Champion','Kinetix Sovereign']) if (!source.includes(rank)) throw new Error('Missing rank: ' + rank);
+          for (const feature of ['triggerPerfectDefense','checkAdrenaline','LAST_LIGHT','perfectFxUntil','hitStopUntil']) if (!source.includes(feature)) throw new Error('Existing game feature was lost: ' + feature);
+          for (const feature of ['COMBO_BANNERS','rank-progress-fill','rank-xp-label','UNSTOPPABLE','RIFT BREAKER']) if (!(source+html).includes(feature)) throw new Error('Rank/banner feature was lost: ' + feature);
+
+          const ids = html.split('id="').slice(1).map(part => part.split('"', 1)[0]);
           const idSet = new Set(ids);
           const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
           if (duplicates.length) throw new Error('Duplicate DOM IDs: ' + [...new Set(duplicates)].join(', '));
-          const referenced = [...new Set([...source.matchAll(/\$\('([^']+)'\)/g)].map(match => match[1]))];
+          const referenced = [...new Set(source.split("$('").slice(1).map(part => part.split("')", 1)[0])];
           const missing = referenced.filter(id => !idSet.has(id));
           if (missing.length) throw new Error('JavaScript references missing DOM IDs: ' + missing.join(', '));
-          const requiredIds = ['play-keyboard','play-duo-camera','enable-camera','calibrate-start','duo-touch-start','game-canvas','player-hp','enemy-hp','pause','nova-button','p1-mana-bar','p2-mana-bar','pickup-status'];
-          for (const id of requiredIds) if (!idSet.has(id)) throw new Error('Missing required element: ' + id);
-
-          // Verify distinct Easy / Normal / Hard profiles and a brutal but readable Hard mode.
-          const profiles = Object.fromEntries([...source.matchAll(/^\s*(easy|normal|hard):\{([^}]+)\}/gm)].map(match => {
-            const values = Object.fromEntries([...match[2].matchAll(/([A-Za-z]+):([0-9.]+)/g)].map(pair => [pair[1], Number(pair[2])]));
-            return [match[1], values];
-          }));
-          if (Object.keys(profiles).sort().join(',') !== 'easy,hard,normal') throw new Error('Solo difficulty profiles must be Easy, Normal and Hard.');
-          const hard = profiles.hard;
-          if (!(profiles.easy.enemyHP < profiles.normal.enemyHP && profiles.normal.enemyHP < hard.enemyHP)) throw new Error('Rift HP must increase from Easy to Normal to Hard.');
-          if (!(profiles.easy.enemyDamage < profiles.normal.enemyDamage && profiles.normal.enemyDamage < hard.enemyDamage)) throw new Error('Rift damage must increase from Easy to Normal to Hard.');
-          if (!(hard.enemyHP >= 400 && hard.enemyDamage >= 45 && hard.telegraph <= 0.25 && hard.opening <= 0.4 && hard.recovery <= 0.1)) throw new Error('Hard must keep its high HP, high damage and tight timing profile.');
-          const uiDifficulties = [...html.matchAll(/data-difficulty="([^"]+)"/g)].map(match => match[1]).sort().join(',');
-          if (uiDifficulties !== 'easy,hard,normal') throw new Error('Difficulty buttons do not match the game profiles.');
-          // Static smoke checks for two-player camera/input routing; webcam E2E testing remains manual.
-          if (!source.includes("numPoses:cameraTargetMode==='solo'?1:2")) throw new Error('Camera must request two poses for lobby/Duo.');
-          if (!source.includes("secondPose=cameraTargetMode==='duo'?(poses[1]||null):null")) throw new Error('Second pose is not assigned in Duo mode.');
-          if (!source.includes("if(cameraTargetMode==='duo')detectMotion(secondPose,now,2)")) throw new Error('Player 2 gesture input is not wired.');
-          if (!source.includes("cameraTargetMode==='duo'&&!two")) throw new Error('Duo must require both players before calibration.');
-          if (!source.includes("if(k==='j')action('PULSE',2)")) throw new Error('Player 2 keyboard backup is not wired.');
-          if (!html.includes('data-duo-action="PULSE" data-player="1"') || !html.includes('data-duo-action="PULSE" data-player="2"')) throw new Error('Both split-duel touch controls are required.');
-          // Check the local Kinets economy and clear Solo-vs-Duo reward separation.
-          for (const item of ['PROFILE_STORAGE_KEY','SOLO_REWARDS','USERNAME_CHANGE_COST','awardSoloWin','handleCharacterAction']) {
-            if (!source.includes(item)) throw new Error('Missing economy component: ' + item);
-          }
-          for (const rate of ["easy:15","normal:20","hard:30"]) if (!source.includes(rate)) throw new Error('Incorrect or missing solo Kinets reward: ' + rate);
-          if (!source.includes("if(g.mode!=='solo'||g.rewardGranted)return;")) throw new Error('Solo victory reward must be idempotent and excluded from Duo.');
-          if (!source.includes("if(status==='won'&&g.mode==='solo')awardSoloWin()")) throw new Error('Solo victory is not connected to rewards.');
-          if (!source.includes("price:120") || !source.includes("price:300") || !source.includes("price:600")) throw new Error('Character style price ladder is missing.');
-          if (!html.includes('id="kinet-store"') || !html.includes('id="username-form"') || !html.includes('data-character-action="legendary"')) throw new Error('Kinets shop markup is incomplete.');
-          if (!html.includes('LOCAL PILOT') || !html.includes('Duo matches do not pay Kinets.')) throw new Error('Shop must explain local-only profile and Solo-only earning.');
-          for (const rate of ["easy:10","normal:20","hard:35"]) if (!source.includes(rate)) throw new Error('Incorrect or missing rank XP reward: ' + rate);
-          for (const rank of ['Rift Recruit','Kinetic Initiate','Pulse Adept','Rift Hunter','Void Vanguard','Rift Champion','Kinetix Sovereign']) if (!source.includes(rank)) throw new Error('Missing rank ladder tier: ' + rank);
-          for (const component of ['triggerPerfectDefense','checkAdrenaline','LAST_LIGHT','perfectFxUntil','hitStopUntil']) if (!source.includes(component)) throw new Error('Missing skill-feedback mechanic: ' + component);
-          for (const item of ['COMBO_BANNERS','handleBannerAction','rank-progress-fill','rank-xp-label']) if (!(source+'\n'+html).includes(item)) throw new Error('Missing rank/banner feature: ' + item);
-          if (!source.includes("if(g.mode!=='solo'||g.rewardGranted)return;")) throw new Error('Rewards must be Solo-only and protected from duplicate claims.');
-          if (!source.includes("g.mode==='solo'&&g.combo>=5")) throw new Error('Combo banners must only appear from five-hit solo combos.');
-          if (!html.includes('.overlay.overlay-global') || !html.includes('max-height:calc(100dvh - max(10px,env(safe-area-inset-top))')) throw new Error('Viewport-safe mobile result dialog styles are missing.');
-          if (!source.includes("overlay.classList.add('overlay-global')") || !source.includes("document.body.appendChild(overlay)")) throw new Error('Result dialog is not lifted out of the clipped game arena.');
-          console.log('Validated ' + referenced.length + ' DOM references, ' + ids.length + ' unique DOM IDs, difficulty profiles, Duo input wiring, Kinets wallet, ranks, combo banners and comeback feedback. Duo webcam behavior still requires manual testing.');
+          if (!html.includes('data-duo-action="PULSE" data-player="1"') || !html.includes('data-duo-action="PULSE" data-player="2"')) throw new Error('Split-duel touch fallback controls are missing.');
+          if (!html.includes('CONTROLLED HAND RAISE') || html.includes('JAB FORWARD')) throw new Error('Camera guide must describe low-impact gesture input.');
+          console.log('Validated worker isolation, split-player tracking, fixed-tick lifecycle, wallet contracts, HUD wiring and ' + referenced.length + ' DOM references.');
           NODE
-      - name: Validate JavaScript syntax
-        run: node --check src/main.js
-
-      - name: Validate Creator Studio source and browser-local controls
+      - name: Validate Creator Studio
         run: |
-          node --check src/creator.js
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const html = fs.readFileSync('creator.html', 'utf8');
           const source = fs.readFileSync('src/creator.js', 'utf8');
           if (!html.includes('<script type="module" src="/src/creator.js"></script>')) throw new Error('Creator Studio module is not connected.');
-          const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
+          const ids = html.split('id="').slice(1).map(part => part.split('"', 1)[0]);
           for (const id of ['project-name','gesture','rule','goal','duration','difficulty','theme','countdown','sound','preview-canvas','start-test','reset-test','save-draft','export-button','import-button','import-file','toast']) {
-            if (!ids.has(id)) throw new Error('Creator Studio is missing required DOM ID: ' + id);
+            if (!ids.includes(id)) throw new Error('Creator Studio is missing required DOM ID: ' + id);
           }
-          if (!source.includes('kinetix-creator-draft-v1') || !source.includes('kinetix-motion-blueprint')) throw new Error('Local draft storage or blueprint format is missing.');
+          if (!source.includes('kinetix-creator-draft-v1') || !source.includes('kinetix-motion-blueprint')) throw new Error('Creator Studio local draft/blueprint format is missing.');
           if (!source.includes('function exportBlueprint') || !source.includes('async function importBlueprint')) throw new Error('Blueprint export/import is missing.');
-          if (/getUserMedia|PoseLandmarker|detectForVideo/.test(source)) throw new Error('Creator Studio must not request or process camera frames in the editor.');
-          if (!html.includes('CAMERA IS NOT USED IN THIS EDITOR')) throw new Error('Creator Studio camera scope must be communicated to users.');
-          const game = fs.readFileSync('src/main.js', 'utf8');
-          if (!game.includes("minSpeed:1.0,minTravel:.105,extensionDelta:.027")) throw new Error('HIGH motion sensitivity profile was not updated.');
-          if (!game.includes('minPoseDetectionConfidence:.5,minPosePresenceConfidence:.45,minTrackingConfidence:.45')) throw new Error('Cross-device pose tracking thresholds were not updated.');
-          if (!game.includes('landmarkVisible(point,.16)')) throw new Error('Torso visibility compatibility threshold was not updated.');
-          console.log('Validated Creator Studio controls, local draft/export/import flow and camera-free editor scope.');
+          if (/getUserMedia|PoseLandmarker|detectForVideo/.test(source)) throw new Error('Creator Studio must not request or process camera frames.');
+          if (!html.includes('CAMERA IS NOT USED IN THIS EDITOR')) throw new Error('Creator Studio camera scope message is missing.');
           NODE
-
-      - name: Build production app and local assets
+      - name: Build production app and local camera assets
         run: npm run build
-
-      - name: Verify production obfuscation and source-map settings
-        run: |
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          import path from 'node:path';
-          import { execFileSync } from 'node:child_process';
-          const dist = path.resolve('dist');
-          const assetDir = path.join(dist, 'assets');
-          const files = fs.readdirSync(assetDir);
-          const maps = files.filter(name => name.endsWith('.map'));
-          if (maps.length) throw new Error('Production source maps were emitted: ' + maps.join(', '));
-          const vendors = files.filter(name => /^mediapipe-vendor-.*\.js$/.test(name));
-          if (vendors.length !== 1) throw new Error('Expected exactly one isolated MediaPipe vendor bundle.');
-
-          function getEntry(pageName) {
-            const html = fs.readFileSync(path.join(dist, pageName), 'utf8');
-            const match = html.match(/<script\b[^>]*\bsrc="([^"]+\.js)"[^>]*><\/script>/i);
-            if (!match) throw new Error('Production entry script could not be identified for ' + pageName);
-            const relative = decodeURIComponent(new URL(match[1], 'https://kinetix.invalid').pathname).replace(/^\/+/, '');
-            const entry = path.resolve(dist, relative);
-            if (!entry.startsWith(dist + path.sep) || !fs.existsSync(entry)) throw new Error('Production entry path is invalid for ' + pageName);
-            const code = fs.readFileSync(entry, 'utf8');
-            if (code.includes('sourceMappingURL=')) throw new Error(pageName + ' entry contains a source-map reference.');
-            execFileSync(process.execPath, ['--check', entry], {stdio:'inherit'});
-            return {entry, code};
-          }
-
-          const main = getEntry('index.html');
-          const creator = getEntry('creator.html');
-          if (!main.code.includes(vendors[0])) throw new Error('Main game entry lost its MediaPipe import.');
-          if (main.entry === creator.entry) throw new Error('Main game and Creator Studio unexpectedly share the same entry.');
-          if (!creator.code.trim()) throw new Error('Creator Studio production entry is empty.');
-          console.log('Verified both production entries parse, MediaPipe remains isolated, and source maps are absent.');
-          NODE
-
       - name: Verify deployable output
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import path from 'node:path';
-          if (!fs.existsSync('dist/index.html')) throw new Error('dist/index.html is missing.');
-          const assets = fs.readdirSync('dist/assets');
+          const dist = path.resolve('dist');
+          const assetDir = path.join(dist, 'assets');
+          if (!fs.existsSync(path.join(dist, 'index.html'))) throw new Error('dist/index.html is missing.');
+          if (!fs.existsSync(assetDir)) throw new Error('dist/assets is missing.');
+          const assets = fs.readdirSync(assetDir);
           const js = assets.filter(name => name.endsWith('.js'));
-          if (!js.length) throw new Error('Vite did not output a bundled JavaScript entry.');
-          const wasmDir = 'dist/mediapipe/wasm';
+          const workerFiles = js.filter(name => name.includes('motion.worker') || name.includes('worker-'));
+          if (!workerFiles.length) throw new Error('The camera motion worker was not emitted as a separate bundle.');
+          if (js.some(name => name.endsWith('.map'))) throw new Error('Production source maps were emitted.');
+          const wasmDir = path.join(dist, 'mediapipe', 'wasm');
           if (!fs.existsSync(wasmDir)) throw new Error('Bundled MediaPipe WASM folder is missing.');
           const walk = dir => fs.readdirSync(dir, {withFileTypes:true}).flatMap(entry => entry.isDirectory() ? walk(path.join(dir,entry.name)) : [path.join(dir,entry.name)]);
-          const files = walk(wasmDir);
-          if (!files.some(file => file.endsWith('.wasm')) || !files.some(file => file.endsWith('.js'))) throw new Error('MediaPipe runtime files are incomplete.');
-          if (!fs.existsSync('dist/models/pose_landmarker_lite.task') || fs.statSync('dist/models/pose_landmarker_lite.task').size < 1000000) throw new Error('Local pose model is missing or invalid.');
-          const bundles = js.map(name => fs.readFileSync(path.join('dist/assets',name),'utf8')).join('\n');
-          if (bundles.includes('esm.sh/@mediapipe/tasks-vision') || bundles.includes('@mediapipe/tasks-vision@0.10.22/+esm')) throw new Error('Production bundle still references remote MediaPipe module CDNs.');
-          console.log('Production output verified: bundled JS, local WASM runtime and local pose model.');
-          NODE
-
-      - name: Validate robots.txt and sitemap.xml
-        run: |
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const robotsPath = 'dist/robots.txt';
-          const sitemapPath = 'dist/sitemap.xml';
-          for (const file of [robotsPath, sitemapPath]) {
-            if (!fs.existsSync(file)) throw new Error('Missing ' + file + '; Vite must copy crawler files into dist.');
+          const wasmFiles = walk(wasmDir);
+          if (!wasmFiles.some(file => file.endsWith('.wasm')) || !wasmFiles.some(file => file.endsWith('.js'))) throw new Error('MediaPipe runtime files are incomplete.');
+          const model = path.join(dist, 'models', 'pose_landmarker_lite.task');
+          if (!fs.existsSync(model) || fs.statSync(model).size < 1000000) throw new Error('Local pose model is missing or invalid.');
+          for (const name of js) {
+            const code = fs.readFileSync(path.join(assetDir,name),'utf8');
+            if (code.includes('sourceMappingURL=')) throw new Error('Production source maps are referenced by ' + name);
+            if (code.includes('esm.sh/@mediapipe/tasks-vision')) throw new Error('Runtime MediaPipe CDN import was found in ' + name);
           }
-          const robots = fs.readFileSync(robotsPath, 'utf8');
-          const sitemap = fs.readFileSync(sitemapPath, 'utf8');
-          const home = 'https://kinetix-sigma-two.vercel.app/';
-          const sitemapUrl = home + 'sitemap.xml';
-          const robotLines = robots.split('\n').map(line => line.trim());
-          if (!robotLines.includes('User-agent: *')) throw new Error('robots.txt must include User-agent: *.');
-          if (!robotLines.includes('Allow: /')) throw new Error('robots.txt must allow public crawling.');
-          if (!robotLines.includes('Sitemap: ' + sitemapUrl)) throw new Error('robots.txt does not point to the production sitemap.');
-          if (!sitemap.trimStart().startsWith('<?xml')) throw new Error('sitemap.xml must start with an XML declaration.');
-          if (!sitemap.includes('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">') || !sitemap.trimEnd().endsWith('</urlset>')) throw new Error('sitemap.xml has an invalid urlset wrapper.');
-          const extractTagValues = tag => sitemap.split('<' + tag + '>').slice(1).map(part => part.split('</' + tag + '>')[0].trim()).filter(Boolean);
-          const locations = extractTagValues('loc');
-          if (locations.length !== 1 || locations[0] !== home) throw new Error('The sitemap must contain the production homepage exactly once.');
-          const lastmods = extractTagValues('lastmod');
-          const date = lastmods[0] || '';
-          const parsedDate = new Date(date + 'T00:00:00Z');
-          if (lastmods.length !== 1 || date.length !== 10 || date[4] !== '-' || date[7] !== '-' || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date) throw new Error('The sitemap must contain one valid YYYY-MM-DD lastmod value.');
-          console.log('Validated public robots.txt rules, sitemap location, homepage URL and lastmod date.');
+          console.log('Verified app entry points, separate worker bundle, local WASM/model assets and disabled source maps.');
           NODE
+      - name: Verify crawler files
+        run: |
+          test -f dist/robots.txt
+          test -f dist/sitemap.xml

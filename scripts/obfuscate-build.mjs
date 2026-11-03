@@ -29,23 +29,10 @@ function findPageEntry(pageName) {
 }
 
 const entries = pageNames.map(findPageEntry);
-const assetsDir = path.join(distDir, 'assets');
-const vendorFiles = fs.existsSync(assetsDir)
-  ? fs.readdirSync(assetsDir).filter((name) => /^mediapipe-vendor-.*\.js$/.test(name))
-  : [];
-
-if (vendorFiles.length !== 1) {
-  throw new Error('Expected exactly one separate MediaPipe vendor bundle; refusing to obfuscate.');
-}
-
 for (const entry of entries) {
   const original = fs.readFileSync(entry.entryPath, 'utf8');
   if (original.includes('sourceMappingURL=')) {
     throw new Error('Unexpected source-map reference in ' + entry.pageName);
-  }
-
-  if (entry.pageName === 'index.html' && !original.includes(vendorFiles[0])) {
-    throw new Error('Main game entry lost its separate MediaPipe vendor import.');
   }
 
   // Conservative obfuscation: rename local identifiers and encode a subset of
@@ -73,9 +60,6 @@ for (const entry of entries) {
   if (!obfuscated.trim() || obfuscated.length < original.length * 0.45) {
     throw new Error('Obfuscator output is unexpectedly empty or truncated for ' + entry.pageName);
   }
-  if (entry.pageName === 'index.html' && !obfuscated.includes(vendorFiles[0])) {
-    throw new Error('Obfuscation removed the MediaPipe import from the main game.');
-  }
   if (obfuscated.includes('sourceMappingURL=')) {
     throw new Error('Obfuscator unexpectedly added a source-map reference to ' + entry.pageName);
   }
@@ -87,4 +71,4 @@ for (const entry of entries) {
   );
 }
 
-console.log('MediaPipe vendor code remains separate; production source maps are disabled.');
+console.log('Camera inference remains in its own module worker; worker dependencies are not entry-obfuscated.');

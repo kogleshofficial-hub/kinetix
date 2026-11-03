@@ -41,7 +41,7 @@ If the request is denied, open the browser's site permissions, allow camera acce
 - **Normal (default):** 210 Rift HP and 28 damage per landed hit. Use this as the regular practice challenge.
 - **Hard — The Rift Master:** 420 Rift HP, 48 damage per landed hit, a short warning, brief counter windows, reduced glancing damage and lane patterns that change between attacks. A hit can remove 40% of the solo player's 120 HP, so defensive reads matter. It is intentionally very difficult, but timed counters, blocks, dodges, supplies and NOVA keep it beatable in principle.
 
-The webcam detects gestures, not strike force. Use short, comfortable air-jabs; difficulty comes from the Rift's stats and timing—not from hitting harder or forcing unsafe speed.
+The webcam detects controlled movement, not strike force. Raise one hand comfortably from its neutral position and return it to rest to trigger PULSE; bring both wrists close together in the upper-chest area for GUARD; shift the upper torso slightly to change lanes. Difficulty comes from the Rift's stats and timing—not from hitting harder or forcing speed.
 
 ## Health, mana and supplies
 
@@ -49,7 +49,7 @@ Pulses consume mana; mana regenerates slowly. Guard reduces incoming damage, whi
 
 ## Motion input and physical comfort
 
-MediaPipe Pose Landmarker estimates body landmarks in camera frames. Kinetix uses calibrated gesture heuristics for wrist movement, an upper-torso guard pose and small torso leans; it does not measure actual strike force. For Duo, the prototype requests up to two poses, sorts them left-to-right, requires both players before calibration, and routes each player's gestures to independent controls. Automated checks cover this wiring, but real two-person webcam tracking still needs a hands-on test on supported devices. Good lighting and enough space between players improve tracking reliability.
+MediaPipe Pose Landmarker runs inside a dedicated Web Worker. Camera frames are transferred to the worker as ImageBitmaps; landmark smoothing, calibration and gesture calculations happen off the window thread. Kinetix uses calibrated heuristics for a controlled wrist raise, wrists held close together in the upper-chest area and small torso shifts; it does not measure actual strike force. For Duo, the prototype requests up to two poses, sorts them left-to-right, requires both players before calibration, and routes each player's gestures to independent controls. Automated checks cover this wiring, but real two-person webcam tracking still needs a hands-on test on supported devices. Good lighting and enough space between players improve tracking reliability.
 
 Keep the play area clear. Use controlled, comfortable air gestures only—no physical contact, striking objects, forceful jumps or high-impact movements. If tracking is lost, the match pauses until the required player(s) are visible again.
 
@@ -57,7 +57,7 @@ Keep the play area clear. Use controlled, comfortable air gestures only—no phy
 
 Solo victories award Kinets: Easy **15**, Normal **20**, and Hard **30**. Kinets can unlock cosmetic fighter styles (Elite **120**, Epic **300**, Legendary **600**) or a username change (**100**). Cosmetics do not improve combat stats. Local Duo matches do not award Kinets.
 
-The current profile is stored in browser local storage on the current device. It is not an authenticated account, cannot sync across devices, and can be cleared by browser data deletion. A server-backed account and trusted economy would be required before treating balances, usernames, or purchases as secure.
+The current profile is stored in browser local storage on the current device. Its Base64 wrapper is obfuscation only—not encryption, authentication or tamper protection. Local receipts are explicitly unverified. The asynchronous vault includes a remote adapter contract, but an authoritative server transaction endpoint, database constraints, account identity and server-issued signatures must exist before balances or purchases can be trusted. Local data cannot sync across devices and can be cleared or edited by the browser user.
 
 ## Ranks, Perfect Reads and Last Light
 
@@ -86,4 +86,4 @@ Copyright © 2026 Koglesh R. Murugan. All rights reserved for the original Kinet
 
 Unless permission is granted in writing, public access to this repository or the live game does not grant permission to copy, redistribute, adapt, or commercially reuse the original materials. Third-party libraries and assets remain governed by their own licenses. This notice is not a claim that every game mechanic or general idea is exclusive, and it does not replace technical access controls.
 
-The production build is minified and applies conservative obfuscation to Kinetix-authored client logic. Source maps are disabled, and third-party MediaPipe runtime code is kept separate rather than obfuscated. Because a browser must receive client-side code to run it, these measures only add friction; they cannot make browser code secret. Keep credentials and any future authoritative online economy or account logic on a trusted server, never in frontend JavaScript.
+The production build is minified and applies conservative obfuscation to the main page entry points. Source maps are disabled; the camera worker and its MediaPipe dependency are emitted as a separate module bundle and are not run through the app-entry obfuscator. Because a browser must receive client-side code to run it, these measures only add friction; they cannot make browser code secret. Keep credentials and any future authoritative online economy or account logic on a trusted server, never in frontend JavaScript.

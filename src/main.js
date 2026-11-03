@@ -1,15 +1,17 @@
-import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
+import { KinetixMotionEngine } from './engine/motion/KinetixMotionEngine.js';
+import { KinetixCombatDirector } from './engine/combat/KinetixCombatDirector.js';
+import { KinetixProgressionVault, LocalProfileAdapter } from './engine/progression/KinetixProgressionVault.js';
+import { KinetixViewportCanvas } from './engine/viewport/KinetixViewportCanvas.js';
 const $ = (id) => document.getElementById(id);
 const home = $('home'), arena = $('arena'), canvas = $('game-canvas'), ctx = canvas.getContext('2d');
 const video = $('video'), cameraPanel = $('camera-panel'), setup = $('setup');
 const modelUrl = '/models/pose_landmarker_lite.task';
 const wasmUrl = '/mediapipe/wasm';
 let soundOn = true, reducedMotion = false, cameraStatus = 'off', cameraMode = false, trackingOkay = false, paused = false;
-let stream = null, landmarker = null, cameraRAF = 0, cameraLoopStarted = false, cameraStarting = false, lastVideoTime = -1, lastInference = 0;
+let stream = null, cameraStarting = false;
 let lastTrackingAt = 0;
-let neutralLean = 0, calibrated = false, lastPose = null, secondPose = null, priorPose = null, priorPoseAt = 0, lastPulse = -9999, lastGuard = -9999, lastPhase = -9999, priorGuardPose = false, priorLeanSide = 0;
-let cameraTargetMode='solo',neutralLeans=[0,0];
-const motionMemory=[{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0},{priorPose:null,priorAt:0,lastPulse:-9999,lastGuard:-9999,lastPhase:-9999,guardPose:false,leanSide:0}];
+let calibrated = false;
+let cameraTargetMode = 'lobby';
 const DIFFICULTIES=Object.freeze({
  easy:{label:'EASY / TRAINING',enemyHP:100,enemyDamage:12,firstWait:1.05,telegraph:1.05,opening:1.65,recovery:.52,guardDuration:1.25,dodgeDuration:1.2},
  normal:{label:'NORMAL',enemyHP:210,enemyDamage:28,firstWait:.62,telegraph:.46,opening:.62,recovery:.16,guardDuration:1.0,dodgeDuration:.95},
@@ -17,15 +19,11 @@ const DIFFICULTIES=Object.freeze({
 });
 let difficulty='normal';
 function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.easy;}
-const MOTION_SENSITIVITY=Object.freeze({
- high:{label:'HIGH',minSpeed:1.0,minTravel:.105,extensionDelta:.027,travelGrowth:.014,minFrameStep:.06,globalCooldown:80,handCooldown:135,returnTravel:.13,rearmRecoil:.055,confirmFrames:2,strongTravel:.215,strongSpeed:2.45,reacquireTravel:.22},
- max:{label:'MAX',minSpeed:.72,minTravel:.082,extensionDelta:.019,travelGrowth:.01,minFrameStep:.045,globalCooldown:60,handCooldown:110,returnTravel:.112,rearmRecoil:.044,confirmFrames:2,strongTravel:.185,strongSpeed:2.15,reacquireTravel:.20}
-});
+const MOTION_SENSITIVITY=Object.freeze({high:{label:'HIGH'},max:{label:'MAX'}});
 let motionSensitivity='high';
-function sensitivityRules(){return MOTION_SENSITIVITY[motionSensitivity]||MOTION_SENSITIVITY.max;}
 let impactClearTimer=0;
 let audioContext = null, raf = 0, previousFrame = 0, lastHudAt = 0, lastEventStamp = -1, eventFxAt = performance.now();
-const PROFILE_STORAGE_KEY='kinetix-profile-v1';
+const PROFILE_STORAGE_KEY='kinetix-profile-v2';
 const SOLO_REWARDS=Object.freeze({easy:15,normal:20,hard:30});
 const USERNAME_CHANGE_COST=100;
 const RANK_XP_BY_DIFFICULTY=Object.freeze({easy:10,normal:20,hard:35});
@@ -54,23 +52,13 @@ const CHARACTER_STYLES=Object.freeze({
  epic:{name:'Void Striker',rarity:'Epic',price:300,core:'#e0c6ff',aura:'#9361f6',accent:'#f8e8ff',glow:'#c18aff',halo:false},
  legendary:{name:'Rift Sovereign',rarity:'Legendary',price:600,core:'#ffe5a4',aura:'#d69b36',accent:'#fff4cf',glow:'#ffd16a',halo:true}
 });
-function loadProfile(){
- const fallback={kinets:0,username:'Rift Runner',ownedCharacters:['starter'],equippedCharacter:'starter',soloWins:0,rankXp:0,ownedBanners:['classic'],equippedBanner:'classic'};
- try{
-  const saved=JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY)||'null');
-  if(!saved||typeof saved!=='object')return fallback;
-  const owned=Array.isArray(saved.ownedCharacters)?saved.ownedCharacters.filter(id=>Object.hasOwn(CHARACTER_STYLES,id)):['starter'];
-  if(!owned.includes('starter'))owned.unshift('starter');
-  const equipped=owned.includes(saved.equippedCharacter)?saved.equippedCharacter:'starter';
-  const ownedBanners=Array.isArray(saved.ownedBanners)?saved.ownedBanners.filter(id=>Object.hasOwn(COMBO_BANNERS,id)):['classic'];
-  if(!ownedBanners.includes('classic'))ownedBanners.unshift('classic');
-  const equippedBanner=ownedBanners.includes(saved.equippedBanner)?saved.equippedBanner:'classic';
-  const username=typeof saved.username==='string'&&/^[A-Za-z0-9 _-]{3,18}$/.test(saved.username.trim())?saved.username.trim():'Rift Runner';
-  return{kinets:Number.isFinite(Number(saved.kinets))?Math.max(0,Math.floor(Number(saved.kinets))):0,username,ownedCharacters:[...new Set(owned)],equippedCharacter:equipped,soloWins:Number.isFinite(Number(saved.soloWins))?Math.max(0,Math.floor(Number(saved.soloWins))):0,rankXp:Number.isFinite(Number(saved.rankXp))?Math.max(0,Math.floor(Number(saved.rankXp))):0,ownedBanners:[...new Set(ownedBanners)],equippedBanner};
- }catch{return fallback;}
-}
-let profile=loadProfile();
-function saveProfile(){try{localStorage.setItem(PROFILE_STORAGE_KEY,JSON.stringify(profile));}catch{}}
+const progressionVault = new KinetixProgressionVault({
+ adapter: new LocalProfileAdapter({ key: PROFILE_STORAGE_KEY, legacyKey: 'kinetix-profile-v1' }),
+ characters: CHARACTER_STYLES,
+ banners: COMBO_BANNERS
+});
+let profile = await progressionVault.load();
+async function saveProfile(){ return progressionVault.save(profile); }
 function refreshStore(message){
  const name=$('profile-username'),wallet=$('wallet-balance'),wins=$('profile-wins'),equipped=$('equipped-character'),input=$('profile-name-input'),status=$('store-status');
  const rankName=$('rank-name'),rankXpLabel=$('rank-xp-label'),rankFill=$('rank-progress-fill'),rankNext=$('rank-next-label');
@@ -112,39 +100,125 @@ function refreshStore(message){
  });
  if(status&&message)status.textContent=message;
 }
-function handleBannerAction(id){
+async function handleBannerAction(id){
  const banner=COMBO_BANNERS[id];if(!banner)return;
- if(profile.ownedBanners.includes(id)){
-  profile.equippedBanner=id;saveProfile();refreshStore(banner.name+' banner equipped. It appears when your solo combo reaches 5.');return;
- }
- if(profile.kinets<banner.price){refreshStore('You need '+(banner.price-profile.kinets)+' more Kinets to unlock '+banner.name+'.');return;}
- profile.kinets-=banner.price;profile.ownedBanners.push(id);profile.equippedBanner=id;saveProfile();
- refreshStore(banner.name+' banner unlocked and equipped.');
+ try{
+  const result=await progressionVault.purchaseBanner(id);
+  if(!result.ok){refreshStore('You need '+(result.required-profile.kinets)+' more Kinets to unlock '+banner.name+'.');return;}
+  profile=result.profile;
+  refreshStore(result.alreadyOwned?banner.name+' banner equipped. It appears when your solo combo reaches 5.':banner.name+' banner unlocked and equipped.');
+ }catch(error){console.error('[KINETIX STORE]',error);refreshStore('The style transaction could not be saved. Please retry.');}
 }
-function handleCharacterAction(id){
+async function handleCharacterAction(id){
  const style=CHARACTER_STYLES[id];if(!style)return;
- if(profile.ownedCharacters.includes(id)){
-  profile.equippedCharacter=id;saveProfile();refreshStore(style.name+' equipped. Cosmetic only — combat stats are unchanged.');return;
- }
- if(profile.kinets<style.price){refreshStore('You need '+(style.price-profile.kinets)+' more Kinets to unlock '+style.name+'. Win solo rounds to earn more.');return;}
- profile.kinets-=style.price;profile.ownedCharacters.push(id);profile.equippedCharacter=id;saveProfile();
- refreshStore(style.name+' unlocked and equipped. Enjoy your new style.');
+ try{
+  const result=await progressionVault.purchaseCharacter(id);
+  if(!result.ok){refreshStore('You need '+(result.required-profile.kinets)+' more Kinets to unlock '+style.name+'. Win solo rounds to earn more.');return;}
+  profile=result.profile;
+  refreshStore(result.alreadyOwned?style.name+' equipped. Cosmetic only — combat stats are unchanged.':style.name+' unlocked and equipped. Enjoy your new style.');
+ }catch(error){console.error('[KINETIX STORE]',error);refreshStore('The style transaction could not be saved. Please retry.');}
 }
-function awardSoloWin(){
+async function awardSoloWin(){
  if(g.mode!=='solo'||g.rewardGranted)return;
  g.rewardGranted=true;
- const reward=SOLO_REWARDS[g.difficulty]||SOLO_REWARDS.normal;
- const rankBefore=rankForXp(profile.rankXp);
- const rankXp=RANK_XP_BY_DIFFICULTY[g.difficulty]||RANK_XP_BY_DIFFICULTY.normal;
- profile.kinets+=reward;profile.soloWins++;profile.rankXp+=rankXp;
- g.rewardEarned=reward;g.rankXpEarned=rankXp;g.rankUp=rankForXp(profile.rankXp).id!==rankBefore.id;g.rankName=rankForXp(profile.rankXp).name;
- saveProfile();
- refreshStore('Victory! +'+reward+' Kinets and +'+rankXp+' Rank XP earned'+(g.rankUp?' · RANK UP: '+g.rankName:'')+'.');
+ const result=await progressionVault.awardVictory(g.difficulty);
+ profile=result.profile;
+ g.rewardEarned=result.reward.kinets;g.rankXpEarned=result.reward.xp;
+ g.rankUp=result.rankedUp;g.rankName=result.rankAfter.name;
+ refreshStore('Victory! +'+g.rewardEarned+' Kinets and +'+g.rankXpEarned+' Rank XP earned'+(g.rankUp?' · RANK UP: '+g.rankName:'')+'.');
 }
 let bestRecord = 0;
 try { bestRecord = Number(localStorage.getItem('kinetix-best-combo') || 0); } catch {}
 $('best-combo').textContent = String(bestRecord).padStart(2,'0') + '×';
 let g = freshGame();
+
+const viewport = new KinetixViewportCanvas({
+ canvas,
+ frame: canvas.parentElement,
+ getPalette: () => {
+  const style=CHARACTER_STYLES[profile.equippedCharacter]||CHARACTER_STYLES.starter;
+  return [style.core,style.aura,style.glow];
+ },
+ reducedMotion: () => reducedMotion
+});
+
+const combatDirector = new KinetixCombatDirector({
+ tickRate: 60,
+ maxFrameDelta: .25,
+ maxCatchUpTicks: 8,
+ isEnabled:()=>g.status==='playing'&&!paused&&(!cameraMode||trackingOkay)&&performance.now()>=(g.hitStopUntil||0),
+ onTick: (dt) => simulateStep(dt),
+ onCommand: (command) => resolveAction(command.kind,command.player),
+ getSnapshot: () => ({
+  status:g.status,phase:g.phase,hp:g.pHP,enemyHp:g.eHP,
+  mana:g.energy,combo:g.combo,remainingSeconds:g.time
+ })
+});
+viewport.connect(combatDirector.bus);
+combatDirector.bus.on('ui:refresh', paintHud);
+combatDirector.bus.on('ui:impact', paintImpact);
+combatDirector.bus.on('ui:heal', paintHeal);
+combatDirector.bus.on('ui:perfect-defense', paintPerfectDefense);
+combatDirector.bus.on('ui:comeback', paintComeback);
+combatDirector.bus.on('ui:result', showResult);
+
+function updateHud(){
+ combatDirector.emit('ui:refresh',{tick:combatDirector.tick});
+}
+function showImpact(player,damage){
+ combatDirector.emit('ui:impact',{player,damage});
+}
+function showHeal(player,amount){
+ combatDirector.emit('ui:heal',{player,amount});
+}
+function triggerPerfectDefense(kind){
+ g.perfectReads++;g.perfectFxUntil=performance.now()+650;g.hitStopUntil=performance.now()+100;
+ announce('perfect',kind==='guard'?'PERFECT GUARD · +24 ENERGY':'PERFECT PHASE · +24 ENERGY','good');sfx('perfect');
+ combatDirector.emit('ui:perfect-defense',{kind});
+}
+function checkAdrenaline(){
+ if(g.mode!=='solo'||g.status!=='playing'||g.adrenalineTriggered||g.pHP<=0||g.pHP>difficultyRules().enemyDamage)return;
+ g.adrenalineTriggered=true;g.adrenalineUntil=g.clock+5;g.energy=Math.min(100,g.energy+24);
+ announce('comeback','LAST LIGHT — SPECIAL COUNTER READY','good');sfx('comeback');
+ combatDirector.emit('ui:comeback',{});
+}
+function paintImpact({player,damage}){
+ const flash=$('impact-flash'),number=$('hit-number');
+ g.hitPlayer=player;g.damageFlashAt=performance.now();
+ flash.className='impact-flash '+(player===1?'hit-p1':'');
+ number.textContent='−'+damage+' HP';number.classList.remove('hidden','healing');
+ number.animate([{opacity:0,transform:'translate3d(0,8px,0)'},{opacity:1,transform:'translate3d(0,0,0)',offset:.18},{opacity:0,transform:'translate3d(0,-5px,0)'}],{duration:760,easing:'ease-out'});
+ viewport.impact({player,damage});
+ clearTimeout(impactClearTimer);impactClearTimer=setTimeout(()=>number.classList.add('hidden'),760);
+}
+function paintHeal({player,amount}){
+ const number=$('hit-number');
+ number.textContent='+'+amount;number.classList.remove('hidden');number.classList.add('healing');
+ number.animate([{opacity:0,transform:'translate3d(0,8px,0)'},{opacity:1,transform:'translate3d(0,0,0)',offset:.18},{opacity:0}],{duration:760,easing:'ease-out'});
+ viewport.heal({player});
+ setTimeout(()=>{number.classList.add('hidden');number.classList.remove('healing');},760);
+}
+function paintPerfectDefense(){
+ const frame=canvas.parentElement;frame.classList.remove('perfect-hitstop');void frame.offsetWidth;frame.classList.add('perfect-hitstop');
+}
+function paintComeback(){
+ canvas.parentElement.classList.add('comeback-active');
+}
+
+const motionEngine = new KinetixMotionEngine({
+ modelUrl, wasmUrl,
+ onAction: (kind,player,source) => action(kind,player,source),
+ onTracking: handleMotionTracking,
+ onError: (error) => {
+  console.error('[KINETIX MOTION]',error);
+  const label=$('camera-label');
+  if(label)label.textContent='TRACKING RETRYING';
+ }
+});
+motionEngine.attachKeyboard(window,{
+ getMode:()=>g.mode,
+ isEnabled:()=>!arena.classList.contains('hidden')&&!paused&&g.status==='playing'
+});
 refreshStore();
 
 function freshFighter(){return {hp:100,mana:70,combo:0,best:0,lane:0,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,attackUntil:0,hurtUntil:0,medkits:1,collectCooldown:0,pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0};}
@@ -154,13 +228,13 @@ function freshGame(mode='solo'){
 }
 function beginGame(mode='solo'){
  g=freshGame(mode);g.status='playing';g.msg=mode==='duo'?'DUEL ONLINE — MAKE YOUR MOVE':'READ THE RIFT. FIND YOUR MOMENT.';
- paused=false;lastEventStamp=-1;$('overlay').classList.add('hidden');eventFxAt=performance.now();previousFrame=performance.now();showScreen('arena');
+ paused=false;lastEventStamp=-1;combatDirector.beginMatch();$('overlay').classList.add('hidden');eventFxAt=performance.now();previousFrame=performance.now();showScreen('arena');
  $('moves-main').classList.toggle('hidden',mode==='duo');$('duo-controls').classList.toggle('hidden',mode!=='duo');
  $('mode-pill').innerHTML='<b></b>'+(mode==='duo'?(cameraMode?'2P MOTION ONLINE':'2P LOCAL DUEL'):(cameraMode?'MOTION ONLINE':'SOLO VS AI'));
  $('mode-pill').classList.add('live');$('move-mode').textContent=mode==='duo'?'TWO PLAYER TOUCH CONTROLS':'KEYBOARD / CLICK CONTROLS';updateHud();
 }
 function showScreen(which) { home.classList.toggle('hidden',which!=='home'); arena.classList.toggle('hidden',which!=='arena'); }
-function announce(event,msg,tone) { g.event=event; g.eventAt=g.clock; eventFxAt=performance.now(); g.msg=msg; g.tone=tone||'neutral'; }
+function announce(event,msg,tone) { g.event=event; g.eventAt=g.clock; eventFxAt=performance.now(); g.msg=msg; g.tone=tone||'neutral'; combatDirector.emit('combat:notice',{event,msg,tone:tone||'neutral',tick:combatDirector.tick}); }
 function sfx(name) {
   if(!soundOn) return;
   try {
@@ -172,14 +246,6 @@ function sfx(name) {
     a.gain.setValueAtTime(.0001,now);a.gain.exponentialRampToValueAtTime(name==='nova'?.25:.12,now+.012);a.gain.exponentialRampToValueAtTime(.0001,now+dur);o.connect(a);a.connect(audioContext.destination);o.start(now);o.stop(now+dur+.02);
   } catch {}
 }
-function showImpact(player,damage){
- const flash=$('impact-flash'),number=$('hit-number'),frame=canvas.parentElement;g.hitPlayer=player;g.damageFlashAt=performance.now();
- flash.className='impact-flash '+(player===1?'hit-p1':'');number.textContent='−'+damage+' HP';number.classList.remove('hidden','healing');
- number.style.animation='none';void number.offsetWidth;number.style.animation='';
- frame.classList.remove('shake');void frame.offsetWidth;frame.classList.add('shake');flash.classList.remove('active');void flash.offsetWidth;flash.classList.add('active');
- clearTimeout(impactClearTimer);impactClearTimer=setTimeout(()=>{number.classList.add('hidden');frame.classList.remove('shake');},760);
-}
-function showHeal(player,amount){const flash=$('impact-flash'),number=$('hit-number'),frame=canvas.parentElement;flash.className='impact-flash healing '+(player===1?'hit-p1':'');number.textContent='+'+amount;number.classList.remove('hidden','healing');number.classList.add('healing');frame.classList.remove('shake');flash.classList.remove('active');void flash.offsetWidth;flash.classList.add('active');setTimeout(()=>{number.classList.add('hidden');number.classList.remove('healing');},760);}
 function stepSupplyDrops(){
  if(!g.pickup&&g.clock>=g.nextSupplyAt){const type=g.supplyCount%3===1?'medkit':'mana';g.pickup={type:type,expires:g.clock+8};g.supplyCount++;g.nextSupplyAt=g.clock+13;announce('pickup',type==='medkit'?'SUPPLY DROP — MED KIT':'SUPPLY DROP — MANA ORB','good');}
  if(g.pickup&&g.clock>=g.pickup.expires){g.pickup=null;announce('none','SUPPLY DROP EXPIRED — NEXT ONE SOON','neutral');}
@@ -209,6 +275,7 @@ function syncDuelState(){g.pHP=g.p1.hp;g.eHP=g.p2.hp;g.energy=g.p1.mana;g.combo=
 function dualAction(kind,player=1){
  if(g.status!=='playing'||paused)return;const actor=player===2?g.p2:g.p1,target=player===2?g.p1:g.p2,targetNum=player===2?1:2;
  if(kind==='COLLECT'){pickupDrop(player);return;}if(kind==='MEDKIT'){useMedkit(player);return;}
+ if(kind==='GUARD_RELEASE'){actor.guardUntil=g.clock;return;}
  if(kind==='GUARD'){const wasGuarding=actor.guardUntil>g.clock;actor.guardUntil=Math.max(actor.guardUntil,g.clock+1.05);if(!wasGuarding)announce('block','P'+player+' SHIELD ACTIVE','good');updateHud();return;}
  if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-actor.lastPhase<.3)return;actor.lastPhase=g.clock;actor.lane=kind==='PHASE_LEFT'?-1:1;actor.dodgeUntil=g.clock+.68;actor.attackUntil=g.clock+.15;actor.mana=Math.min(100,actor.mana+2);announce('dodge','P'+player+' PHASE SHIFT','good');sfx('dodge');syncDuelState();updateHud();return;}
  if(kind==='PULSE'){
@@ -239,9 +306,9 @@ function dualAction(kind,player=1){
  }
  syncDuelState();if(g.p1.hp<=0){finishDuel(2);return;}if(g.p2.hp<=0){finishDuel(1);return;}updateHud();
 }
-function action(kind,player=1){
+function resolveAction(kind,player=1){
  if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;if(g.mode==='duo'){dualAction(kind,player);return;}if(kind==='COLLECT'){pickupDrop(1);return;}if(kind==='MEDKIT'){useMedkit(1);return;}
- const before=g.event+':'+g.eventAt;if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+difficultyRules().guardDuration);return;}
+ const before=g.event+':'+g.eventAt;if(kind==='GUARD_RELEASE'){g.guardUntil=g.clock;return;}if(kind==='GUARD'){g.guardUntil=Math.max(g.guardUntil,g.clock+difficultyRules().guardDuration);return;}
  if(kind==='PHASE_LEFT'||kind==='PHASE_RIGHT'){if(g.clock-g.lastPhase<.3)return;g.lastPhase=g.clock;g.lane=kind==='PHASE_LEFT'?-1:1;g.dodgeUntil=g.clock+difficultyRules().dodgeDuration;if(g.phase==='telegraph'&&g.target!==g.lane){g.energy=Math.min(100,g.energy+3);announce('dodge','PHASE SHIFT','good');sfx('dodge');}updateHud();return;}
  if(kind==='PULSE'){
   if(!cameraMode&&g.clock-g.lastPulse<.02)return;
@@ -266,17 +333,12 @@ function action(kind,player=1){
  if(kind==='NOVA'){if(g.energy<100){announce('none','NOVA NEEDS 100 ENERGY','neutral');updateHud();return;}if(g.clock-g.lastNova<1.3)return;const damage=g.phase==='vulnerable'?48:28,d=Math.min(damage,g.eHP);g.eHP=Math.max(0,g.eHP-d);g.damage+=d;g.energy=0;g.lastNova=g.clock;g.combo+=2;g.best=Math.max(g.best,g.combo);announce('nova',g.eHP<=0?'NOVA FINISHER':'NOVA RELEASED  −'+damage,'good');}
  if(g.event+':'+g.eventAt!==before&&g.event!=='none')sfx(g.event);updateHud();
 }
-function triggerPerfectDefense(kind){
- g.perfectReads++;g.perfectFxUntil=performance.now()+650;g.hitStopUntil=performance.now()+100;
- announce('perfect',kind==='guard'?'PERFECT GUARD · +24 ENERGY':'PERFECT PHASE · +24 ENERGY','good');sfx('perfect');
- const frame=canvas.parentElement;frame.classList.remove('perfect-hitstop');void frame.offsetWidth;frame.classList.add('perfect-hitstop');
+function action(kind,player=1,source='ui'){
+ if(g.status!=='playing'||(paused&&kind!=='GUARD_RELEASE')||(cameraMode&&!trackingOkay&&kind!=='GUARD_RELEASE'))return false;
+ return combatDirector.enqueueAction(kind,player,source);
 }
-function checkAdrenaline(){
- if(g.mode!=='solo'||g.status!=='playing'||g.adrenalineTriggered||g.pHP<=0||g.pHP>difficultyRules().enemyDamage)return;
- g.adrenalineTriggered=true;g.adrenalineUntil=g.clock+5;g.energy=Math.min(100,g.energy+24);
- announce('comeback','LAST LIGHT — SPECIAL COUNTER READY','good');sfx('comeback');
- canvas.parentElement.classList.add('comeback-active');
-}
+
+
 function enemyAttack(){
  if(g.guardUntil>g.clock){
   const perfect=g.perfectGuardArmedUntil>=g.clock;g.perfectGuardArmedUntil=-9999;
@@ -292,38 +354,49 @@ function enemyAttack(){
  }
  const damage=difficultyRules().enemyDamage;g.pHP=Math.max(0,g.pHP-damage);g.playerHurtUntil=g.clock+.48;g.hits++;g.combo=0;g.phase='vulnerable';g.phaseTimer=difficultyRules().opening;announce('hit','RIFT IMPACT  −'+damage+' HP','danger');sfx('hit');showImpact(1,damage);
  if(g.pHP>0)checkAdrenaline();
- if(g.pHP<=0)finish('lost');
+ if(g.pHP<=0)void finish('lost');
 }
-function finish(status){
- g.status=status;g.winner=status==='won'?1:status==='lost'?2:null;if(status==='won'&&g.mode==='solo')awardSoloWin();if(status==='won'){g.event='win';g.msg='RIFT COLLAPSED';g.tone='good';}else if(status==='lost'){g.event='lose';g.msg='SIGNAL LOST';g.tone='danger';}else{g.msg='TIME FRACTURED';g.tone='danger';}
- g.eventAt=g.clock;eventFxAt=performance.now();sfx(status==='won'?'win':'lose');if(g.best>bestRecord){bestRecord=g.best;try{localStorage.setItem('kinetix-best-combo',String(bestRecord));}catch{}}updateHud();showResult();
+async function finish(status){
+ if(g.status!=='playing')return;
+ g.status=status;g.winner=status==='won'?1:status==='lost'?2:null;
+ if(status==='won'&&g.mode==='solo'){
+  try{await awardSoloWin();}catch(error){console.error('[KINETIX REWARDS]',error);refreshStore('Victory registered, but local reward storage could not be updated.');}
+ }else if(g.mode==='solo'&&(status==='lost'||status==='time-up')){
+  try{const result=await progressionVault.awardLoss();profile=result.profile;}catch(error){console.error('[KINETIX PROFILE]',error);}
+ }
+ if(status==='won'){g.event='win';g.msg='RIFT COLLAPSED';g.tone='good';}
+ else if(status==='lost'){g.event='lose';g.msg='SIGNAL LOST';g.tone='danger';}
+ else{g.msg='TIME FRACTURED';g.tone='danger';}
+ g.eventAt=g.clock;eventFxAt=performance.now();sfx(status==='won'?'win':'lose');
+ if(g.best>bestRecord){bestRecord=g.best;try{localStorage.setItem('kinetix-best-combo',String(bestRecord));}catch{}}
+ updateHud();showResult();
 }
 function finishDuel(winner){
  if(g.status!=='playing')return;g.winner=winner;g.status='won';g.event=winner===0?'none':'win';g.tone=winner===0?'neutral':'good';g.msg=winner===0?'DUEL DRAW':'PLAYER '+winner+' WINS';g.eventAt=g.clock;eventFxAt=performance.now();g.best=Math.max(g.p1.best,g.p2.best);
- try{bestRecord=Math.max(bestRecord,g.best);localStorage.setItem('kinetix-best-combo',String(bestRecord));}catch{}sfx(winner===0?'miss':'win');syncDuelState();updateHud();showResult();
+ try{bestRecord=Math.max(bestRecord,g.best);localStorage.setItem('kinetix-best-combo',String(bestRecord));}catch{}sfx(winner===0?'miss':'win');syncDuelState();updateHud();combatDirector.emit('ui:result',{});
 }
 function stepDuo(dt){
  if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.p1.mana=Math.min(100,g.p1.mana+2.7*dt);g.p2.mana=Math.min(100,g.p2.mana+2.7*dt);stepSupplyDrops();syncDuelState();
  if(g.p1.hp<=0){finishDuel(2);return;}if(g.p2.hp<=0){finishDuel(1);return;}if(g.time<=0){finishDuel(g.p1.hp===g.p2.hp?0:g.p1.hp>g.p2.hp?1:2);return;}
 }
-function step(dt){
+function simulateStep(dt){
  if(g.mode==='duo'){stepDuo(dt);return;}if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;
  dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.phaseTimer-=dt;g.energy=Math.min(100,g.energy+1.4*dt);stepSupplyDrops();
- if(g.time<=0){finish(g.eHP<=0?'won':'time-up');return;}if(g.eHP<=0){finish('won');return;}
- if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=difficulty==='easy'?[0,0,1,0,-1,0]:[0,1,-1,0,-1,1];if(difficulty==='hard'){const lanes=[-1,0,1].filter(lane=>lane!==g.target);g.target=lanes[Math.floor(Math.random()*lanes.length)];}else g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
- if(g.pHP<=0)finish('lost');
+ if(g.time<=0){void finish(g.eHP<=0?'won':'time-up');return;}if(g.eHP<=0){void finish('won');return;}
+ if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=difficulty==='easy'?[0,0,1,0,-1,0]:[0,1,-1,0,-1,1];if(difficulty==='hard'){const lanes=[-1,0,1].filter(lane=>lane!==g.target);g.target=lanes[Math.floor(combatDirector.random()*lanes.length)];}else g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
+ if(g.pHP<=0)void finish('lost');
 }
-function updateHud(){
- $('player-hp').textContent=g.pHP;$('enemy-hp').textContent=g.eHP;$('player-hp-bar').style.width=Math.max(0,Math.min(100,g.pHP/Math.max(1,g.playerMaxHP||100)*100))+'%';$('enemy-hp-bar').style.width=Math.max(0,Math.min(100,g.eHP/Math.max(1,g.enemyMaxHP)*100))+'%';const playerHpMeta=document.querySelector('.fighter:not(.enemy) .fighter-data small span');if(playerHpMeta)playerHpMeta.textContent=' / '+(g.playerMaxHP||100)+' HP';const enemyHpMeta=document.querySelector('.fighter.enemy .fighter-data small span');if(enemyHpMeta)enemyHpMeta.textContent=' / '+g.enemyMaxHP+' HP';const timeLeft=Math.max(0,Math.ceil(g.time));$('timer').textContent=String(Math.floor(timeLeft/60)).padStart(2,'0')+':'+String(timeLeft%60).padStart(2,'0');$('timer').classList.toggle('urgent',g.time<=10);
+function paintHud(){
+ $('player-hp').textContent=g.pHP;$('enemy-hp').textContent=g.eHP;$('player-hp-bar').style.transform='scaleX('+Math.max(0,Math.min(1,g.pHP/Math.max(1,g.playerMaxHP||100)))+')';$('enemy-hp-bar').style.transform='scaleX('+Math.max(0,Math.min(1,g.eHP/Math.max(1,g.enemyMaxHP)))+')';const playerHpMeta=document.querySelector('.fighter:not(.enemy) .fighter-data small span');if(playerHpMeta)playerHpMeta.textContent=' / '+(g.playerMaxHP||100)+' HP';const enemyHpMeta=document.querySelector('.fighter.enemy .fighter-data small span');if(enemyHpMeta)enemyHpMeta.textContent=' / '+g.enemyMaxHP+' HP';const timeLeft=Math.max(0,Math.ceil(g.time));$('timer').textContent=String(Math.floor(timeLeft/60)).padStart(2,'0')+':'+String(timeLeft%60).padStart(2,'0');$('timer').classList.toggle('urgent',g.time<=10);
  $('phase-label').textContent=g.mode==='duo'?'LOCAL DUEL':g.phase==='telegraph'?'THREAT INCOMING':g.phase==='vulnerable'?'OPENING FOUND':g.phase==='strike'?'IMPACT':'READ THE PATTERN';
- const banner=COMBO_BANNERS[profile.equippedBanner]||COMBO_BANNERS.classic;const comboTitle=document.querySelector('.bottom-hud span:first-child');if(comboTitle&&comboTitle.firstChild)comboTitle.firstChild.textContent=(g.mode==='solo'&&g.combo>=5&&profile.equippedBanner!=='classic'?banner.name+' ':'COMBO ');$('combo').textContent=String(g.combo).padStart(2,'0')+'×';$('combo').style.color=g.combo>=3?'#67e8ef':'';$('energy').textContent=String(Math.round(g.energy)).padStart(3,'0');$('energy-bar').style.width=g.energy+'%';$('lane').textContent=g.lane===-1?'LEFT':g.lane===1?'RIGHT':'CENTER';$('feed-text').textContent=(cameraMode&&!trackingOkay)?(g.mode==='duo'?'TRACKING PAUSED — KEEP BOTH PLAYERS IN FRAME':'TRACKING PAUSED — RETURN TO CAMERA FRAME'):g.msg;$('feed').className='feed '+((cameraMode&&!trackingOkay)?'danger':(g.tone==='good'?'good':g.tone==='danger'?'danger':''));if(cameraMode&&!trackingOkay)$('phase-label').textContent='TRACKING PAUSED';
+ const banner=COMBO_BANNERS[profile.equippedBanner]||COMBO_BANNERS.classic;const comboTitle=document.querySelector('.bottom-hud span:first-child');if(comboTitle&&comboTitle.firstChild)comboTitle.firstChild.textContent=(g.mode==='solo'&&g.combo>=5&&profile.equippedBanner!=='classic'?banner.name+' ':'COMBO ');$('combo').textContent=String(g.combo).padStart(2,'0')+'×';$('combo').style.color=g.combo>=3?'#67e8ef':'';$('energy').textContent=String(Math.round(g.energy)).padStart(3,'0');$('energy-bar').style.transform='scaleX('+Math.max(0,Math.min(1,g.energy/100))+')';$('lane').textContent=g.lane===-1?'LEFT':g.lane===1?'RIGHT':'CENTER';$('feed-text').textContent=(cameraMode&&!trackingOkay)?(g.mode==='duo'?'TRACKING PAUSED — KEEP BOTH PLAYERS IN FRAME':'TRACKING PAUSED — RETURN TO CAMERA FRAME'):g.msg;$('feed').className='feed '+((cameraMode&&!trackingOkay)?'danger':(g.tone==='good'?'good':g.tone==='danger'?'danger':''));if(cameraMode&&!trackingOkay)$('phase-label').textContent='TRACKING PAUSED';
  $('nova-button').disabled=g.energy<100||g.status!=='playing'||paused;$('nova-button').classList.toggle('ready',g.energy>=100);$('nova-label').textContent=g.energy>=100?'READY TO RELEASE':(100-Math.round(g.energy))+'% TO CHARGE';
  const lastLight=$('last-light-button'),lastLightLabel=$('last-light-label'),lastLightAvailable=g.mode==='solo'&&g.adrenalineTriggered&&!g.adrenalineUsed&&g.clock<=g.adrenalineUntil;
  lastLight.disabled=!lastLightAvailable||g.phase!=='vulnerable'||g.status!=='playing'||paused;
  lastLight.classList.toggle('ready',lastLightAvailable&&g.phase==='vulnerable');
  lastLightLabel.textContent=!g.adrenalineTriggered?'UNLOCKS AT CRITICAL HP':g.adrenalineUsed?'USED THIS ROUND':g.clock>g.adrenalineUntil?'WINDOW CLOSED':g.phase==='vulnerable'?'COUNTER NOW':'WAIT FOR OPENING · '+Math.ceil(g.adrenalineUntil-g.clock)+'s';document.querySelectorAll('.move[data-action]').forEach(b=>{b.disabled=g.status!=='playing'||paused||(b.dataset.action==='NOVA'&&g.energy<100)||(b.dataset.action==='MEDKIT'&&(!g.medkits||g.pHP>=(g.playerMaxHP||100)))||(b.dataset.action==='COLLECT'&&!g.pickup);});
  if(g.mode==='duo'){
-   $('p1-mini-hp').textContent=g.p1.hp+' HP';$('p2-mini-hp').textContent=g.p2.hp+' HP';$('p1-mana').textContent=Math.round(g.p1.mana);$('p2-mana').textContent=Math.round(g.p2.mana);$('p1-mana-bar').style.width=g.p1.mana+'%';$('p2-mana-bar').style.width=g.p2.mana+'%';$('p1-kit').textContent='MED KITS · '+g.p1.medkits;$('p2-kit').textContent='MED KITS · '+g.p2.medkits;
+   $('p1-mini-hp').textContent=g.p1.hp+' HP';$('p2-mini-hp').textContent=g.p2.hp+' HP';$('p1-mana').textContent=Math.round(g.p1.mana);$('p2-mana').textContent=Math.round(g.p2.mana);$('p1-mana-bar').style.transform='scaleX('+Math.max(0,Math.min(1,g.p1.mana/100))+')';$('p2-mana-bar').style.transform='scaleX('+Math.max(0,Math.min(1,g.p2.mana/100))+')';$('p1-kit').textContent='MED KITS · '+g.p1.medkits;$('p2-kit').textContent='MED KITS · '+g.p2.medkits;
    const labels=document.querySelectorAll('.fighter-label');if(labels[1])labels[1].innerHTML='PLAYER TWO <i>● CHALLENGER</i>';const names=document.querySelectorAll('.fighter-data strong');if(names[1])names[1].textContent='RIFT RUNNER II';
    document.querySelectorAll('.duo-action-grid button').forEach(b=>{const p=b.dataset.player==='2'?g.p2:g.p1,k=b.dataset.duoAction;b.disabled=g.status!=='playing'||paused||(k==='NOVA'&&p.mana<60)||(k==='MEDKIT'&&(!p.medkits||p.hp>=100));});
  }else{const labels=document.querySelectorAll('.fighter-label');if(labels[1])labels[1].innerHTML='RIFT ENTITY <i>● HOSTILE</i>';const names=document.querySelectorAll('.fighter-data strong');if(names[0])names[0].textContent=profile.username;if(names[1])names[1].textContent='THE HOLLOW';}
@@ -364,7 +437,7 @@ function showResult(){
   const description=won?(difficulty==='hard'?'You survived the 420 HP Rift Master. Every counter, guard and phase mattered.':'You read the pattern and closed the breach on '+difficultyRules().label+'.'):g.status==='time-up'?'The Rift is still standing. Review your timing and try a different approach.':'The Hollow won this round. Try '+(difficulty==='hard'?'Normal to practice your timing, then return to Hard':difficulty==='normal'?'Easy to learn the moves, then return to Normal':'the round again')+' when ready.';
   showOverlay(title,description,'RIFT DUEL / '+difficultyRules().label+' / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'OPEN KINET STORE ◈',style:'secondary',action:'store'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
 }
-function pauseGame(){if(g.status!=='playing')return;paused=true;showOverlay('Catch your breath.','The rift is frozen. Your progress is still here.','SESSION PAUSED',[{label:'RESUME ROUND →',style:'primary',action:'resume'},{label:'RESTART ROUND',style:'secondary',action:'restart'}],false);}
+function pauseGame(){if(g.status!=='playing')return;paused=true;combatDirector.clearCommands('paused');showOverlay('Catch your breath.','The rift is frozen. Your progress is still here.','SESSION PAUSED',[{label:'RESUME ROUND →',style:'primary',action:'resume'},{label:'RESTART ROUND',style:'secondary',action:'restart'}],false);}
 function downloadCard(){
  const c=document.createElement('canvas');c.width=1200;c.height=630;const x=c.getContext('2d');if(!x)return;
  const bg=x.createLinearGradient(0,0,1200,630);bg.addColorStop(0,'#0b0d20');bg.addColorStop(.55,'#171632');bg.addColorStop(1,'#080a14');x.fillStyle=bg;x.fillRect(0,0,1200,630);
@@ -417,8 +490,7 @@ if(g.pickup){const px=w*.5,py=h*.68+Math.sin(tm*.004)*6;ctx.save();ctx.translate
  const vignette=ctx.createRadialGradient(w*.5,h*.48,Math.min(w,h)*.22,w*.5,h*.48,Math.max(w,h)*.72);vignette.addColorStop(.45,'rgba(2,3,12,0)');vignette.addColorStop(1,'rgba(1,2,8,.6)');ctx.fillStyle=vignette;ctx.fillRect(0,0,w,h);
 }
 function loop(t){
- if(previousFrame&&g.status==='playing'&&!paused&&t>=(g.hitStopUntil||0)){step((t-previousFrame)/1000);}
- draw(t);if(t-lastHudAt>110){updateHud();lastHudAt=t;}
+ draw(t);viewport.render(t);if(t-lastHudAt>110){updateHud();lastHudAt=t;}
  previousFrame=t;raf=requestAnimationFrame(loop);
 }
 raf=requestAnimationFrame(loop);
@@ -430,42 +502,52 @@ document.querySelectorAll('[data-difficulty]').forEach(button=>button.addEventLi
 }));
 document.querySelectorAll('[data-character-action]').forEach(button=>button.addEventListener('click',()=>handleCharacterAction(button.dataset.characterAction)));
 document.querySelectorAll('[data-banner-action]').forEach(button=>button.addEventListener('click',()=>handleBannerAction(button.dataset.bannerAction)));
-$('username-form').addEventListener('submit',event=>{
+$('username-form').addEventListener('submit',async event=>{
  event.preventDefault();
  const input=$('profile-name-input'),next=input.value.trim();
  if(!/^[A-Za-z0-9 _-]{3,18}$/.test(next)){refreshStore('Use 3–18 characters: letters, numbers, spaces, underscores or hyphens.');return;}
  if(next===profile.username){refreshStore('That is already your username. No Kinets spent.');return;}
- if(profile.kinets<USERNAME_CHANGE_COST){refreshStore('Changing your username costs '+USERNAME_CHANGE_COST+' Kinets. You need '+(USERNAME_CHANGE_COST-profile.kinets)+' more.');return;}
- profile.kinets-=USERNAME_CHANGE_COST;profile.username=next;saveProfile();refreshStore('Username updated. −'+USERNAME_CHANGE_COST+' Kinets.');
- updateHud();
+ try{
+  const result=await progressionVault.rename(next,USERNAME_CHANGE_COST);
+  if(!result.ok){refreshStore('Changing your username costs '+USERNAME_CHANGE_COST+' Kinets. You need '+(result.required-profile.kinets)+' more.');return;}
+  profile=result.profile;refreshStore('Username updated. −'+USERNAME_CHANGE_COST+' Kinets.');updateHud();
+ }catch(error){console.error('[KINETIX PROFILE]',error);refreshStore('The profile update could not be saved. Please retry.');}
 });
 document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventListener('click',()=>{
- const next=button.dataset.sensitivity;if(!MOTION_SENSITIVITY[next])return;motionSensitivity=next;
+ const next=button.dataset.sensitivity;if(!MOTION_SENSITIVITY[next])return;motionSensitivity=next;motionEngine.setSensitivity(next);
  document.querySelectorAll('[data-sensitivity]').forEach(option=>{
   const selected=option.dataset.sensitivity===motionSensitivity;option.classList.toggle('active',selected);option.setAttribute('aria-pressed',String(selected));
  });
- const summaries={max:'MAX sensitivity selected — catches shorter jabs, but may also count more incidental arm movement.',high:'HIGH sensitivity selected — looks for more deliberate punches and filters small wrist jitter.'};
+ const summaries={max:'MAX sensitivity selected — detects smaller hand raises, but may also register incidental movement.',high:'HIGH sensitivity selected — looks for deliberate hand raises and filters small wrist jitter.'};
  document.querySelectorAll('[data-sensitivity-summary]').forEach(node=>node.textContent=summaries[motionSensitivity]);
 }));
 $('play-keyboard').addEventListener('click',()=>chooseGameMode('solo'));
 $('play-duo-camera').addEventListener('click',()=>chooseGameMode('duo'));
 $('enable-camera').addEventListener('click',()=>{void startCamera('lobby');});
 $('gate-retry').addEventListener('click',()=>{void startCamera('lobby');});
-$('calibrate-start').addEventListener('click',()=>{
- const one=shape(lastPose),two=shape(secondPose);
- if(!trackingOkay||!one||(cameraTargetMode==='duo'&&!two)){
+$('calibrate-start').addEventListener('click',async()=>{
+ if(!trackingOkay||!motionEngine.isReady){
   $('calibrate-start').disabled=true;
-  showError(cameraTargetMode==='duo'?'Waiting for both players. Stand apart and keep shoulders and hips visible in the camera.':'Waiting for a clear body track. Step back slightly and keep your shoulders and hips in frame.');
+  showError(cameraTargetMode==='duo'?'Waiting for both players. Stand apart and keep shoulders and hips visible in the camera.':'Waiting for a clear body track. Keep your shoulders and hips in frame.');
   return;
  }
- neutralLean=one.lean;neutralLeans=[one.lean,two?two.lean:0];calibrated=true;cameraMode=true;priorGuardPose=false;priorLeanSide=0;
- motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});
- showError('');
- $('setup-title').textContent='MOTION CALIBRATED';
- $('setup-copy').textContent=cameraTargetMode==='duo'?'Both players are calibrated. Use comfortable air jabs to trigger PULSE, cross your forearms in an X to hold the shield, and lean slightly to PHASE.':'Ready. Use comfortable air jabs to trigger PULSE, cross your forearms in an X to hold the shield, and lean slightly to PHASE. Buttons remain available as backup.';
- beginGame(cameraTargetMode);$('mode-pill').classList.add('live');
- $('move-mode').textContent=cameraTargetMode==='duo'?'TWO PLAYERS · GESTURES + TOUCH':'GESTURES + BUTTON BACKUP · '+difficultyRules().label;
- $('camera-hint').classList.add('hidden');
+ $('calibrate-start').disabled=true;
+ combatDirector.beginCalibration();
+ try{
+  const result=await motionEngine.calibrate();
+  if(!result.ok)throw new Error(result.reason||'Calibration could not complete.');
+  calibrated=true;cameraMode=true;showError('');
+  $('setup-title').textContent='MOTION CALIBRATED';
+  $('setup-copy').textContent=cameraTargetMode==='duo'
+   ?'Both players are calibrated. Small, comfortable hand raises trigger PULSE, hands held near the chest activate GUARD, and slight torso shifts PHASE between lanes.'
+   :'Ready. Small, comfortable hand raises trigger PULSE, hands held near the chest activate GUARD, and slight torso shifts PHASE between lanes. Buttons remain available as backup.';
+  beginGame(cameraTargetMode);$('mode-pill').classList.add('live');
+  $('move-mode').textContent=cameraTargetMode==='duo'?'TWO PLAYERS · MOTION + TOUCH':'MOTION + BUTTON BACKUP · '+difficultyRules().label;
+  $('camera-hint').classList.add('hidden');
+ }catch(error){
+  $('calibrate-start').disabled=false;
+  showError(error?.message||'Calibration failed. Please try again.');
+ }
 });
 $('duo-touch-start').addEventListener('click',()=>{stopCamera(false);cameraMode=false;calibrated=false;beginGame('duo');$('mode-pill').innerHTML='<b></b>2P TOUCH DUEL';$('move-mode').textContent='SPLIT TOUCH CONTROLS';$('camera-hint').classList.add('hidden');});
 $('stop-camera').addEventListener('click',()=>lockToCameraGate('Camera stopped. Re-enable camera access to continue.'));$('camera-close').addEventListener('click',()=>lockToCameraGate('Camera stopped. Re-enable camera access to continue.'));$('brand-home').addEventListener('click',()=>returnToModeSelection());$('pause').addEventListener('click',pauseGame);
@@ -473,23 +555,27 @@ $('sound-toggle').addEventListener('click',()=>{soundOn=!soundOn;$('sound-toggle
 $('motion-toggle').addEventListener('click',()=>{reducedMotion=!reducedMotion;document.body.classList.toggle('reduced',reducedMotion);});
 document.querySelectorAll('.move[data-action]').forEach(b=>b.addEventListener('click',()=>action(b.dataset.action)));
 document.querySelectorAll('.duo-action-grid button[data-duo-action]').forEach(b=>b.addEventListener('click',()=>action(b.dataset.duoAction,Number(b.dataset.player))));
-window.addEventListener('keydown',e=>{if(arena.classList.contains('hidden'))return;const k=e.key.toLowerCase();if([' ','arrowleft','arrowright','enter'].includes(k))e.preventDefault();if(e.repeat)return;if(k==='escape'){if(g.status==='playing')pauseGame();else if(paused){paused=false;$('overlay').classList.add('hidden');}return;}if(paused)return;if(g.mode==='duo'){if(k===' ')action('PULSE',1);if(k==='g')action('GUARD',1);if(k==='a')action('PHASE_LEFT',1);if(k==='d')action('PHASE_RIGHT',1);if(k==='q')action('NOVA',1);if(k==='r')action('COLLECT',1);if(k==='e')action('MEDKIT',1);if(k==='j')action('PULSE',2);if(k==='l')action('GUARD',2);if(k==='arrowleft')action('PHASE_LEFT',2);if(k==='arrowright')action('PHASE_RIGHT',2);if(k==='u')action('NOVA',2);if(k==='i')action('COLLECT',2);if(k==='o')action('MEDKIT',2);return;}if(k===' '||k==='j')action('PULSE');if(k==='g'||k==='shift')action('GUARD');if(k==='a'||k==='arrowleft')action('PHASE_LEFT');if(k==='d'||k==='arrowright')action('PHASE_RIGHT');if(k==='q'||k==='enter')action('NOVA');if(k==='r')action('COLLECT');if(k==='e')action('MEDKIT');if(k==='f')action('LAST_LIGHT');});
+window.addEventListener('keydown',e=>{
+ if(e.key==='Escape'&&!arena.classList.contains('hidden')){
+  e.preventDefault();
+  if(g.status==='playing')pauseGame();
+  else if(paused){paused=false;$('overlay').classList.add('hidden');}
+ }
+});
 window.addEventListener('resize',()=>{canvas.width=0;canvas.height=0;});
 function chooseGameMode(mode){
- if(cameraStatus!=='ready'||!stream||!landmarker){
-  $('camera-gate').classList.remove('hidden');
-  $('gate-title').textContent='Enable your camera to continue.';
+ if(cameraStatus!=='ready'||!stream||!motionEngine.isReady){
+  $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Enable your camera to continue.';
   $('gate-copy').textContent='Both Solo and Duo use your camera for motion controls. Allow camera access and wait for motion tracking to load.';
-  if(!cameraStarting)void startCamera('lobby');
-  return;
+  if(!cameraStarting)void startCamera('lobby');return;
  }
- cameraTargetMode=mode;calibrated=false;trackingOkay=false;lastTrackingAt=0;lastPose=null;secondPose=null;priorPose=null;
- motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});
+ cameraTargetMode=mode;
+ motionEngine.configure({players:mode==='duo'?2:1,requiredPlayers:mode==='duo'?2:1});
+ trackingOkay=false;calibrated=false;lastTrackingAt=0;
  $('camera-gate').classList.add('hidden');$('setup').classList.remove('hidden');
  $('setup-title').textContent=mode==='duo'?'LOOKING FOR BOTH PLAYERS':'LOOKING FOR PLAYER';
  $('setup-copy').textContent=mode==='duo'?'Stand side by side with space between you. Keep both shoulders and hips visible. The start button unlocks automatically when both bodies are detected.':'Keep your shoulders and hips inside the camera frame. The start button unlocks automatically when your body is detected.';
- $('calibrate-start').disabled=true;
- $('calibrate-start').textContent=mode==='duo'?'WAITING FOR TWO PLAYERS…':'WAITING FOR PLAYER…';
+ $('calibrate-start').disabled=true;$('calibrate-start').textContent=mode==='duo'?'WAITING FOR TWO PLAYERS…':'WAITING FOR PLAYER…';
  $('calibrate-start').classList.remove('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');
  $('camera-hint').textContent=mode==='duo'?'P1 LEFT · P2 RIGHT · KEEP BOTH BODIES IN FRAME':'KEEP SHOULDERS AND HIPS IN FRAME';
  $('camera-hint').classList.remove('hidden');showError('');
@@ -500,256 +586,91 @@ function lockToCameraGate(message){
  $('gate-status').className='gate-status error';$('gate-status').textContent='CAMERA DISCONNECTED';$('gate-retry').disabled=false;
 }
 function returnToModeSelection(){
- if(cameraStatus!=='ready'||!stream||!landmarker){lockToCameraGate('Reconnect your camera to return to the arena.');return;}
- paused=false;calibrated=false;g=freshGame('solo');showScreen('home');$('overlay').classList.add('hidden');cameraTargetMode='lobby';$('setup').classList.remove('hidden');
+ if(cameraStatus!=='ready'||!stream||!motionEngine.isReady){lockToCameraGate('Reconnect your camera to return to the arena.');return;}
+ combatDirector.reset();paused=false;calibrated=false;g=freshGame('solo');showScreen('home');$('overlay').classList.add('hidden');cameraTargetMode='lobby';$('setup').classList.remove('hidden');
  $('setup-title').textContent='CAMERA CONNECTED';$('setup-copy').textContent='Choose Solo or Duo, then calibrate your movement before the fight.';$('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('camera-hint').classList.add('hidden');
 }
 function showError(text){$('setup-error').textContent=text;$('setup-error').classList.toggle('hidden',!text);}
 async function startCamera(targetMode='lobby'){
  if(cameraStarting)return;
- if(cameraStatus==='ready'&&stream&&landmarker){cameraTargetMode=targetMode;return;}
- cameraStarting=true;cameraTargetMode=targetMode;secondPose=null;
- $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Your camera is your controller.';$('gate-copy').textContent='Requesting camera permission. Allow access to use Solo and Duo. Camera frames stay on this device.';$('gate-status').className='gate-status';$('gate-status').innerHTML='<span class="gate-spin"></span> REQUESTING CAMERA PERMISSION…';$('gate-retry').disabled=true;
- $('setup').classList.remove('hidden');$('setup-title').textContent='REQUESTING CAMERA';$('setup-copy').textContent='Your browser will ask for permission. Frames stay in your browser and are never recorded.';$('calibrate-start').classList.add('hidden');$('duo-touch-start').classList.add('hidden');showError('');
+ if(cameraStatus==='ready'&&stream&&motionEngine.isReady){cameraTargetMode=targetMode;return;}
+ cameraStarting=true;cameraTargetMode=targetMode;combatDirector.connectCamera();
+ $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Your camera is your controller.';
+ $('gate-copy').textContent='Requesting camera permission. Camera frames are processed locally in a dedicated worker and are not recorded.';
+ $('gate-status').className='gate-status';$('gate-status').innerHTML='<span class="gate-spin"></span> REQUESTING CAMERA PERMISSION…';$('gate-retry').disabled=true;
+ $('setup').classList.remove('hidden');$('setup-title').textContent='REQUESTING CAMERA';
+ $('setup-copy').textContent='Your browser will ask for permission. Camera processing stays on this device.';
+ $('calibrate-start').classList.add('hidden');$('duo-touch-start').classList.add('hidden');showError('');
  $('enable-camera').disabled=true;
  try{
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Camera access is unavailable. Open Kinetix over HTTPS and retry.');
-  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:60,max:60}},audio:false});
-  stream.getVideoTracks().forEach(track=>track.addEventListener('ended',()=>{if(cameraStatus==='ready'&&!cameraStarting)lockToCameraGate('Your camera disconnected or stopped sharing.');}));
-  video.srcObject=stream;await video.play();
-  cameraPanel.classList.remove('off');cameraStatus='loading';$('camera-label').textContent='LOADING MOTION AI';$('setup-title').textContent='INITIALIZING MOTION TRACKING';$('setup-copy').textContent='Loading the locally hosted motion engine and pose model. Camera frames stay on this device.';
-  const files=await FilesetResolver.forVisionTasks(wasmUrl);
-  const options={baseOptions:{modelAssetPath:modelUrl,delegate:'GPU'},runningMode:'VIDEO',numPoses:cameraTargetMode==='solo'?1:2,minPoseDetectionConfidence:.5,minPosePresenceConfidence:.45,minTrackingConfidence:.45};
-  let pose;
-  try{pose=await PoseLandmarker.createFromOptions(files,options);}
-  catch(gpuError){pose=await PoseLandmarker.createFromOptions(files,{...options,baseOptions:{...options.baseOptions,delegate:'CPU'}});}
-  landmarker=pose;cameraStatus='ready';cameraStarting=false;cameraMode=true;calibrated=false;trackingOkay=false;lastTrackingAt=0;lastPose=null;secondPose=null;priorPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});$('camera-gate').classList.add('hidden');$('gate-retry').disabled=false;$('setup').classList.remove('hidden');if(cameraTargetMode==='lobby'){$('setup-title').textContent='CAMERA CONNECTED';$('setup-copy').textContent='Camera permission is active. Choose Solo or Duo, then calibrate your movement before the fight.';$('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');}else{$('setup-title').textContent=cameraTargetMode==='duo'?'CAMERA READY — FIND TWO PLAYERS':'CAMERA READY — FIND PLAYER';$('setup-copy').textContent=cameraTargetMode==='duo'?'Both players should stand apart and keep head, shoulders, wrists and hips visible. Safe air gestures only—no contact. Calibrate when both are tracked.':'Keep head, shoulders, wrists and hips in frame. Stand comfortably and calibrate when ready.';$('calibrate-start').textContent=cameraTargetMode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';$('calibrate-start').classList.remove('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');}$('camera-label').textContent='CAMERA PREVIEW';$('camera-dot').classList.remove('live');$('camera-hint').textContent='CHOOSE SOLO OR DUO TO CALIBRATE';$('camera-hint').classList.remove('hidden');runCameraLoop();
- }catch(err){stopCamera(false);cameraStarting=false;cameraStatus='error';cameraMode=false;$('camera-gate').classList.remove('hidden');$('gate-title').textContent='Camera access is required.';$('gate-copy').textContent='Kinetix cannot start a round until the browser allows camera access. Check site permissions, then retry. Your camera is not recorded.';$('gate-status').className='gate-status error';$('gate-status').textContent=(err&&err.name==='NotAllowedError')?'CAMERA PERMISSION DENIED — ALLOW IT IN BROWSER SETTINGS':(err&&err.message?err.message:'CAMERA SETUP FAILED');$('gate-retry').disabled=false;$('setup-title').textContent='CAMERA UNAVAILABLE';showError(err&&err.message?err.message:'Camera setup failed. Please retry.');$('setup-copy').textContent='Allow camera access in your browser, then select Retry. Solo and Duo both require a working camera.';$('enable-camera').disabled=false;$('enable-camera').textContent='RETRY CAMERA ACCESS';$('enable-camera').classList.remove('hidden');}
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error('Camera access is unavailable. Open Kinetix over HTTPS and retry.');
+  stream=await navigator.mediaDevices.getUserMedia({
+   video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:60,max:60}},
+   audio:false
+  });
+  stream.getVideoTracks().forEach(track=>track.addEventListener('ended',()=>{
+   if(cameraStatus==='ready'&&!cameraStarting)lockToCameraGate('Your camera disconnected or stopped sharing.');
+  }));
+  video.srcObject=stream;await video.play();cameraPanel.classList.remove('off');cameraStatus='loading';
+  $('camera-label').textContent='LOADING MOTION WORKER';$('setup-title').textContent='INITIALIZING MOTION TRACKING';
+  $('setup-copy').textContent='Loading the locally hosted pose model in a dedicated worker. Camera frames stay on this device.';
+  await motionEngine.start(video,{players:2,requiredPlayers:1,sensitivity:motionSensitivity});
+  cameraStatus='ready';cameraStarting=false;cameraMode=true;calibrated=false;trackingOkay=false;lastTrackingAt=0;
+  $('camera-gate').classList.add('hidden');$('gate-retry').disabled=false;$('setup').classList.remove('hidden');
+  $('setup-title').textContent='CAMERA CONNECTED';
+  $('setup-copy').textContent='Camera permission is active. Choose Solo or Duo, then calibrate your movement before the fight.';
+  $('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');
+  $('camera-label').textContent='CAMERA PREVIEW';$('camera-dot').classList.remove('live');
+  $('camera-hint').textContent='CHOOSE SOLO OR DUO TO CALIBRATE';$('camera-hint').classList.remove('hidden');
+ }catch(err){
+  await motionEngine.stop().catch(()=>{});
+  stopCamera(false);cameraStarting=false;cameraStatus='error';cameraMode=false;
+  $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Camera access is required.';
+  $('gate-copy').textContent='Kinetix cannot start a round until the browser allows camera access. Check site permissions, then retry. Your camera is not recorded.';
+  $('gate-status').className='gate-status error';
+  $('gate-status').textContent=err?.name==='NotAllowedError'?'CAMERA PERMISSION DENIED — ALLOW IT IN BROWSER SETTINGS':(err?.message||'CAMERA SETUP FAILED');
+  $('gate-retry').disabled=false;$('setup-title').textContent='CAMERA UNAVAILABLE';
+  showError(err?.message||'Camera setup failed. Please retry.');
+  $('setup-copy').textContent='Allow camera access in your browser, then select Retry.';
+  $('enable-camera').disabled=false;$('enable-camera').textContent='RETRY CAMERA ACCESS';$('enable-camera').classList.remove('hidden');
+ }
 }
 function stopCamera(resetUI){
- cancelAnimationFrame(cameraRAF);cameraLoopStarted=false;stream&&stream.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;try{landmarker&&landmarker.close();}catch{}landmarker=null;cameraPanel.classList.add('off');cameraStatus='off';cameraMode=false;calibrated=false;trackingOkay=false;lastTrackingAt=0;lastPose=null;priorPose=null;$('calibrate-start').classList.add('hidden');$('enable-camera').disabled=false;$('enable-camera').innerHTML='<svg viewBox="0 0 24 24"><path d="M4 7.5h3l1.7-2h6.6l1.7 2h3A1.5 1.5 0 0 1 21.5 9v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9A1.5 1.5 0 0 1 4 7.5Z"/><circle cx="12" cy="13" r="3.5"/></svg> PLAY WITH CAMERA';$('mode-pill').innerHTML='<b></b>KEYBOARD MODE';$('mode-pill').classList.remove('live');$('move-mode').textContent='KEYBOARD / CLICK CONTROLS';if(resetUI){$('setup').classList.add('hidden');}$('duo-touch-start').classList.add('hidden');secondPose=null;motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;}); }
-function poseCenterX(p){return ((p[11]?.x||0)+(p[12]?.x||0))/2;}
-function runCameraLoop(){
- if(cameraLoopStarted)return;cameraLoopStarted=true;
- const track=now=>{
-  if(!landmarker||cameraStatus!=='ready')return;
-  if(video.readyState>=2&&now-lastInference>12&&video.currentTime!==lastVideoTime){
-   lastInference=now;lastVideoTime=video.currentTime;
-   try{
-    const result=landmarker.detectForVideo(video,now);
-    // Keep player assignment consistent with the labels: Player 1 is on the left.
-    const poses=(result.landmarks||[]).filter(p=>p&&p.length>24).sort((a,b)=>poseCenterX(a)-poseCenterX(b));
-    lastPose=poses[0]||null;secondPose=cameraTargetMode==='duo'?(poses[1]||null):null;
-    const oneReady=!!shape(lastPose),twoReady=cameraTargetMode!=='duo'||!!shape(secondPose);
-    if(oneReady&&twoReady){lastTrackingAt=now;trackingOkay=true;}
-    else{
-     // Duo must keep both players tracked; allow only a tiny grace for camera jitter.
-     // Solo can use a longer grace so one missed frame does not interrupt a round.
-     const graceMs=cameraTargetMode==='duo'?(calibrated&&g.status==='playing'?180:0):650;
-     trackingOkay=graceMs>0&&!!lastTrackingAt&&now-lastTrackingAt<graceMs;
-    }
-
-    if(trackingOkay){
-     $('camera-dot').classList.add('live');
-     $('camera-label').textContent=cameraTargetMode==='duo'?'TWO PLAYERS TRACKED':'MOTION LIVE';
-     $('camera-hint').classList.add('hidden');
-     if(cameraTargetMode!=='lobby'&&!home.classList.contains('hidden')&&!setup.classList.contains('hidden')){
-      $('calibrate-start').disabled=false;
-      $('calibrate-start').textContent=cameraTargetMode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';
-      $('setup-title').textContent=cameraTargetMode==='duo'?'BOTH PLAYERS DETECTED':'PLAYER DETECTED';
-      $('setup-copy').textContent=cameraTargetMode==='duo'?'Both bodies are visible. Calibrate now to begin the local duel.':'Your body is visible. Calibrate now to start '+difficultyRules().label+' mode.';
-      showError('');
-     }
-     if(calibrated&&g.status==='playing'&&!paused){detectMotion(lastPose,now,1);if(cameraTargetMode==='duo')detectMotion(secondPose,now,2);}
-    }else{
-     $('camera-dot').classList.remove('live');
-     $('camera-label').textContent=cameraTargetMode==='duo'?'NEED TWO PLAYERS':'FINDING PLAYER';
-     $('camera-hint').textContent=cameraTargetMode==='duo'?'BOTH PLAYERS MUST BE VISIBLE':'KEEP SHOULDERS AND HIPS IN FRAME';
-     $('camera-hint').classList.remove('hidden');
-     if(cameraTargetMode!=='lobby'&&!home.classList.contains('hidden')&&!setup.classList.contains('hidden')){
-      $('calibrate-start').disabled=true;
-      $('calibrate-start').textContent=cameraTargetMode==='duo'?'WAITING FOR TWO PLAYERS…':'WAITING FOR PLAYER…';
-      $('setup-title').textContent=cameraTargetMode==='duo'?'LOOKING FOR BOTH PLAYERS':'LOOKING FOR PLAYER';
-      $('setup-copy').textContent=cameraTargetMode==='duo'?'Move apart and keep both shoulders and hips in frame. Avoid standing directly in front of one another.':'Step back enough for your shoulders and hips to fit in frame, and face the camera.';
-     }
-     if(!trackingOkay){motionMemory.forEach(m=>{m.priorPose=null;m.guardPose=false;m.leanSide=0;});priorPose=null;priorGuardPose=false;priorLeanSide=0;}
-    }
-   }catch(error){
-    console.error('Kinetix pose detection failed:',error);
-    $('camera-label').textContent='TRACKING RETRYING';
-   }
+ void motionEngine.stop();
+ stream?.getTracks().forEach(track=>track.stop());stream=null;video.srcObject=null;
+ cameraPanel.classList.add('off');cameraStatus='off';cameraMode=false;calibrated=false;trackingOkay=false;lastTrackingAt=0;
+ $('calibrate-start').classList.add('hidden');$('enable-camera').disabled=false;
+ $('enable-camera').innerHTML='<svg viewBox="0 0 24 24"><path d="M4 7.5h3l1.7-2h6.6l1.7 2h3A1.5 1.5 0 0 1 21.5 9v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9A1.5 1.5 0 0 1 4 7.5Z"/><circle cx="12" cy="13" r="3.5"/></svg> PLAY WITH CAMERA';
+ $('mode-pill').innerHTML='<b></b>KEYBOARD MODE';$('mode-pill').classList.remove('live');$('move-mode').textContent='KEYBOARD / CLICK CONTROLS';
+ if(resetUI)$('setup').classList.add('hidden');$('duo-touch-start').classList.add('hidden');
+ combatDirector.reset();
+}
+function handleMotionTracking(info){
+ trackingOkay=Boolean(info.ready);
+ if(trackingOkay){
+  lastTrackingAt=performance.now();$('camera-dot').classList.add('live');
+  $('camera-label').textContent=info.count>=2?'TWO PLAYERS TRACKED':'MOTION LIVE';$('camera-hint').classList.add('hidden');
+  if(cameraTargetMode!=='lobby'&&!home.classList.contains('hidden')&&!setup.classList.contains('hidden')){
+   $('calibrate-start').disabled=false;
+   $('calibrate-start').textContent=cameraTargetMode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';
+   $('setup-title').textContent=cameraTargetMode==='duo'?'BOTH PLAYERS DETECTED':'PLAYER DETECTED';
+   $('setup-copy').textContent=cameraTargetMode==='duo'?'Both players are visible. Calibrate now to begin the local duel.':'Your body is visible. Calibrate now to start '+difficultyRules().label+' mode.';
+   showError('');
   }
-  cameraRAF=requestAnimationFrame(track);
- };
- cameraRAF=requestAnimationFrame(track);
-}
-function landmarkVisible(point,threshold=.22){
- return !!point&&(point.visibility===undefined||point.visibility>=threshold);
-}
-function shape(p){
- if(!p||p.length<=24)return null;
- const ls=p[11],rs=p[12],lh=p[23],rh=p[24];
- // Tracking readiness is based on the torso, not a visible nose and two perfectly visible wrists.
- if(![ls,rs,lh,rh].every(point=>landmarkVisible(point,.16)))return null;
- const sc={x:(ls.x+rs.x)/2,y:(ls.y+rs.y)/2};
- const hc={x:(lh.x+rh.x)/2,y:(lh.y+rh.y)/2};
- const sw=Math.hypot(ls.x-rs.x,ls.y-rs.y),torsoHeight=hc.y-sc.y;
- if(sw<.035||torsoHeight<.035||torsoHeight>.8)return null;
- const lw=landmarkVisible(p[15],.15)?p[15]:null;
- const rw=landmarkVisible(p[16],.15)?p[16]:null;
- return{sw,sy:sc.y,hy:hc.y,lean:(sc.x-hc.x)/sw,lw,rw,wristsReady:!!(lw&&rw)};
-}
-function vectorDistance(a,b){
- if(!a||!b)return 0;
- const dx=a.x-b.x,dy=a.y-b.y,dz=(a.z||0)-(b.z||0);
- return Math.sqrt(dx*dx+dy*dy+dz*dz*.65);
-}
-function armMotionSignature(points,side,shoulderWidth){
- const shoulder=points[side===0?11:12],elbow=points[side===0?13:14],wrist=points[side===0?15:16];
- if(!landmarkVisible(shoulder,.10)||!landmarkVisible(wrist,.08))return null;
- const position={x:(wrist.x-shoulder.x)/shoulderWidth,y:(wrist.y-shoulder.y)/shoulderWidth,z:((wrist.z||0)-(shoulder.z||0))/shoulderWidth};
- const hasElbow=landmarkVisible(elbow,.1),upper=hasElbow?vectorDistance(shoulder,elbow):0,lower=hasElbow?vectorDistance(elbow,wrist):0,reach=vectorDistance(shoulder,wrist);
- return{position,extension:hasElbow?reach/Math.max(upper+lower,.001):0,hasElbow,wrist,shoulder};
-}
-function detectMotion(points,now,player=1){
- const mem=motionMemory[player-1]||motionMemory[0],s=shape(points),tuning=sensitivityRules();
- if(!s){
-  mem.priorPose=null;mem.guardPose=false;mem.leanSide=0;
-  if(mem.punchHands)mem.punchHands.forEach(hand=>{hand.base=null;hand.prev=null;hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;hand.candidateFrames=0;hand.armed=true;});
-  return;
- }
- if(!mem.punchHands)mem.punchHands=[
-  {armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0,lastTravel:0,peakTravel:0,lastPunchDirection:null,candidateFrames:0},
-  {armed:true,base:null,prev:null,lastPunchAt:-9999,restFrames:0,lastTravel:0,peakTravel:0,lastPunchDirection:null,candidateFrames:0}
- ];
- if(!mem.priorPose){
-  mem.priorPose=points;mem.priorAt=now;
-  mem.punchHands.forEach((hand,side)=>{
-   const snap=armMotionSignature(points,side,s.sw);
-   hand.base=snap;hand.prev=snap;hand.prevAt=now;hand.armed=true;hand.restFrames=0;
-   hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;hand.candidateFrames=0;
-  });
-  return;
- }
- const dt=(now-mem.priorAt)/1000;
- const wristsReady=!!(s.lw&&s.rw);
- let guard=false;
- if(wristsReady){
-  const ls=points[11],rs=points[12],cx=(ls.x+rs.x)/2;
-  const gap=Math.hypot(s.lw.x-s.rw.x,s.lw.y-s.rw.y);
-  const top=s.sy-s.sw*.42,bottom=s.hy+s.sw*.16;
-  const inGuardZone=[s.lw,s.rw].every(w=>w.y>=top&&w.y<=bottom);
-  const leftWristCrosses=(s.lw.x-cx)*(ls.x-cx)<0;
-  const rightWristCrosses=(s.rw.x-cx)*(rs.x-cx)<0;
-  const crossedX=leftWristCrosses&&rightWristCrosses&&gap<s.sw*1.28;
-  const handsTogether=gap<s.sw*.78;
-  guard=inGuardZone&&(crossedX||handsTogether);
- }
- const wasGuarding=mem.guardPose;
- if(guard){
-  if(now-mem.lastGuard>460){action('GUARD',player);mem.lastGuard=now;}
-  mem.guardPose=true;
-  mem.punchHands.forEach((hand,side)=>{
-   const snap=armMotionSignature(points,side,s.sw);
-   if(snap){hand.base=snap;hand.prev=snap;hand.prevAt=now;}
-   hand.armed=true;hand.restFrames=0;hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;hand.candidateFrames=0;
-  });
  }else{
-  mem.guardPose=false;
-  if(wasGuarding){
-   mem.punchHands.forEach((hand,side)=>{
-    const snap=armMotionSignature(points,side,s.sw);
-    if(snap){hand.base=snap;hand.prev=snap;hand.prevAt=now;}
-    hand.armed=true;hand.restFrames=0;hand.lastTravel=0;hand.peakTravel=0;hand.lastPunchDirection=null;hand.candidateFrames=0;
-   });
-  }else if(dt>=.008&&dt<=.5){
-   for(let side=0;side<2;side++){
-    const hand=mem.punchHands[side],current=armMotionSignature(points,side,s.sw),previous=hand.prev;
-    if(!current){
-     hand.prev=null;hand.prevAt=now;hand.lastTravel=0;hand.candidateFrames=0;
-     continue;
-    }
-    const canFire=now-hand.lastPunchAt>=tuning.handCooldown;
-
-    // Losing and regaining a wrist alone is not enough to deal damage. A reacquisition
-    // only counts when there is a clear, large reach change from the ready position.
-    if(!previous||!hand.base){
-     if(previous===null&&hand.armed&&hand.base&&canFire){
-      const dx=current.position.x-hand.base.position.x,dy=current.position.y-hand.base.position.y,dz=current.position.z-hand.base.position.z;
-      const reacquiredTravel=Math.hypot(dx,dy,dz*.8);
-      const reacquiredExtension=current.extension-hand.base.extension;
-      if(reacquiredTravel>=tuning.reacquireTravel&&reacquiredExtension>=tuning.extensionDelta*1.5){
-       action('PULSE',player);mem.lastPulse=now;hand.lastPunchAt=now;hand.armed=false;
-       hand.peakTravel=reacquiredTravel;hand.lastTravel=reacquiredTravel;hand.candidateFrames=0;
-       const magnitude=Math.hypot(dx,dy,dz);
-       if(magnitude>.001)hand.lastPunchDirection={x:dx/magnitude,y:dy/magnitude,z:dz/magnitude};
-      }
-     }
-     hand.prev=current;hand.prevAt=now;if(!hand.base)hand.base=current;
-     hand.lastTravel=hand.base?vectorDistance(current.position,hand.base.position):0;
-     continue;
-    }
-
-    const elapsed=Math.max(.008,(now-(hand.prevAt??(now-33)))/1000);
-    const dx=current.position.x-previous.position.x,dy=current.position.y-previous.position.y,dz=current.position.z-previous.position.z;
-    const stepTravel=Math.hypot(dx,dy,dz*.8),speed=stepTravel/elapsed;
-    const dirLength=Math.hypot(dx,dy,dz);
-    const alignment=hand.lastPunchDirection&&dirLength>.001
-      ?(dx*hand.lastPunchDirection.x+dy*hand.lastPunchDirection.y+dz*hand.lastPunchDirection.z)/(dirLength||1)
-      :0;
-    const travel=vectorDistance(current.position,hand.base.position);
-    const previousTravel=Number.isFinite(hand.lastTravel)?hand.lastTravel:travel;
-    const extensionDelta=current.extension-hand.base.extension;
-    hand.peakTravel=Math.max(hand.peakTravel||0,travel);
-
-    if(!hand.armed){
-     const settledNearReady=travel<tuning.returnTravel&&speed<.48;
-     const slowReset=travel<tuning.returnTravel*1.2&&speed<.24&&now-hand.lastPunchAt>240;
-     if(canFire&&(settledNearReady||slowReset)){
-      hand.armed=true;hand.base=current;hand.lastTravel=0;hand.peakTravel=0;
-      hand.restFrames=0;hand.lastPunchDirection=null;hand.candidateFrames=0;
-     }
-    }else{
-     // Adapt to tiny idle drift only. Baseline must stay fixed during purposeful movement.
-     if(speed<tuning.minSpeed*.42&&travel<tuning.minTravel*1.25){
-      const mix=(a,b)=>a+(b-a)*.06;
-      hand.base={position:{x:mix(hand.base.position.x,current.position.x),y:mix(hand.base.position.y,current.position.y),z:mix(hand.base.position.z,current.position.z)},extension:mix(hand.base.extension,current.extension),hasElbow:current.hasElbow,wrist:current.wrist,shoulder:current.shoulder};
-     }
-     const nowTravel=vectorDistance(current.position,hand.base.position);
-     const outwardGrowth=nowTravel>previousTravel+tuning.travelGrowth;
-     const forwardReach=nowTravel>=tuning.minTravel;
-     const directionNotReturn=!hand.lastPunchDirection||alignment>-.38;
-     const fastOutward=forwardReach&&speed>=tuning.minSpeed&&outwardGrowth;
-     const extensionOutward=forwardReach&&extensionDelta>=tuning.extensionDelta&&speed>=tuning.minSpeed*.85;
-     const candidate=directionNotReturn&&(fastOutward||extensionOutward);
-
-     hand.candidateFrames=candidate?hand.candidateFrames+1:0;
-     const confirmed=hand.candidateFrames>=tuning.confirmFrames;
-     const strongSingleFrame=directionNotReturn&&nowTravel>=tuning.strongTravel&&speed>=tuning.strongSpeed&&outwardGrowth;
-     if((confirmed||strongSingleFrame)&&canFire){
-      action('PULSE',player);mem.lastPulse=now;hand.lastPunchAt=now;hand.armed=false;hand.restFrames=0;
-      hand.peakTravel=Math.max(hand.peakTravel,nowTravel);hand.candidateFrames=0;
-      if(dirLength>.001)hand.lastPunchDirection={x:dx/dirLength,y:dy/dirLength,z:dz/dirLength};
-     }
-     hand.lastTravel=nowTravel;
-    }
-    hand.prev=current;hand.prevAt=now;
-    if(!hand.armed)hand.lastTravel=vectorDistance(current.position,hand.base.position);
-   }
-  }else{
-   // Timing gaps reset velocity and pending candidates rather than creating a false speed spike.
-   mem.punchHands.forEach((hand,side)=>{
-    const snap=armMotionSignature(points,side,s.sw);
-    if(snap){hand.prev=snap;hand.prevAt=now;if(hand.base)hand.lastTravel=vectorDistance(snap.position,hand.base.position);}
-    hand.candidateFrames=0;
-   });
+  combatDirector.clearCommands('tracking-lost');
+  $('camera-dot').classList.remove('live');
+  $('camera-label').textContent=cameraTargetMode==='duo'?'NEED TWO PLAYERS':'FINDING PLAYER';
+  $('camera-hint').textContent=cameraTargetMode==='duo'?'BOTH PLAYERS MUST BE VISIBLE':'KEEP SHOULDERS AND HIPS IN FRAME';
+  $('camera-hint').classList.remove('hidden');
+  if(cameraTargetMode!=='lobby'&&!home.classList.contains('hidden')&&!setup.classList.contains('hidden')){
+   $('calibrate-start').disabled=true;
+   $('calibrate-start').textContent=cameraTargetMode==='duo'?'WAITING FOR TWO PLAYERS…':'WAITING FOR PLAYER…';
+   $('setup-title').textContent=cameraTargetMode==='duo'?'LOOKING FOR BOTH PLAYERS':'LOOKING FOR PLAYER';
+   $('setup-copy').textContent=cameraTargetMode==='duo'?'Move apart and keep both shoulders and hips in frame.':'Step back enough for your shoulders and hips to fit in frame, and face the camera.';
   }
  }
- const lean=s.lean-neutralLeans[player-1],leanSide=lean<-.2?-1:lean>.2?1:0;
- if(!guard&&leanSide!==0&&mem.leanSide===0&&now-mem.lastPhase>650){action(leanSide<0?'PHASE_LEFT':'PHASE_RIGHT',player);mem.lastPhase=now;}
- mem.leanSide=guard?0:leanSide;
- mem.priorPose=points;mem.priorAt=now;
 }
-window.addEventListener('beforeunload',()=>{cancelAnimationFrame(cameraRAF);stream&&stream.getTracks().forEach(t=>t.stop());try{landmarker&&landmarker.close();}catch{}if(audioContext)audioContext.close();});
+window.addEventListener('beforeunload',()=>{void motionEngine.stop();stream?.getTracks().forEach(track=>track.stop());if(audioContext)audioContext.close();viewport.destroy();});
 void startCamera('lobby');
 
