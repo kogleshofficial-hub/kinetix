@@ -3,6 +3,7 @@ import { KinetixCombatDirector } from './engine/combat/KinetixCombatDirector.js'
 import { KinetixProgressionVault, LocalProfileAdapter } from './engine/progression/KinetixProgressionVault.js';
 import { KinetixViewportCanvas } from './engine/viewport/KinetixViewportCanvas.js';
 import { setupKinetixPWA } from './engine/platform/KinetixPWA.js';
+import { createDailyChallenge } from './engine/challenge/KinetixDailyChallenge.js';
 const $ = (id) => document.getElementById(id);
 const home = $('home'), arena = $('arena'), canvas = $('game-canvas'), ctx = canvas.getContext('2d');
 const video = $('video'), cameraPanel = $('camera-panel'), setup = $('setup');
@@ -13,6 +14,7 @@ let stream = null, cameraStarting = false;
 let lastTrackingAt = 0;
 let calibrated = false;
 let cameraTargetMode = 'lobby';
+let pendingDailyChallenge = null;
 const DIFFICULTIES=Object.freeze({
  easy:{label:'EASY / TRAINING',enemyHP:100,enemyDamage:12,firstWait:1.05,telegraph:1.05,opening:1.65,recovery:.52,guardDuration:1.25,dodgeDuration:1.2},
  normal:{label:'NORMAL',enemyHP:210,enemyDamage:28,firstWait:.62,telegraph:.46,opening:.62,recovery:.16,guardDuration:1.0,dodgeDuration:.95},
@@ -226,15 +228,18 @@ motionEngine.attachKeyboard(window,{
  isEnabled:()=>!arena.classList.contains('hidden')&&!paused&&g.status==='playing'
 });
 refreshStore();
+const todayDailyChallenge=createDailyChallenge();
+$('daily-challenge-date').textContent=todayDailyChallenge.date+' UTC · SEED '+todayDailyChallenge.code;
+$('play-daily').addEventListener('click',()=>chooseGameMode('solo',createDailyChallenge()));
 
 function freshFighter(){return {hp:100,mana:70,combo:0,best:0,lane:0,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,attackUntil:0,hurtUntil:0,medkits:1,collectCooldown:0,pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0};}
 function freshGame(mode='solo'){
  const p1=freshFighter(),p2=freshFighter();
  return {status:'ready',mode:mode,difficulty:difficulty,phase:mode==='duo'?'duel':'idle',time:mode==='duo'?60:75,clock:0,pHP:mode==='duo'?100:120,playerMaxHP:mode==='duo'?100:120,eHP:mode==='duo'?100:difficultyRules().enemyHP,enemyMaxHP:mode==='duo'?100:difficultyRules().enemyHP,energy:72,playerHurtUntil:0,playerAttackUntil:0,playerAttackSide:1,enemyHurtUntil:0,combo:0,best:0,lane:0,target:0,attackIndex:0,phaseTimer:mode==='duo'?1.35:difficultyRules().firstWait,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0,rewardGranted:false,rewardEarned:0,rankXpEarned:0,rankUp:false,rankName:'',perfectGuardArmedUntil:-9999,perfectPhaseArmedUntil:-9999,perfectReads:0,perfectFxUntil:0,hitStopUntil:0,adrenalineTriggered:false,adrenalineUsed:false,adrenalineUntil:0};
 }
-function beginGame(mode='solo'){
- g=freshGame(mode);g.status='playing';g.msg=mode==='duo'?'DUEL ONLINE — MAKE YOUR MOVE':'READ THE RIFT. FIND YOUR MOMENT.';
- paused=false;lastEventStamp=-1;combatDirector.beginMatch();$('overlay').classList.add('hidden');eventFxAt=performance.now();previousFrame=performance.now();showScreen('arena');
+function beginGame(mode='solo',dailyChallenge=null){
+ g=freshGame(mode);g.dailyChallenge=mode==='solo'&&dailyChallenge?dailyChallenge:null;g.status='playing';g.msg=g.dailyChallenge?'DAILY RIFT '+g.dailyChallenge.date+' — READ THE PATTERN':mode==='duo'?'DUEL ONLINE — MAKE YOUR MOVE':'READ THE RIFT. FIND YOUR MOMENT.';
+ paused=false;lastEventStamp=-1;combatDirector.beginMatch(g.dailyChallenge?{seed:g.dailyChallenge.seed}:undefined);$('overlay').classList.add('hidden');eventFxAt=performance.now();previousFrame=performance.now();showScreen('arena');
  $('moves-main').classList.toggle('hidden',mode==='duo');$('duo-controls').classList.toggle('hidden',mode!=='duo');
  $('mode-pill').innerHTML='<b></b>'+(mode==='duo'?(cameraMode?'2P MOTION ONLINE':'2P LOCAL DUEL'):(cameraMode?'MOTION ONLINE':'SOLO VS AI'));
  $('mode-pill').classList.add('live');$('move-mode').textContent=mode==='duo'?'TWO PLAYER TOUCH CONTROLS':'KEYBOARD / CLICK CONTROLS';updateHud();
@@ -389,7 +394,7 @@ function simulateStep(dt){
  if(g.mode==='duo'){stepDuo(dt);return;}if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;
  dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.phaseTimer-=dt;g.energy=Math.min(100,g.energy+1.4*dt);stepSupplyDrops();
  if(g.time<=0){void finish(g.eHP<=0?'won':'time-up');return;}if(g.eHP<=0){void finish('won');return;}
- if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=difficulty==='easy'?[0,0,1,0,-1,0]:[0,1,-1,0,-1,1];if(difficulty==='hard'){const lanes=[-1,0,1].filter(lane=>lane!==g.target);g.target=lanes[Math.floor(combatDirector.random()*lanes.length)];}else g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
+ if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=difficulty==='easy'?[0,0,1,0,-1,0]:[0,1,-1,0,-1,1];if(g.dailyChallenge||difficulty==='hard'){const lanes=[-1,0,1].filter(lane=>lane!==g.target);g.target=lanes[Math.floor(combatDirector.random()*lanes.length)];}else g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
  if(g.pHP<=0)void finish('lost');
 }
 function paintHud(){
@@ -432,7 +437,7 @@ function showOverlay(title,desc,tag,buttons,stats) {
  buttons.forEach(b=>html+='<button class="btn '+b.style+'" data-overlay="'+b.action+'">'+b.label+'</button>');
  if(!stats)html+='<button class="text-btn" data-overlay="home">EXIT TO MAIN MENU</button>';
  dialog.innerHTML=html;
- dialog.querySelectorAll('[data-overlay]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.overlay;if(action==='resume'){paused=false;$('overlay').classList.add('hidden');updateHud();}else if(action==='restart'){beginGame(g.mode);}else if(action==='home'){stopCamera(true);paused=false;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');}else if(action==='store'){stopCamera(true);paused=false;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');$('kinet-store').scrollIntoView({behavior:'smooth',block:'start'});}else if(action==='card')downloadCard();}));
+ dialog.querySelectorAll('[data-overlay]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.overlay;if(action==='resume'){paused=false;$('overlay').classList.add('hidden');updateHud();}else if(action==='restart'){beginGame(g.mode,g.dailyChallenge||null);}else if(action==='home'){stopCamera(true);paused=false;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');}else if(action==='store'){stopCamera(true);paused=false;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');$('kinet-store').scrollIntoView({behavior:'smooth',block:'start'});}else if(action==='card')downloadCard();}));
 }
 function accuracy(){return g.pulses?Math.round(g.clean/g.pulses*100):0;}
 function showResult(){
@@ -441,7 +446,9 @@ function showResult(){
  const won=g.status==='won';
   const title=won?(difficulty==='hard'?'HARD CLEAR — RIFT COLLAPSED.':'RIFT COLLAPSED.'):g.status==='time-up'?'TIME FRACTURED.':'SIGNAL LOST';
   const description=won?(difficulty==='hard'?'You survived the 420 HP Rift Master. Every counter, guard and phase mattered.':'You read the pattern and closed the breach on '+difficultyRules().label+'.'):g.status==='time-up'?'The Rift is still standing. Review your timing and try a different approach.':'The Hollow won this round. Try '+(difficulty==='hard'?'Normal to practice your timing, then return to Hard':difficulty==='normal'?'Easy to learn the moves, then return to Normal':'the round again')+' when ready.';
-  showOverlay(title,description,'RIFT DUEL / '+difficultyRules().label+' / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'OPEN KINET STORE ◈',style:'secondary',action:'store'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
+  const dailyTag=g.dailyChallenge?'DAILY RIFT / UTC '+g.dailyChallenge.date+' / SEED '+g.dailyChallenge.code:'RIFT DUEL / '+difficultyRules().label+' / SESSION REPORT';
+  const dailyCopy=g.dailyChallenge?' Daily seed: '+g.dailyChallenge.code+'. This local challenge uses the same seeded lane sequence for the UTC date. It does not award bonus currency or create an online leaderboard.':'';
+  showOverlay(title,description+dailyCopy,dailyTag,[{label:g.dailyChallenge?'REPLAY DAILY RIFT →':'RUN IT BACK →',style:'primary',action:'restart'},{label:'OPEN KINET STORE ◈',style:'secondary',action:'store'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
 }
 function pauseGame(){if(g.status!=='playing')return;paused=true;combatDirector.clearCommands('paused');showOverlay('Catch your breath.','The rift is frozen. Your progress is still here.','SESSION PAUSED',[{label:'RESUME ROUND →',style:'primary',action:'resume'},{label:'RESTART ROUND',style:'secondary',action:'restart'}],false);}
 function downloadCard(){
@@ -451,7 +458,7 @@ function downloadCard(){
  x.strokeStyle='rgba(145,160,255,.12)';for(let xx=0;xx<1200;xx+=42){x.beginPath();x.moveTo(xx,0);x.lineTo(xx,630);x.stroke();}
  x.fillStyle='#a99bff';x.font='500 23px monospace';x.fillText('KINETIX / RIFT DUEL',74,83);x.fillStyle='#f7f5ff';x.font='700 77px sans-serif';x.fillText(g.mode==='duo'?(g.winner===0?'DUEL DRAW':'PLAYER '+g.winner+' WINS'):g.status==='won'?'RIFT COLLAPSED':g.status==='time-up'?'TIME FRACTURED':'SIGNAL LOST',72,205);x.fillStyle='#9aa3c6';x.font='500 24px sans-serif';x.fillText('YOUR BODY. YOUR POWER. YOUR ARENA.',76,251);
  [['BEST COMBO',String(g.best).padStart(2,'0')],['DAMAGE DEALT',String(g.damage).padStart(3,'0')],['CLEAN PULSES',accuracy()+'%'],['PHASE DODGES',String(g.dodges).padStart(2,'0')]].forEach((item,i)=>{const xx=76+i*274;x.fillStyle='rgba(255,255,255,.045)';x.beginPath();x.roundRect(xx,346,245,116,18);x.fill();x.fillStyle='#8c96bc';x.font='14px monospace';x.fillText(item[0],xx+19,379);x.fillStyle='#f7f5ff';x.font='700 43px sans-serif';x.fillText(item[1],xx+19,432);});
- if(g.mode==='duo'){x.fillStyle='#b3a2ff';x.font='18px monospace';x.fillText('P1 HP '+g.p1.hp+'   /   P2 HP '+g.p2.hp,77,505);}x.fillStyle='#6c7395';x.font='17px monospace';x.fillText('A PLAYABLE PROTOTYPE BY KOGLESH R. MURUGAN',77,564);const a=document.createElement('a');a.download='kinetix-rift-duel.png';a.href=c.toDataURL('image/png');a.click();
+ if(g.mode==='duo'){x.fillStyle='#b3a2ff';x.font='18px monospace';x.fillText('P1 HP '+g.p1.hp+'   /   P2 HP '+g.p2.hp,77,505);}x.fillStyle='#6c7395';x.font='17px monospace';if(g.dailyChallenge){x.fillStyle='#67e8ef';x.font='500 18px monospace';x.fillText('DAILY RIFT · '+g.dailyChallenge.date+' · SEED '+g.dailyChallenge.code,77,518);}x.fillStyle='#6c7395';x.font='17px monospace';x.fillText('A PLAYABLE PROTOTYPE BY KOGLESH R. MURUGAN',77,564);const a=document.createElement('a');a.download='kinetix-rift-duel.png';a.href=c.toDataURL('image/png');a.click();
 }
 function draw(t) {
  const r=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);
@@ -547,7 +554,7 @@ $('calibrate-start').addEventListener('click',async()=>{
   $('setup-copy').textContent=cameraTargetMode==='duo'
    ?'Both players are calibrated. Small, comfortable hand raises trigger PULSE, hands held near the chest activate GUARD, and slight torso shifts PHASE between lanes.'
    :'Ready. Small, comfortable hand raises trigger PULSE, hands held near the chest activate GUARD, and slight torso shifts PHASE between lanes. Buttons remain available as backup.';
-  beginGame(cameraTargetMode);$('mode-pill').classList.add('live');
+  beginGame(cameraTargetMode,pendingDailyChallenge);pendingDailyChallenge=null;$('mode-pill').classList.add('live');
   $('move-mode').textContent=cameraTargetMode==='duo'?'TWO PLAYERS · MOTION + TOUCH':'MOTION + BUTTON BACKUP · '+difficultyRules().label;
   $('camera-hint').classList.add('hidden');
  }catch(error){
@@ -569,7 +576,8 @@ window.addEventListener('keydown',e=>{
  }
 });
 window.addEventListener('resize',()=>{canvas.width=0;canvas.height=0;});
-function chooseGameMode(mode){
+function chooseGameMode(mode,dailyChallenge=null){
+ pendingDailyChallenge=mode==='solo'&&dailyChallenge?dailyChallenge:null;
  if(cameraStatus!=='ready'||!stream||!motionEngine.isReady){
   $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Enable your camera to continue.';
   $('gate-copy').textContent='Both Solo and Duo use your camera for motion controls. Allow camera access and wait for motion tracking to load.';
