@@ -82,7 +82,7 @@ jobs:
           if (!director.includes('stepSeconds = 1 / tickRate') || !director.includes('setTimeout(pump') || !director.includes('maxCatchUpTicks')) throw new Error('Dedicated fixed-step simulation scheduler is missing.');
           if (!director.includes('MATCH_START') || !director.includes('TIME_CRITICAL') || !director.includes('MATCH_OVER')) throw new Error('Combat lifecycle states are incomplete.');
           if (!director.includes('Object.freeze') || !bus.includes('Object.freeze')) throw new Error('Read-only combat/event snapshots are missing.');
-          if (!source.includes('tickRate: 60') || !source.includes('combatDirector.beginMatch()')) throw new Error('Main game does not start the 60 Hz simulation director.');
+          if (!source.includes('tickRate: 60') || !source.includes('combatDirector.beginMatch(')) throw new Error('Main game does not start the 60 Hz simulation director.');
           if (!source.includes("isEnabled:()=>g.status==='playing'&&!paused&&(!cameraMode||trackingOkay)")) throw new Error('Simulation pause and lost-tracking gates are missing.');
           if (source.includes('combatDirector.advance(')) throw new Error('The render loop must not drive the simulation clock.');
           if (!source.includes('viewport.render(t)') || !source.includes('viewport.connect(combatDirector.bus)')) throw new Error('Viewport effects are not connected to the game event bus.');
