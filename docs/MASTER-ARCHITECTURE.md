@@ -211,7 +211,7 @@ Include a launch URL and a privacy-respecting share card. Never auto-post.
 
 ### Phase 2 — Game quality
 - Improve attack readability, enemy telegraphs, audio mix, accessibility and onboarding.
-- Add a repeatable daily/weekly seeded challenge.
+- **Local Daily Rift challenge:** deterministic UTC-date seed, repeatable no-repeat lane sequence, replay action and seed-bearing share card are implemented in the development branch. No server leaderboard or reward bonus is claimed.
 - Add opt-in local replay and share-card output.
 
 **Exit gate:** Players can understand the core loop without a developer explaining it.
