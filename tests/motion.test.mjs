@@ -59,3 +59,47 @@ test('ignores malformed points and never emits non-finite metrics', () => {
     assert.ok(Number.isFinite(value));
   }
 });
+
+import { KinetixCombatDirector } from '../src/engine/combat/KinetixCombatDirector.js';
+
+test('combat director allowlists trajectory metadata and clamps confidence', () => {
+  let received = null;
+  const director = new KinetixCombatDirector({
+    autoStart: false,
+    onCommand: (command) => { received = command; },
+    getSnapshot: () => ({ status: 'playing', phase: 'idle', hp: 100 })
+  });
+
+  director.beginMatch({ seed: 42 });
+  assert.equal(director.enqueueAction('PULSE', 1, 'camera', {
+    pulseStyle: 'ARC',
+    pulseConfidence: 1.8,
+    injectedField: 'must-not-cross-boundary'
+  }), true);
+  director.advance(1 / 60);
+
+  assert.equal(received.details.pulseStyle, 'ARC');
+  assert.equal(received.details.pulseConfidence, 1);
+  assert.equal(Object.hasOwn(received.details, 'injectedField'), false);
+  assert.equal(Object.isFrozen(received.details), true);
+  director.endMatch('test');
+});
+
+test('non-pulse actions cannot carry gesture presentation metadata', () => {
+  let received = null;
+  const director = new KinetixCombatDirector({
+    autoStart: false,
+    onCommand: (command) => { received = command; },
+    getSnapshot: () => ({ status: 'playing', phase: 'idle', hp: 100 })
+  });
+
+  director.beginMatch();
+  assert.equal(director.enqueueAction('GUARD', 1, 'camera', {
+    pulseStyle: 'ARC',
+    pulseConfidence: 0.9
+  }), true);
+  director.advance(1 / 60);
+
+  assert.equal(received.details, null);
+  director.endMatch('test');
+});
