@@ -583,17 +583,17 @@ function draw(t) {
 
  const baseScale=Math.min(w*.18,h*.32,148);
  function drawFighter(x,side,actor=null){
-  const isEnemy=side===2;
-  const style=isEnemy?null:(CHARACTER_STYLES[profile.equippedCharacter]||CHARACTER_STYLES.starter);
-  const soloPlayer=!isEnemy&&g.mode!=='duo';
+  const isEnemy=side===2,isOpponent=isEnemy&&g.mode!=='duo';
+  const style=isOpponent?null:(CHARACTER_STYLES[profile.equippedCharacter]||CHARACTER_STYLES.starter);
+  const soloPlayer=side===1&&g.mode!=='duo';
   const lane=soloPlayer?g.lane:(actor?.lane||0);
-  const hurt=isEnemy?g.enemyHurtUntil>g.clock:(soloPlayer?g.playerHurtUntil>g.clock:actor.hurtUntil>g.clock);
-  const attacking=isEnemy?g.phase==='strike':(soloPlayer?g.playerAttackUntil>g.clock:actor.attackUntil>g.clock);
-  const guarding=isEnemy?false:(soloPlayer?g.guardUntil>g.clock:actor.guardUntil>g.clock);
-  const dodging=!isEnemy&&!soloPlayer&&actor.dodgeUntil>g.clock;
-  const accent=isEnemy?(hurt?'#ff9a83':g.phase==='vulnerable'?acid:g.phase==='telegraph'?'#ffbd79':violet):(style?.glow||acid);
-  const trim=isEnemy?'#bca7e8':(style?.accent||ice);
-  const scale=baseScale*(isEnemy?1.11:1);
+  const hurt=isOpponent?g.enemyHurtUntil>g.clock:(soloPlayer?g.playerHurtUntil>g.clock:actor.hurtUntil>g.clock);
+  const attacking=isOpponent?g.phase==='strike':(soloPlayer?g.playerAttackUntil>g.clock:actor.attackUntil>g.clock);
+  const guarding=isOpponent?false:(soloPlayer?g.guardUntil>g.clock:actor.guardUntil>g.clock);
+  const dodging=!isOpponent&&!soloPlayer&&actor.dodgeUntil>g.clock;
+  const accent=isOpponent?(hurt?'#ff9a83':g.phase==='vulnerable'?acid:g.phase==='telegraph'?'#ffbd79':violet):(side===2?'#c2a7ff':(style?.glow||acid));
+  const trim=isOpponent?'#bca7e8':(side===2?'#e2d2ff':(style?.accent||ice));
+  const scale=baseScale*(isOpponent?1.11:1);
   const laneShift=lane===-1?-1:lane===1?1:0;
   const bob=reducedMotion?0:Math.sin(tm*.0025+(isEnemy?1:0))*scale*.018;
   const sway=reducedMotion?0:Math.sin(tm*.002+(isEnemy?1.8:0))*scale*.025;
@@ -626,7 +626,7 @@ function draw(t) {
 
   // Rear mantle and back plates.
   poly([[-scale*.25,-scale*1.9],[-scale*.52,-scale*1.78],[-scale*.62,-scale*.95],[-scale*.34,-scale*.72],[-scale*.18,-scale*1.18]],armorDark,'rgba(193,211,196,.17)',1);
-  if(isEnemy){
+  if(isOpponent){
    poly([[-scale*.36,-scale*2.05],[-scale*.63,-scale*2.42],[-scale*.44,-scale*2.13],[-scale*.14,-scale*2.2]],armorDark,edge,1);
    poly([[scale*.36,-scale*2.05],[scale*.63,-scale*2.42],[scale*.44,-scale*2.13],[scale*.14,-scale*2.2]],armorDark,edge,1);
   }
