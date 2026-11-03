@@ -6,7 +6,9 @@ const SHELL_URLS = [
   '/',
   '/creator.html',
   '/manifest.webmanifest',
-  '/icons/kinetix.svg'
+  '/icons/kinetix.svg',
+  '/icons/kinetix-192.png',
+  '/icons/kinetix-512.png'
 ];
 
 self.addEventListener('install', (event) => {
