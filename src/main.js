@@ -2,6 +2,7 @@ import { KinetixMotionEngine } from './engine/motion/KinetixMotionEngine.js';
 import { KinetixCombatDirector } from './engine/combat/KinetixCombatDirector.js';
 import { KinetixProgressionVault, LocalProfileAdapter } from './engine/progression/KinetixProgressionVault.js';
 import { KinetixViewportCanvas } from './engine/viewport/KinetixViewportCanvas.js';
+import { setupKinetixPWA } from './engine/platform/KinetixPWA.js';
 const $ = (id) => document.getElementById(id);
 const home = $('home'), arena = $('arena'), canvas = $('game-canvas'), ctx = canvas.getContext('2d');
 const video = $('video'), cameraPanel = $('camera-panel'), setup = $('setup');
@@ -58,6 +59,10 @@ const progressionVault = new KinetixProgressionVault({
  banners: COMBO_BANNERS
 });
 async function initializeKinetix() {
+setupKinetixPWA({
+  installButton: document.getElementById('pwa-install'),
+  updateButton: document.getElementById('pwa-update')
+});
 let profile = await progressionVault.load();
 async function saveProfile(){ return progressionVault.save(profile); }
 function refreshStore(message){
@@ -524,7 +529,11 @@ document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventL
 }));
 $('play-keyboard').addEventListener('click',()=>chooseGameMode('solo'));
 $('play-duo-camera').addEventListener('click',()=>chooseGameMode('duo'));
-$('enable-camera').addEventListener('click',()=>{void startCamera('lobby');});
+$('enable-camera').addEventListener('click',()=>{$('gate-title').textContent = 'Your camera is your controller.';
+$('gate-copy').textContent = 'KINETIX will ask for camera access only after you press the button below. Camera frames and pose landmarks stay on this device and are not recorded or uploaded by this prototype.';
+$('gate-status').className = 'gate-status';
+$('gate-status').textContent = 'CAMERA OFF · WAITING FOR YOUR PERMISSION';
+$('gate-retry').innerHTML = 'ENABLE CAMERA & CONTINUE <svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>';});
 $('gate-retry').addEventListener('click',()=>{void startCamera('lobby');});
 $('calibrate-start').addEventListener('click',async()=>{
  if(!trackingOkay||!motionEngine.isReady){
