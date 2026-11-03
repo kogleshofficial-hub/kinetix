@@ -71,4 +71,4 @@ for (const entry of entries) {
   );
 }
 
-console.log('Camera inference remains in its own module worker; worker dependencies are not entry-obfuscated.');
+console.log('Camera inference remains isolated in its own classic worker bundle; worker dependencies are not entry-obfuscated.');
