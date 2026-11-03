@@ -936,8 +936,8 @@ document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventL
  const summaries={max:'MAX sensitivity selected — detects smaller hand raises and forward reaches, but may also register incidental movement.',high:'HIGH sensitivity selected — looks for deliberate hand raises or gentle forward reaches and filters small wrist jitter.'};
  document.querySelectorAll('[data-sensitivity-summary]').forEach(node=>node.textContent=summaries[motionSensitivity]);
 }));
-$('play-keyboard').addEventListener('click',()=>{activeMission=null;startSoloWithoutCamera();});
-$('play-camera').addEventListener('click',()=>{activeMission=null;chooseGameMode('solo');});
+$('play-keyboard').addEventListener('click',()=>startSoloWithoutCamera());
+$('play-camera').addEventListener('click',()=>chooseGameMode('solo'));
 $('campaign-missions').addEventListener('click',event=>{
  const card=event.target.closest('[data-mission-id]');if(!card||card.disabled)return;
  selectedMissionId=Number(card.dataset.missionId);renderCampaignMap();
@@ -947,7 +947,7 @@ $('campaign-camera').addEventListener('click',()=>startCampaignMission(selectedM
 $('play-duo-touch').addEventListener('click',()=>startTouchDuel());
 $('play-duo-camera').addEventListener('click',()=>chooseGameMode('duo'));
 $('play-daily').addEventListener('click',()=>startSoloWithoutCamera(createDailyChallenge()));
-$('play-daily-camera').addEventListener('click',()=>{activeMission=null;chooseGameMode('solo',createDailyChallenge());});
+$('play-daily-camera').addEventListener('click',()=>chooseGameMode('solo',createDailyChallenge()));
 $('enable-camera').addEventListener('click',()=>{void startCamera(cameraTargetMode);});
 $('gate-retry').addEventListener('click',()=>{void startCamera(cameraTargetMode);});
 $('gate-skip').addEventListener('click',()=>continueWithoutCamera());
@@ -1021,6 +1021,7 @@ function continueWithoutCamera(){
  $('gate-status').textContent='CAMERA OFF · TOUCH / KEYBOARD READY';
 }
 async function chooseGameMode(mode,dailyChallenge=null){
+ if(dailyChallenge)activeMission=null;
  cameraTargetMode=mode;
  pendingDailyChallenge=mode==='solo'&&dailyChallenge?dailyChallenge:null;
  if(cameraStatus!=='ready'||!stream||!motionEngine.isReady){
