@@ -742,11 +742,11 @@ function handleMotionTracking(info){
  }
 }
 window.addEventListener('beforeunload',()=>{void motionEngine.stop();stream?.getTracks().forEach(track=>track.stop());if(audioContext)audioContext.close();viewport.destroy();});
-$('gate-title').textContent = 'Your camera is your controller.';
-$('gate-copy').textContent = 'KINETIX will ask for camera access only after you press the button below. Camera frames and pose landmarks stay on this device and are not recorded or uploaded by this prototype.';
+$('gate-title').textContent = 'Choose how to play.';
+$('gate-copy').textContent = 'Camera motion is optional. Continue without camera for keyboard/touch play, or enable camera motion to use body gestures. Camera frames stay on this device and are not recorded or uploaded.';
 $('gate-status').className = 'gate-status';
 $('gate-status').textContent = 'CAMERA OFF · WAITING FOR YOUR PERMISSION';
-$('gate-retry').innerHTML = 'ENABLE CAMERA & CONTINUE <svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>';
+$('gate-retry').innerHTML = 'ENABLE OPTIONAL CAMERA MOTION <svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>';
 }
 
 void initializeKinetix().catch((error) => {
