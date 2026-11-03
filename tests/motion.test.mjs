@@ -56,8 +56,8 @@ test('ignores malformed points and never emits non-finite metrics', () => {
   ]);
 
   assert.equal(result.pulseStyle, 'LINEAR');
-  for (const value of Object.values(result)) {
-    assert.ok(Number.isFinite(value));
+  for (const key of ['confidence', 'straightness', 'pathLength', 'directionX', 'directionY']) {
+    assert.ok(Number.isFinite(result[key]), key + ' should be finite');
   }
 });
 
