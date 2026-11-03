@@ -248,7 +248,7 @@ export class KinetixMotionEngine {
       return;
     }
     if (message.type === 'ACTION') {
-      this.onAction(message.kind, message.player || 1, 'camera');
+      this.onAction(message.kind, message.player || 1, 'camera', message.details || null);
       return;
     }
     if (message.type === 'CALIBRATED') {

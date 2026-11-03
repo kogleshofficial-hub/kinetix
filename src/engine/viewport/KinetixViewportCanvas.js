@@ -40,7 +40,11 @@ export class KinetixViewportCanvas {
   connect(bus) {
     if (!bus?.on) throw new TypeError('A KinetixEventBus instance is required.');
     this.disposers.push(bus.on('combat:action', (event) => {
-      if (event.kind === 'PULSE') this.burst({ player: event.player, strength: 0.75 });
+      if (event.kind === 'PULSE') {
+        const style = event.details?.pulseStyle;
+        const pattern = style === 'ARC' ? 'arc' : style === 'LINEAR' ? 'linear' : 'radial';
+        this.burst({ player: event.player, strength: 0.75, pattern });
+      }
       if (event.kind === 'GUARD') this.burst({ player: event.player, strength: 0.3, count: 8 });
       if (event.kind === 'PHASE_LEFT' || event.kind === 'PHASE_RIGHT') this.burst({ player: event.player, strength: 0.4, count: 10 });
     }));
@@ -68,7 +72,7 @@ export class KinetixViewportCanvas {
     this.ctx?.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
   }
 
-  burst({ player = 1, strength = 1, count = 18 } = {}) {
+  burst({ player = 1, strength = 1, count = 18, pattern = 'radial' } = {}) {
     if (this.reducedMotion()) return;
     const palette = this.getPalette() || ['#75e8d2', '#b99cff', '#eff7ff'];
     const originX = player === 2 ? this.width * 0.75 : this.width * 0.25;
@@ -77,7 +81,13 @@ export class KinetixViewportCanvas {
     const now = performance.now();
 
     for (let index = 0; index < total; index += 1) {
-      const angle = (Math.PI * 2 * index / total) + (Math.random() - 0.5) * 0.22;
+      const jitter = (Math.random() - 0.5) * 0.22;
+      const forward = player === 2 ? Math.PI : 0;
+      const angle = pattern === 'arc'
+        ? forward + ((index / Math.max(1, total - 1)) - 0.5) * Math.PI * 0.72 + jitter
+        : pattern === 'linear'
+          ? forward + ((index / Math.max(1, total - 1)) - 0.5) * Math.PI * 0.18 + jitter
+          : (Math.PI * 2 * index / total) + jitter;
       const speed = (55 + Math.random() * 140) * clamp(strength, 0.15, 1.5);
       this.particles.push({
         x: originX + (Math.random() - 0.5) * 18,

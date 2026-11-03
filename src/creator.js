@@ -1,3 +1,7 @@
+import { setupKinetixPWA } from './engine/platform/KinetixPWA.js';
+
+setupKinetixPWA();
+
 const $ = (id) => document.getElementById(id);
 const STORAGE_KEY = 'kinetix-creator-draft-v1';
 const BLUEPRINT_FORMAT = 'kinetix-motion-blueprint';

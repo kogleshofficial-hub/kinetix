@@ -7,17 +7,27 @@ Kinetix is a browser-first, webcam-controlled fantasy combat prototype created b
 
 This is an early playable prototype—not a finished commercial game or a claim that webcam-controlled games are new.
 
-## Camera is required
+## Camera is optional
 
-Kinetix requests camera access automatically when the page opens. The browser may reuse a permission already granted for this site, so it might not show a new prompt every visit. No match can start until camera access and the pose model are ready.
+KINETIX can be played without granting camera access. Choose **SOLO VS RIFT AI · TOUCH / KEYBOARD** or **2-PLAYER LOCAL DUEL · TOUCH** to start directly. The first camera gate also has a **CONTINUE WITHOUT CAMERA** option.
 
-If the request is denied, open the browser's site permissions, allow camera access, then retry. Camera access requires HTTPS (or localhost). Camera frames and pose landmarks are processed locally in the browser; Kinetix does not record or upload camera footage and does not request microphone access. The production build bundles the MediaPipe JavaScript library and serves its WASM runtime and pose model from the same site, avoiding runtime JavaScript-module CDN imports.
+Choose **SOLO · CAMERA MOTION** or **2-PLAYER LOCAL DUEL · CAMERA** only when you want body-tracking controls. The browser asks for camera permission after that explicit action; no microphone is requested. Camera access requires HTTPS (or localhost). Camera frames and pose landmarks are processed locally in the browser; KINETIX does not record or upload camera footage. The production build bundles the MediaPipe JavaScript library and serves its WASM runtime and pose model from the same site, avoiding runtime JavaScript-module CDN imports.
+
+If camera permission is denied or the device has no camera, continue using keyboard/touch. You can retry motion setup later without losing access to the non-camera modes.
+
+## Install and offline use
+
+KINETIX includes an installable web-app manifest and a same-origin service worker. In browsers that support installation, an **Install KINETIX** control appears when the browser offers the install prompt; other browsers can use their own browser-menu install/add-to-home-screen option when available. The app shell and Creator Studio are cached for repeat visits. Hashed build assets, the local MediaPipe WASM runtime and pose model are cached as they are successfully fetched. This means offline launch is intended after a successful connected visit—not on the very first visit—and it depends on the browser retaining site storage. A cleared cache or a model never downloaded on that device requires a connection again. Camera availability and permission remain browser/device dependent even when the shell is offline.
+
+The app checks for a newer service worker and exposes an update control when one is waiting. Updates are activated only after the player selects that control; the page then reloads onto the new version.
 
 ## Play modes
 
-- **Solo vs Rift AI:** one tracked player fights the Hollow. Read its warnings, time guard or phase dodges, manage mana, use NOVA and claim supply drops.
-- **2-player local duel:** two players stand apart in front of one camera. Both must be visible and calibrated before the round starts. Each has independent health, mana, combos, defence, NOVA and med-kit inventory. The first player to reduce the other player's health to zero wins; when time runs out, remaining health decides the result, with a draw possible.
-- **Phone and touch:** layouts and control panels adapt to smaller screens. Touch buttons are a backup input for play while the camera remains enabled; they do not bypass the camera requirement.
+- **Solo vs Rift AI — keyboard/touch:** starts immediately without camera permission. Use the on-screen controls on phones/tablets or the keyboard on computers.
+- **Solo — camera motion:** optional body-tracking input. Calibrate after the camera and pose model are ready; on-screen buttons remain available as backup.
+- **2-player local duel — touch/keyboard:** two players share one screen and use the split control panels or assigned keyboard keys. No camera is required.
+- **2-player local duel — camera:** two players stand apart in front of one camera. Both must be visible and calibrated before the round starts. Each has independent health, mana, combos, defence, NOVA and med-kit inventory. When time runs out, remaining health decides the result, with a draw possible.
+- **Daily Rift:** can be played using keyboard/touch or optional camera motion. The UTC seed is the same for the date; local personal records are device-only and are not server-verified.
 
 ## Controls
 
@@ -43,15 +53,25 @@ If the request is denied, open the browser's site permissions, allow camera acce
 
 The webcam detects controlled movement, not strike force. Raise one hand comfortably from its neutral position and return it to rest to trigger PULSE; bring both wrists close together in the upper-chest area for GUARD; shift the upper torso slightly to change lanes. Difficulty comes from the Rift's stats and timing—not from hitting harder or forcing speed.
 
+## Daily Rift challenge
+
+The lobby offers a local **Daily Rift** challenge. It derives a deterministic seed from the current UTC date and uses that seed for the encounter's lane sequence. Players using the same ruleset and UTC date receive the same sequence; the result card includes the date and seed code so friends can compare runs.
+
+Daily Rift uses your selected solo difficulty and the normal solo victory reward table. It does not award bonus currency, require an account, upload camera footage, or submit scores to an online leaderboard. A device-local history keeps up to 31 UTC dates of attempts, clears and personal-best combo/damage/accuracy, and the lobby shows today's personal record. This history is not synced, is editable/clearable with browser storage, and may be unavailable when storage is blocked. The current build does not verify results on a server, so the seed and personal record are reproducibility/personal-history aids—not anti-cheat or competitive rankings. The challenge can be replayed on the same date.
+
 ## Health, mana and supplies
 
 Pulses consume mana; mana regenerates slowly. Guard reduces incoming damage, while a well-timed phase can evade an attack. NOVA costs more mana, so timing matters. Med kits restore up to 28 HP and are limited; save them when health is already full. Supply drops periodically offer either a med kit or a mana orb. In local duel, each supply drop is shared, so the first player to claim it gets the item.
 
 ## Motion input and physical comfort
 
-MediaPipe Pose Landmarker runs inside a dedicated Web Worker. Camera frames are transferred to the worker as ImageBitmaps; landmark smoothing, calibration and gesture calculations happen off the window thread. Kinetix uses calibrated heuristics for a controlled wrist raise, wrists held close together in the upper-chest area and small torso shifts; it does not measure actual strike force. For Duo, the prototype requests up to two poses, sorts them left-to-right, requires both players before calibration, and routes each player's gestures to independent controls. Automated checks cover this wiring, but real two-person webcam tracking still needs a hands-on test on supported devices. Good lighting and enough space between players improve tracking reliability.
+MediaPipe Pose Landmarker runs inside a dedicated Web Worker. Camera frames are transferred to the worker as ImageBitmaps; landmark smoothing, calibration and gesture calculations happen off the window thread. PULSE also samples a short wrist trajectory normalized by shoulder width and classifies its visual presentation as LINEAR or ARC when confidence is sufficient. This is a cosmetic feedback distinction only: it does not measure strike force or change damage, rewards, ranking or competitive balance. Low-confidence or short paths use a neutral effect. Kinetix uses calibrated heuristics for a controlled wrist raise, wrists held close together in the upper-chest area and small torso shifts; it does not measure actual strike force. For Duo, the prototype requests up to two poses, sorts them left-to-right, requires both players before calibration, and routes each player's gestures to independent controls. Automated checks cover this wiring, but real two-person webcam tracking still needs a hands-on test on supported devices. Good lighting and enough space between players improve tracking reliability.
 
 Keep the play area clear. Use controlled, comfortable air gestures only—no physical contact, striking objects, forceful jumps or high-impact movements. If tracking is lost, the match pauses until the required player(s) are visible again.
+
+## Creator and community
+
+The game includes an optional link to the creator's YouTube channel. It is a voluntary way to follow the project; subscribing is not required for gameplay, does not unlock features, and is not tied to a discount or reward. KINETIX does not ask players to connect a YouTube account.
 
 ## Kinets and customization
 
@@ -73,9 +93,11 @@ Open the **Create Game** link or visit `/creator.html` to use the local-first Cr
 
 This is currently a **game blueprint editor**, not a fully generated motion-game runtime. Preview gestures are simulated and do not activate the camera. The blueprint describes the intended configuration for a future engine runtime; it is not yet a published custom game. No creator accounts, sharing platform, paid passes, marketplace, revenue share, cloud project storage, or server-backed game logic exists yet.
 
+Future business ideas and the release gates for privacy, accounts and payments are documented in [GO_TO_MARKET_AND_MONETIZATION.md](docs/GO_TO_MARKET_AND_MONETIZATION.md). KINETIX currently has no checkout, paid currency or subscriber-verification system.
+
 ## Current scope and limitations
 
-The prototype includes a solo AI encounter, same-device local duel, camera permission gate, pose calibration, touch/keyboard backup, health and mana meters, med kits, supply drops, hit/heal feedback, original Canvas fighter visuals, sound effects, pause/replay and a downloadable result card. Real-time online multiplayer, accounts, cloud leaderboards, payments and automatic camera recording are not included. Camera tracking and small-screen performance still need testing on a range of real devices before this can be called production-ready.
+The development branch includes solo AI, same-device local duel, optional camera motion, camera-free keyboard/touch solo, camera-free touch/keyboard Duo, health and mana, med kits, supply drops, hit/heal feedback, Canvas fighter visuals, sound effects, pause/replay and a downloadable result card. Real-time online multiplayer, accounts, cloud leaderboards, payments and automatic camera recording are not included. Camera tracking, touch usability and small-screen performance still need testing on a range of real devices before this can be called production-ready.
 
 Built by **Koglesh R. Murugan**.
 

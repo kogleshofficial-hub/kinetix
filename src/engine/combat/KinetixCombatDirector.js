@@ -29,6 +29,15 @@ const TRANSITIONS = Object.freeze({
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+function normalizeActionDetails(kind, details) {
+  if (kind !== 'PULSE' || !details || typeof details !== 'object') return null;
+  const allowedStyles = new Set(['NEUTRAL', 'LINEAR', 'ARC']);
+  const pulseStyle = allowedStyles.has(details.pulseStyle) ? details.pulseStyle : 'NEUTRAL';
+  const pulseConfidence = Number.isFinite(details.pulseConfidence)
+    ? clamp(details.pulseConfidence, 0, 1) : 0;
+  return Object.freeze({ pulseStyle, pulseConfidence });
+}
+
 function immutableSnapshot(value, seen = new WeakSet()) {
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
   if (seen.has(value)) return value;
@@ -140,7 +149,7 @@ export class KinetixCombatDirector {
     return count;
   }
 
-  enqueueAction(kind, player = 1, source = 'unknown') {
+  enqueueAction(kind, player = 1, source = 'unknown', details = null) {
     if (!ACTIONS.has(kind) || !Number.isInteger(player) || player < 1 || player > 2) return false;
     if (!['PATTERN_READ', 'ACTIVE_COMBAT', 'TIME_CRITICAL'].includes(this.state)) return false;
     if (this.commandQueue.length >= this.maxQueueSize) {
@@ -152,6 +161,7 @@ export class KinetixCombatDirector {
       kind,
       player,
       source: String(source).slice(0, 24),
+      details: normalizeActionDetails(kind, details),
       queuedAtTick: this.tick
     });
     this.commandQueue.push(command);
