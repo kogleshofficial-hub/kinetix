@@ -149,8 +149,8 @@ test('unsupported browsers gracefully keep the website usable', async () => {
 });
 
 test('PWA manifest and worker scope only describe same-origin offline behaviour', async () => {
-  const manifest = JSON.parse(await readFile(new URL('../../public/manifest.webmanifest', import.meta.url), 'utf8'));
-  const worker = await readFile(new URL('../../public/sw.js', import.meta.url), 'utf8');
+  const manifest = JSON.parse(await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
+  const worker = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 
   assert.equal(manifest.start_url, '/');
   assert.equal(manifest.scope, '/');
