@@ -26,7 +26,7 @@ const DIFFICULTIES=Object.freeze({
  hard:{label:'HARD / RIFT MASTER',enemyHP:420,enemyDamage:48,firstWait:.3,telegraph:.24,opening:.36,recovery:.08,guardDuration:.72,dodgeDuration:.68}
 });
 let difficulty='normal';
-let activeMission=null, selectedMissionId=0;
+let activeMission=null, selectedMissionId=0, pendingCampaignMission=null;
 function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.easy;}
 const MOTION_SENSITIVITY=Object.freeze({high:{label:'HIGH'},max:{label:'MAX'}});
 let motionSensitivity='high';
@@ -573,7 +573,8 @@ function startCampaignMission(id,useCamera=false){
  if(!mission||mission.id>(profile.campaign?.highestUnlocked||1))return;
  selectedMissionId=mission.id;activeMission=mission;setDifficulty(mission.difficulty);renderCampaignMap();
  if(useCamera){chooseGameMode('solo');return;}
- startSoloWithoutCamera(null,mission);
+ pendingCampaignMission=mission;
+ startSoloWithoutCamera();
 }
 
 function showResult(){
@@ -989,8 +990,8 @@ window.addEventListener('keydown',e=>{
  }
 });
 window.addEventListener('resize',()=>{canvas.width=0;canvas.height=0;});
-function startSoloWithoutCamera(dailyChallenge=null,mission=null){
- activeMission=mission;pendingDailyChallenge=null;
+function startSoloWithoutCamera(dailyChallenge=null){
+ activeMission=pendingCampaignMission;pendingCampaignMission=null;pendingDailyChallenge=null;
  stopCamera(true);
  cameraMode=false;calibrated=false;cameraTargetMode='lobby';
  $('camera-gate').classList.add('hidden');$('setup').classList.add('hidden');
@@ -1012,7 +1013,8 @@ function continueWithoutCamera(){
  if(cameraStarting)return;
  if(cameraTargetMode==='solo'&&activeMission){
   const mission=activeMission,daily=pendingDailyChallenge;pendingDailyChallenge=null;
-  startSoloWithoutCamera(daily,mission);return;
+  pendingCampaignMission=mission;
+  startSoloWithoutCamera(daily);return;
  }
  $('camera-gate').classList.add('hidden');
  $('setup').classList.add('hidden');
