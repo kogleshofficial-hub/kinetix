@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "KINETIX — Your Body. Your Power.",
+  "short_name": "KINETIX",
+  "description": "A motion-controlled browser combat game. Your body. Your power. Your arena.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#090a16",
+  "theme_color": "#090a16",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "/icons/kinetix.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
