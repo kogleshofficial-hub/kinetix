@@ -145,6 +145,7 @@ function updateGestures(points, playerIndex, timestamp) {
       const previousY = memory.previousWristY[side];
       if (!wrist) {
         memory.previousWristY[side] = null;
+        memory.wristHistory[side] = [];
         continue;
       }
       if (baseline === null || baseline === undefined) {
