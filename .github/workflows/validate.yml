@@ -32,6 +32,7 @@ jobs:
           node --check src/engine/viewport/KinetixViewportCanvas.js
           node --check src/engine/platform/KinetixPWA.js
           node --check src/engine/challenge/KinetixDailyChallenge.js
+          node --check src/engine/challenge/DailyRiftRecords.js
           node --check public/sw.js
           node --check scripts/obfuscate-build.mjs
       - name: Unit tests
@@ -68,10 +69,12 @@ jobs:
           if (!worker.includes('smoothLandmarks') || !worker.includes('const alpha = 0.62')) throw new Error('Motion smoothing is missing.');
           const motionMath = fs.readFileSync('src/engine/motion/KinetixMotionMath.js', 'utf8');
           const dailyChallenge = fs.readFileSync('src/engine/challenge/KinetixDailyChallenge.js', 'utf8');
+          const dailyRecords = fs.readFileSync('src/engine/challenge/DailyRiftRecords.js', 'utf8');
           if (!worker.includes('classifyPulseTrajectory') || !motionMath.includes('export function classifyPulseTrajectory')) throw new Error('Trajectory classifier is not connected to the motion worker.');
           if (!source.includes('details=null') || !director.includes('normalizeActionDetails') || !viewport.includes("style === 'ARC'")) throw new Error('Trajectory presentation metadata is not connected end to end.');
           if (!dailyChallenge.includes('export function createDailyChallenge') || !dailyChallenge.includes('export function selectDailyLane') || !source.includes('selectDailyLane(()=>combatDirector.random(),g.target)')) throw new Error('Daily Rift seed and deterministic lane selection are not wired.');
-          if (!html.includes('id="play-daily"') || !html.includes('id="daily-challenge-date"') || !source.includes("beginMatch(g.dailyChallenge?{seed:g.dailyChallenge.seed}:undefined)")) throw new Error('Daily Rift lobby controls or seeded match start are missing.');
+          if (!dailyRecords.includes('export class DailyRiftRecords') || !source.includes('dailyRiftRecords.record(g.dailyChallenge') || !source.includes('dailyRiftRecords.get(challenge.date)')) throw new Error('Local Daily Rift personal records are not integrated.');
+          if (!html.includes('id="play-daily"') || !html.includes('id="daily-challenge-date"') || !html.includes('id="daily-challenge-record"') || !source.includes("beginMatch(g.dailyChallenge?{seed:g.dailyChallenge.seed}:undefined)")) throw new Error('Daily Rift lobby controls or seeded match start are missing.');
           if (!source.includes('REPLAY DAILY RIFT') || !source.includes('DAILY RIFT · '+'')) throw new Error('Daily Rift replay/share-card support is missing.');
           if (!worker.includes('high: Object.freeze') || !worker.includes('max: Object.freeze')) throw new Error('HIGH and MAX sensitivity profiles are missing.');
           if (!worker.includes('requiredPlayerCount') || !worker.includes("message.type === 'CONFIG'")) throw new Error('Lobby/Solo/Duo pose-count configuration is missing.');
