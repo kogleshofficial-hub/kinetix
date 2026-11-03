@@ -314,7 +314,8 @@ export class KinetixProgressionVault {
       const reward = firstClear
         ? { kinets: mission.rewardBase + (score - 1) * 4, xp: 30 + mission.chapter * 3 + score * 4 }
         : { kinets: 0, xp: 0 };
-      const rankBefore = rankForCampaign(next.rankXp, campaign.clearedMissions.length);
+      const clearedBefore = Math.max(0, campaign.clearedMissions.length - (firstClear ? 1 : 0));
+      const rankBefore = rankForCampaign(next.rankXp, clearedBefore);
       if (firstClear) {
         next.kinets += reward.kinets;
         next.rankXp += reward.xp;
