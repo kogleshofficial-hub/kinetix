@@ -935,7 +935,7 @@ document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventL
  document.querySelectorAll('[data-sensitivity]').forEach(option=>{
   const selected=option.dataset.sensitivity===motionSensitivity;option.classList.toggle('active',selected);option.setAttribute('aria-pressed',String(selected));
  });
- const summaries={max:'MAX sensitivity selected — detects smaller hand raises and forward reaches, but may also register incidental movement.',high:'HIGH sensitivity selected — looks for deliberate hand raises or gentle forward reaches and filters small wrist jitter.'};
+ const summaries={max:'MAX sensitivity selected — forward arm movements and smaller hand raises register more easily; incidental movement may also register.',high:'HIGH sensitivity selected — requires a clearer hand raise or forward arm movement to reduce incidental triggers.'};
  document.querySelectorAll('[data-sensitivity-summary]').forEach(node=>node.textContent=summaries[motionSensitivity]);
 }));
 $('play-keyboard').addEventListener('click',()=>startSoloWithoutCamera());
@@ -967,8 +967,8 @@ $('calibrate-start').addEventListener('click',async()=>{
   calibrated=true;cameraMode=true;showError('');
   $('setup-title').textContent='MOTION CALIBRATED';
   $('setup-copy').textContent=cameraTargetMode==='duo'
-   ?'Both players are calibrated. Small, comfortable hand raises trigger PULSE, hands held near the chest activate GUARD, and slight torso shifts PHASE between lanes.'
-   :'Ready. Small, comfortable hand raises trigger PULSE, hands held near the chest activate GUARD, and slight torso shifts PHASE between lanes. Buttons remain available as backup.';
+   ?'Both players are calibrated. A short forward arm movement or small hand raise triggers PULSE, hands near the chest activate GUARD, and slight torso shifts PHASE between lanes.'
+   :'Ready. A short forward arm movement or small hand raise triggers PULSE, hands near the chest activate GUARD, and slight torso shifts PHASE between lanes. Buttons remain available as backup.';
   beginGame(cameraTargetMode,pendingDailyChallenge);pendingDailyChallenge=null;$('mode-pill').classList.add('live');
   $('move-mode').textContent=cameraTargetMode==='duo'?'TWO PLAYERS · MOTION + TOUCH':'MOTION + BUTTON BACKUP · '+difficultyRules().label;
   $('camera-hint').classList.add('hidden');
