@@ -7,11 +7,13 @@ Kinetix is a browser-first, webcam-controlled fantasy combat prototype created b
 
 This is an early playable prototype—not a finished commercial game or a claim that webcam-controlled games are new.
 
-## Camera is required
+## Camera is optional
 
-KINETIX does not request camera permission when the page opens. The camera prompt appears only after you press **ENABLE CAMERA & CONTINUE**. No match can start until camera access and the pose model are ready.
+KINETIX can be played without granting camera access. Choose **SOLO VS RIFT AI · TOUCH / KEYBOARD** or **2-PLAYER LOCAL DUEL · TOUCH** to start directly. The first camera gate also has a **CONTINUE WITHOUT CAMERA** option.
 
-If permission is denied, open the browser's site permissions, allow camera access, then retry. Camera access requires HTTPS (or localhost). Camera frames and pose landmarks are processed locally in the browser; Kinetix does not record or upload camera footage and does not request microphone access. The production build bundles the MediaPipe JavaScript library and serves its WASM runtime and pose model from the same site, avoiding runtime JavaScript-module CDN imports.
+Choose **SOLO · CAMERA MOTION** or **2-PLAYER LOCAL DUEL · CAMERA** only when you want body-tracking controls. The browser asks for camera permission after that explicit action; no microphone is requested. Camera access requires HTTPS (or localhost). Camera frames and pose landmarks are processed locally in the browser; KINETIX does not record or upload camera footage. The production build bundles the MediaPipe JavaScript library and serves its WASM runtime and pose model from the same site, avoiding runtime JavaScript-module CDN imports.
+
+If camera permission is denied or the device has no camera, continue using keyboard/touch. You can retry motion setup later without losing access to the non-camera modes.
 
 ## Install and offline use
 
@@ -21,9 +23,11 @@ The app checks for a newer service worker and exposes an update control when one
 
 ## Play modes
 
-- **Solo vs Rift AI:** one tracked player fights the Hollow. Read its warnings, time guard or phase dodges, manage mana, use NOVA and claim supply drops.
-- **2-player local duel:** two players stand apart in front of one camera. Both must be visible and calibrated before the round starts. Each has independent health, mana, combos, defence, NOVA and med-kit inventory. The first player to reduce the other player's health to zero wins; when time runs out, remaining health decides the result, with a draw possible.
-- **Phone and touch:** layouts and control panels adapt to smaller screens. Touch buttons are a backup input for play while the camera remains enabled; they do not bypass the camera requirement.
+- **Solo vs Rift AI — keyboard/touch:** starts immediately without camera permission. Use the on-screen controls on phones/tablets or the keyboard on computers.
+- **Solo — camera motion:** optional body-tracking input. Calibrate after the camera and pose model are ready; on-screen buttons remain available as backup.
+- **2-player local duel — touch/keyboard:** two players share one screen and use the split control panels or assigned keyboard keys. No camera is required.
+- **2-player local duel — camera:** two players stand apart in front of one camera. Both must be visible and calibrated before the round starts. Each has independent health, mana, combos, defence, NOVA and med-kit inventory. When time runs out, remaining health decides the result, with a draw possible.
+- **Daily Rift:** can be played using keyboard/touch or optional camera motion. The UTC seed is the same for the date; local personal records are device-only and are not server-verified.
 
 ## Controls
 
@@ -65,6 +69,10 @@ MediaPipe Pose Landmarker runs inside a dedicated Web Worker. Camera frames are 
 
 Keep the play area clear. Use controlled, comfortable air gestures only—no physical contact, striking objects, forceful jumps or high-impact movements. If tracking is lost, the match pauses until the required player(s) are visible again.
 
+## Creator and community
+
+The game includes an optional link to the creator's YouTube channel. It is a voluntary way to follow the project; subscribing is not required for gameplay, does not unlock features, and is not tied to a discount or reward. KINETIX does not ask players to connect a YouTube account.
+
 ## Kinets and customization
 
 Solo victories award Kinets: Easy **15**, Normal **20**, and Hard **30**. Kinets can unlock cosmetic fighter styles (Elite **120**, Epic **300**, Legendary **600**) or a username change (**100**). Cosmetics do not improve combat stats. Local Duo matches do not award Kinets.
@@ -87,7 +95,7 @@ This is currently a **game blueprint editor**, not a fully generated motion-game
 
 ## Current scope and limitations
 
-The prototype includes a solo AI encounter, same-device local duel, camera permission gate, pose calibration, touch/keyboard backup, health and mana meters, med kits, supply drops, hit/heal feedback, original Canvas fighter visuals, sound effects, pause/replay and a downloadable result card. Real-time online multiplayer, accounts, cloud leaderboards, payments and automatic camera recording are not included. Camera tracking and small-screen performance still need testing on a range of real devices before this can be called production-ready.
+The development branch includes solo AI, same-device local duel, optional camera motion, camera-free keyboard/touch solo, camera-free touch/keyboard Duo, health and mana, med kits, supply drops, hit/heal feedback, Canvas fighter visuals, sound effects, pause/replay and a downloadable result card. Real-time online multiplayer, accounts, cloud leaderboards, payments and automatic camera recording are not included. Camera tracking, touch usability and small-screen performance still need testing on a range of real devices before this can be called production-ready.
 
 Built by **Koglesh R. Murugan**.
 
