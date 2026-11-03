@@ -4,6 +4,7 @@ import { KinetixProgressionVault, LocalProfileAdapter } from './engine/progressi
 import { KinetixViewportCanvas } from './engine/viewport/KinetixViewportCanvas.js';
 import { setupKinetixPWA } from './engine/platform/KinetixPWA.js';
 import { createDailyChallenge, selectDailyLane } from './engine/challenge/KinetixDailyChallenge.js';
+import { DailyRiftRecords } from './engine/challenge/DailyRiftRecords.js';
 const $ = (id) => document.getElementById(id);
 const home = $('home'), arena = $('arena'), canvas = $('game-canvas'), ctx = canvas.getContext('2d');
 const video = $('video'), cameraPanel = $('camera-panel'), setup = $('setup');
@@ -55,6 +56,7 @@ const CHARACTER_STYLES=Object.freeze({
  epic:{name:'Void Striker',rarity:'Epic',price:300,core:'#e0c6ff',aura:'#9361f6',accent:'#f8e8ff',glow:'#c18aff',halo:false},
  legendary:{name:'Rift Sovereign',rarity:'Legendary',price:600,core:'#ffe5a4',aura:'#d69b36',accent:'#fff4cf',glow:'#ffd16a',halo:true}
 });
+const dailyRiftRecords = new DailyRiftRecords();
 const progressionVault = new KinetixProgressionVault({
  adapter: new LocalProfileAdapter({ key: PROFILE_STORAGE_KEY, legacyKey: 'kinetix-profile-v1' }),
  characters: CHARACTER_STYLES,
@@ -228,8 +230,12 @@ motionEngine.attachKeyboard(window,{
  isEnabled:()=>!arena.classList.contains('hidden')&&!paused&&g.status==='playing'
 });
 refreshStore();
-const todayDailyChallenge=createDailyChallenge();
-$('daily-challenge-date').textContent=todayDailyChallenge.date+' UTC · SEED '+todayDailyChallenge.code;
+function refreshDailyChallengePanel(){
+ const challenge=createDailyChallenge(),record=dailyRiftRecords.get(challenge.date),label=$('daily-challenge-record');
+ $('daily-challenge-date').textContent=challenge.date+' UTC · SEED '+challenge.code;
+ label.textContent=record?'PERSONAL BEST · '+(record.best.cleared?'CLEAR':'BEST ATTEMPT')+' · '+record.best.combo+'× COMBO · '+record.attempts+' RUNS':'NO PERSONAL RECORD YET · YOUR FIRST RUN SETS IT';
+}
+refreshDailyChallengePanel();
 $('play-daily').addEventListener('click',()=>chooseGameMode('solo',createDailyChallenge()));
 
 function freshFighter(){return {hp:100,mana:70,combo:0,best:0,lane:0,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,attackUntil:0,hurtUntil:0,medkits:1,collectCooldown:0,pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0};}
