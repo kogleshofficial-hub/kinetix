@@ -21,7 +21,14 @@ test('preserves an existing callable worker import hook', () => {
 });
 
 test('returns false when the worker global cannot accept an import hook', () => {
-  const scope = Object.preventExtensions({ import: false });
+  const scope = {};
+  Object.defineProperty(scope, 'import', {
+    configurable: false,
+    enumerable: true,
+    writable: false,
+    value: false
+  });
+  Object.preventExtensions(scope);
 
   assert.equal(installModuleWorkerDynamicImport(scope), false);
 });
