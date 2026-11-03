@@ -30,6 +30,8 @@ jobs:
           node --check src/engine/combat/KinetixCombatDirector.js
           node --check src/engine/progression/KinetixProgressionVault.js
           node --check src/engine/viewport/KinetixViewportCanvas.js
+          node --check src/engine/platform/KinetixPWA.js
+          node --check public/sw.js
           node --check scripts/obfuscate-build.mjs
       - name: Unit tests
         run: npm test
@@ -46,8 +48,15 @@ jobs:
           const viewport = fs.readFileSync('src/engine/viewport/KinetixViewportCanvas.js', 'utf8');
           const bus = fs.readFileSync('src/engine/EventBus.js', 'utf8');
           const css = fs.readFileSync('src/engine/viewport/kinetix-viewport.css', 'utf8');
+          const pwa = fs.readFileSync('src/engine/platform/KinetixPWA.js', 'utf8');
+          const manifest = JSON.parse(fs.readFileSync('public/manifest.webmanifest', 'utf8'));
+          const serviceWorker = fs.readFileSync('public/sw.js', 'utf8');
 
           if (!html.includes('<script type="module" src="/src/main.js"></script>')) throw new Error('Vite game entry is not wired into index.html.');
+          if (!html.includes('<link rel="manifest" href="/manifest.webmanifest">') || !pwa.includes("register('/sw.js'")) throw new Error('Installable PWA manifest/service-worker registration is missing.');
+          if (!manifest.icons.some(icon => icon.sizes === '192x192' && icon.type === 'image/png') || !manifest.icons.some(icon => icon.sizes === '512x512' && icon.type === 'image/png')) throw new Error('PWA 192px and 512px icons are missing.');
+          if (!serviceWorker.includes("request.method !== 'GET'") || !serviceWorker.includes("url.origin !== self.location.origin") || !serviceWorker.includes("path.startsWith('/models/')") || !serviceWorker.includes("path.startsWith('/mediapipe/wasm/')")) throw new Error('Offline cache must be same-origin, GET-only and include local motion assets.');
+          if (source.includes("void startCamera('lobby')") || !source.includes('CAMERA OFF · WAITING FOR YOUR PERMISSION')) throw new Error('Camera permission must require an explicit player action.');
           if (source.includes("from '@mediapipe/tasks-vision'")) throw new Error('MediaPipe inference must not be imported into the window thread.');
           if (!worker.includes("from '@mediapipe/tasks-vision'")) throw new Error('The dedicated worker must own MediaPipe inference.');
           if (!motion.includes("new Worker(new URL('./motion.worker.js', import.meta.url)")) throw new Error('Motion engine worker URL is not wired.');
@@ -109,6 +118,7 @@ jobs:
           if (!source.includes('function exportBlueprint') || !source.includes('async function importBlueprint')) throw new Error('Blueprint export/import is missing.');
           if (/getUserMedia|PoseLandmarker|detectForVideo/.test(source)) throw new Error('Creator Studio must not request or process camera frames.');
           if (!html.includes('CAMERA IS NOT USED IN THIS EDITOR')) throw new Error('Creator Studio camera scope message is missing.');
+          if (!html.includes('<link rel="manifest" href="/manifest.webmanifest">') || !source.includes('setupKinetixPWA')) throw new Error('Creator Studio PWA support is not connected.');
           NODE
       - name: Build production app and local camera assets
         run: npm run build
@@ -120,6 +130,11 @@ jobs:
           const dist = path.resolve('dist');
           const assetDir = path.join(dist, 'assets');
           if (!fs.existsSync(path.join(dist, 'index.html'))) throw new Error('dist/index.html is missing.');
+          if (!fs.existsSync(path.join(dist, 'sw.js'))) throw new Error('Production service worker is missing.');
+          if (!fs.existsSync(path.join(dist, 'manifest.webmanifest'))) throw new Error('Production PWA manifest is missing.');
+          for (const icon of ['kinetix-192.png','kinetix-512.png','kinetix.svg']) if (!fs.existsSync(path.join(dist,'icons',icon))) throw new Error('Production PWA icon is missing: ' + icon);
+          const builtManifest = JSON.parse(fs.readFileSync(path.join(dist,'manifest.webmanifest'),'utf8'));
+          if (builtManifest.start_url !== '/' || builtManifest.scope !== '/') throw new Error('PWA manifest scope/start URL is invalid.');
           if (!fs.existsSync(assetDir)) throw new Error('dist/assets is missing.');
           const assets = fs.readdirSync(assetDir);
           const js = assets.filter(name => name.endsWith('.js'));
