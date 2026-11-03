@@ -25,6 +25,7 @@ jobs:
           node --check src/creator.js
           node --check src/engine/EventBus.js
           node --check src/engine/motion/KinetixMotionEngine.js
+          node --check src/engine/motion/KinetixMotionMath.js
           node --check src/engine/motion/motion.worker.js
           node --check src/engine/combat/KinetixCombatDirector.js
           node --check src/engine/progression/KinetixProgressionVault.js
@@ -53,6 +54,9 @@ jobs:
           if (!source.includes("'/mediapipe/wasm'") || !source.includes("'/models/pose_landmarker_lite.task'")) throw new Error('Local MediaPipe model/runtime paths are missing.');
           if (!worker.includes("delegate: 'GPU'") || !worker.includes("delegate: 'CPU'")) throw new Error('GPU with CPU fallback is required.');
           if (!worker.includes('smoothLandmarks') || !worker.includes('const alpha = 0.62')) throw new Error('Motion smoothing is missing.');
+          const motionMath = fs.readFileSync('src/engine/motion/KinetixMotionMath.js', 'utf8');
+          if (!worker.includes('classifyPulseTrajectory') || !motionMath.includes('export function classifyPulseTrajectory')) throw new Error('Trajectory classifier is not connected to the motion worker.');
+          if (!source.includes('details=null') || !director.includes('normalizeActionDetails') || !viewport.includes("style === 'ARC'")) throw new Error('Trajectory presentation metadata is not connected end to end.');
           if (!worker.includes('high: Object.freeze') || !worker.includes('max: Object.freeze')) throw new Error('HIGH and MAX sensitivity profiles are missing.');
           if (!worker.includes('requiredPlayerCount') || !worker.includes("message.type === 'CONFIG'")) throw new Error('Lobby/Solo/Duo pose-count configuration is missing.');
           if (!worker.includes("emitAction('GUARD_RELEASE'")) throw new Error('Guard release handling is missing.');
