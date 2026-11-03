@@ -36,6 +36,7 @@ const PROFILE_STORAGE_KEY='kinetix-profile-v2';
 const SOLO_REWARDS=Object.freeze({easy:15,normal:20,hard:30});
 const USERNAME_CHANGE_COST=100;
 const RANK_XP_BY_DIFFICULTY=Object.freeze({easy:10,normal:20,hard:35});
+// Campaign rank catalogue: Rift Recruit, Kinetic Initiate, Pulse Adept, Rift Hunter, Void Vanguard, Rift Champion, Kinetix Sovereign.
 const RANKS=CAMPAIGN_RANKS;
 function rankForXp(value, activeProfile=null){
  const cleared=activeProfile?.campaign?.clearedMissions?.length||0;
