@@ -529,11 +529,7 @@ document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventL
 }));
 $('play-keyboard').addEventListener('click',()=>chooseGameMode('solo'));
 $('play-duo-camera').addEventListener('click',()=>chooseGameMode('duo'));
-$('enable-camera').addEventListener('click',()=>{$('gate-title').textContent = 'Your camera is your controller.';
-$('gate-copy').textContent = 'KINETIX will ask for camera access only after you press the button below. Camera frames and pose landmarks stay on this device and are not recorded or uploaded by this prototype.';
-$('gate-status').className = 'gate-status';
-$('gate-status').textContent = 'CAMERA OFF · WAITING FOR YOUR PERMISSION';
-$('gate-retry').innerHTML = 'ENABLE CAMERA & CONTINUE <svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>';});
+$('enable-camera').addEventListener('click',()=>{void startCamera('lobby');});
 $('gate-retry').addEventListener('click',()=>{void startCamera('lobby');});
 $('calibrate-start').addEventListener('click',async()=>{
  if(!trackingOkay||!motionEngine.isReady){
@@ -682,7 +678,11 @@ function handleMotionTracking(info){
  }
 }
 window.addEventListener('beforeunload',()=>{void motionEngine.stop();stream?.getTracks().forEach(track=>track.stop());if(audioContext)audioContext.close();viewport.destroy();});
-void startCamera('lobby');
+$('gate-title').textContent = 'Your camera is your controller.';
+$('gate-copy').textContent = 'KINETIX will ask for camera access only after you press the button below. Camera frames and pose landmarks stay on this device and are not recorded or uploaded by this prototype.';
+$('gate-status').className = 'gate-status';
+$('gate-status').textContent = 'CAMERA OFF · WAITING FOR YOUR PERMISSION';
+$('gate-retry').innerHTML = 'ENABLE CAMERA & CONTINUE <svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>';
 }
 
 void initializeKinetix().catch((error) => {
