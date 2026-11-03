@@ -1,7 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyPulseTrajectory } from '../src/engine/motion/KinetixMotionMath.js';
+import { classifyPulseTrajectory, detectArmPulse, measureForwardReach, measureForwardSpeed } from '../src/engine/motion/KinetixMotionMath.js';
 import { KinetixCombatDirector } from '../src/engine/combat/KinetixCombatDirector.js';
+
+const MAX_SENSITIVITY_PROFILE = Object.freeze({ lift: 0.075, liftSpeed: 0.23, forwardReach: 0.055, forwardSpeed: 0.11 });
+
+test('detects a forward arm movement without requiring a hand raise', () => {
+  const result = detectArmPulse({ lift: 0.01, riseSpeed: 0.01, depthReach: 0.06, forwardSpeed: 0.14, raisedIntoControlZone: false }, MAX_SENSITIVITY_PROFILE);
+  assert.equal(result.detected, true);
+  assert.equal(result.gestureType, 'FORWARD_REACH');
+});
+
+test('accepts a clear reach when low frame rate weakens the speed estimate', () => {
+  const result = detectArmPulse({ lift: 0, riseSpeed: 0, depthReach: 0.09, forwardSpeed: 0.02, raisedIntoControlZone: false }, MAX_SENSITIVITY_PROFILE);
+  assert.equal(result.detected, true);
+});
+
+test('measures forward reach relative to shoulder movement', () => {
+  const reach = measureForwardReach({ baselineWristZ: -0.2, wristZ: -0.3, baselineShoulderZ: -0.1, shoulderZ: -0.15, shoulderWidth: 0.4 });
+  assert.equal(Number(reach.toFixed(3)), 0.125);
+  const speed = measureForwardSpeed({ previousWristZ: -0.2, wristZ: -0.3, previousShoulderZ: -0.1, shoulderZ: -0.15, shoulderWidth: 0.4, seconds: 0.5 });
+  assert.equal(Number(speed.toFixed(3)), 0.25);
+});
+
+test('rejects invalid depth measurements', () => {
+  assert.equal(measureForwardReach({ baselineWristZ: NaN, wristZ: 0, shoulderWidth: 0.4 }), 0);
+  assert.equal(measureForwardSpeed({ previousWristZ: 0, wristZ: 1, shoulderWidth: 0.4, seconds: 0 }), 0);
+});
 
 test('classifies a clear near-straight movement as LINEAR', () => {
   const result = classifyPulseTrajectory([
