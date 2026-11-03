@@ -207,7 +207,7 @@ function paintComeback(){
 
 const motionEngine = new KinetixMotionEngine({
  modelUrl, wasmUrl,
- onAction: (kind,player,source) => action(kind,player,source),
+ onAction: (kind,player,source,details) => action(kind,player,source,details),
  onTracking: handleMotionTracking,
  onError: (error) => {
   console.error('[KINETIX MOTION]',error);
@@ -333,9 +333,9 @@ function resolveAction(kind,player=1){
  if(kind==='NOVA'){if(g.energy<100){announce('none','NOVA NEEDS 100 ENERGY','neutral');updateHud();return;}if(g.clock-g.lastNova<1.3)return;const damage=g.phase==='vulnerable'?48:28,d=Math.min(damage,g.eHP);g.eHP=Math.max(0,g.eHP-d);g.damage+=d;g.energy=0;g.lastNova=g.clock;g.combo+=2;g.best=Math.max(g.best,g.combo);announce('nova',g.eHP<=0?'NOVA FINISHER':'NOVA RELEASED  −'+damage,'good');}
  if(g.event+':'+g.eventAt!==before&&g.event!=='none')sfx(g.event);updateHud();
 }
-function action(kind,player=1,source='ui'){
+function action(kind,player=1,source='ui',details=null){
  if(g.status!=='playing'||(paused&&kind!=='GUARD_RELEASE')||(cameraMode&&!trackingOkay&&kind!=='GUARD_RELEASE'))return false;
- return combatDirector.enqueueAction(kind,player,source);
+ return combatDirector.enqueueAction(kind,player,source,details);
 }
 
 
