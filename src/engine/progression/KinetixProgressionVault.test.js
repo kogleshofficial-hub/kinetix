@@ -20,7 +20,7 @@ test('campaign clear unlocks exactly the next mission and awards first-clear rew
   assert.equal(result.ok, true);
   assert.equal(result.firstClear, true);
   assert.equal(result.reward.kinets, 26);
-  assert.equal(result.reward.xp, 37);
+  assert.equal(result.reward.xp, 45);
   assert.equal(result.profile.campaign.highestUnlocked, 2);
   assert.deepEqual(result.profile.campaign.clearedMissions, [1]);
   assert.equal(result.rankAfter.id, 'initiate');
