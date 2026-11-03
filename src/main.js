@@ -3,7 +3,7 @@ import { KinetixCombatDirector } from './engine/combat/KinetixCombatDirector.js'
 import { KinetixProgressionVault, LocalProfileAdapter } from './engine/progression/KinetixProgressionVault.js';
 import { KinetixViewportCanvas } from './engine/viewport/KinetixViewportCanvas.js';
 import { setupKinetixPWA } from './engine/platform/KinetixPWA.js';
-import { createDailyChallenge } from './engine/challenge/KinetixDailyChallenge.js';
+import { createDailyChallenge, selectDailyLane } from './engine/challenge/KinetixDailyChallenge.js';
 const $ = (id) => document.getElementById(id);
 const home = $('home'), arena = $('arena'), canvas = $('game-canvas'), ctx = canvas.getContext('2d');
 const video = $('video'), cameraPanel = $('camera-panel'), setup = $('setup');
@@ -394,7 +394,7 @@ function simulateStep(dt){
  if(g.mode==='duo'){stepDuo(dt);return;}if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;
  dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.phaseTimer-=dt;g.energy=Math.min(100,g.energy+1.4*dt);stepSupplyDrops();
  if(g.time<=0){void finish(g.eHP<=0?'won':'time-up');return;}if(g.eHP<=0){void finish('won');return;}
- if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=difficulty==='easy'?[0,0,1,0,-1,0]:[0,1,-1,0,-1,1];if(g.dailyChallenge||difficulty==='hard'){const lanes=[-1,0,1].filter(lane=>lane!==g.target);g.target=lanes[Math.floor(combatDirector.random()*lanes.length)];}else g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
+ if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=difficulty==='easy'?[0,0,1,0,-1,0]:[0,1,-1,0,-1,1];if(g.dailyChallenge||difficulty==='hard'){g.target=selectDailyLane(()=>combatDirector.random(),g.target);}else g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
  if(g.pHP<=0)void finish('lost');
 }
 function paintHud(){
