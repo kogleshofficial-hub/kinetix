@@ -29,7 +29,7 @@ let difficulty='normal';
 let activeMission=null, selectedMissionId=0, pendingCampaignMission=null;
 function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.easy;}
 const MOTION_SENSITIVITY=Object.freeze({high:{label:'HIGH'},max:{label:'MAX'}});
-let motionSensitivity='high';
+let motionSensitivity='max';
 let impactClearTimer=0;
 let audioContext = null, raf = 0, previousFrame = 0, lastHudAt = 0, lastEventStamp = -1, eventFxAt = performance.now();
 const PROFILE_STORAGE_KEY='kinetix-profile-v2';
