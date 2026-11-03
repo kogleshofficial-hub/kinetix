@@ -1,6 +1,5 @@
 import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
 import { classifyPulseTrajectory } from './KinetixMotionMath.js';
-import { installModuleWorkerDynamicImport } from './KinetixWorkerImport.js';
 
 let landmarker = null;
 let playerLimit = 1;
@@ -204,9 +203,6 @@ function updateGestures(points, playerIndex, timestamp) {
 
 async function initialize(message) {
   try {
-    if (!installModuleWorkerDynamicImport(self)) {
-      throw new Error('This browser could not prepare the module loader required for camera motion. Please update your browser or continue with keyboard/touch.');
-    }
     playerLimit = message.players === 2 ? 2 : 1;
     requiredPlayerCount = message.requiredPlayers === 2 ? 2 : 1;
     sensitivity = profiles[message.sensitivity] ? message.sensitivity : 'high';
