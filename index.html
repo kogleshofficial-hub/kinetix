@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#090a16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KINETIX">
+<link rel="manifest" href="/manifest.webmanifest">
 <meta name="description" content="Kinetix is a motion-powered browser combat prototype. Your body. Your power. Your arena.">
 <meta name="google-site-verification" content="LI6z3Avdq6RsVP2faZ6nlhcbRwvnMIdjJkrSBygvnZM">
 <title>KINETIX — Your body. Your power.</title>
@@ -131,15 +134,15 @@
     <div class="gate-mark">K<span>•</span></div>
     <div class="gate-kicker"><i class="live-dot"></i> KINETIX MOTION SYSTEM</div>
     <h2 id="gate-title">Your camera is your controller.</h2>
-    <p id="gate-copy">KINETIX needs camera access to start. We are requesting permission now. Your camera feed is processed in your browser and is not recorded or uploaded by this prototype.</p>
-    <div class="gate-status" id="gate-status"><span class="gate-spin"></span> REQUESTING CAMERA PERMISSION…</div>
+    <p id="gate-copy">KINETIX will request camera access only after you press the button below. Camera frames are processed in your browser and are not recorded or uploaded by this prototype.</p>
+    <div class="gate-status" id="gate-status">CAMERA OFF · WAITING FOR YOUR PERMISSION</div>
     <button class="btn primary" id="gate-retry">ENABLE CAMERA & CONTINUE <svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button>
     <p class="gate-note">Allow camera access in your browser. Use HTTPS, good lighting, and keep the play area clear. Audio is optional and never uses the microphone.</p>
   </div>
 </div>
 <header class="topbar">
   <button class="brand" id="brand-home" aria-label="Kinetix home"><span class="brand-mark"><b>K</b></span><span class="brand-name">KINETIX<i>.</i><small>MOTION COMBAT PROTOCOL</small></span></button>
-  <div class="top-right"><a class="creator-launch" href="/creator.html" title="Build a motion-game blueprint">✦ CREATE GAME</a><span class="prototype"><i class="live-dot"></i>PROTOTYPE 01</span><button class="icon-btn" id="sound-toggle" aria-label="Toggle sound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6"/></svg></button><button class="icon-btn" id="motion-toggle" aria-label="Toggle reduced motion" title="Toggle reduced motion"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4.5 14 2.5-7H21"/></svg></button></div>
+  <div class="top-right"><a class="creator-launch" href="/creator.html" title="Build a motion-game blueprint">✦ CREATE GAME</a><span class="prototype"><i class="live-dot"></i>PROTOTYPE 01</span><button class="icon-btn hidden" id="pwa-install" aria-label="Install KINETIX" title="Install KINETIX"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg></button><button class="icon-btn hidden" id="pwa-update" aria-label="Update KINETIX" title="Install available KINETIX update"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 1-2-5"/></svg></button><button class="icon-btn" id="sound-toggle" aria-label="Toggle sound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6"/></svg></button><button class="icon-btn" id="motion-toggle" aria-label="Toggle reduced motion" title="Toggle reduced motion"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4.5 14 2.5-7H21"/></svg></button></div>
 </header>
 <main id="home" class="wrap home">
   <section class="copy">
