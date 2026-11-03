@@ -825,12 +825,12 @@ function draw(t) {
    ctx.strokeStyle='rgba(238,249,233,.42)';ctx.lineWidth=Math.max(1,scale*.01);
    ctx.beginPath();ctx.moveTo(-scale*.055,-scale*.055);ctx.lineTo(scale*.045,-scale*.055);ctx.stroke();
    ctx.restore();
-   if(attacking&&!isOpponent){
+   if(attacking){
     ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.78;
-    const trail=ctx.createLinearGradient(handX,handY,handX+facing*scale*.42,handY-scale*.08);
+    const trail=ctx.createLinearGradient(handX,handY,handX+scale*.42,handY-scale*.08);
     trail.addColorStop(0,accent);trail.addColorStop(.45,trim);trail.addColorStop(1,'rgba(255,255,255,0)');
     ctx.strokeStyle=trail;ctx.lineWidth=scale*.065;ctx.lineCap='round';ctx.shadowBlur=scale*.16;ctx.shadowColor=accent;
-    ctx.beginPath();ctx.moveTo(handX,handY);ctx.lineTo(handX+facing*scale*.42,handY-scale*.08);ctx.stroke();ctx.restore();
+    ctx.beginPath();ctx.moveTo(handX,handY);ctx.lineTo(handX+scale*.42,handY-scale*.08);ctx.stroke();ctx.restore();
    }
   };
   arm(-1);arm(1);
