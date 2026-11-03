@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyPulseTrajectory } from '../src/engine/motion/KinetixMotionMath.js';
+import { KinetixCombatDirector } from '../src/engine/combat/KinetixCombatDirector.js';
 
 test('classifies a clear near-straight movement as LINEAR', () => {
   const result = classifyPulseTrajectory([
@@ -60,7 +61,6 @@ test('ignores malformed points and never emits non-finite metrics', () => {
   }
 });
 
-import { KinetixCombatDirector } from '../src/engine/combat/KinetixCombatDirector.js';
 
 test('combat director allowlists trajectory metadata and clamps confidence', () => {
   let received = null;
