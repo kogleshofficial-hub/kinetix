@@ -1,5 +1,5 @@
 /* KINETIX offline shell and same-origin runtime asset cache. */
-const CACHE_VERSION = 'kinetix-3.0.0';
+const CACHE_VERSION = 'kinetix-pwa-v1';
 const SHELL_CACHE = CACHE_VERSION + '-shell';
 const RUNTIME_CACHE = CACHE_VERSION + '-runtime';
 const SHELL_URLS = [
@@ -38,47 +38,61 @@ function isCacheableResponse(response) {
   return response && response.ok && (response.type === 'basic' || response.type === 'default');
 }
 
-async function networkFirst(request) {
-  const cache = await caches.open(SHELL_CACHE);
-  try {
-    const response = await fetch(request);
-    if (isCacheableResponse(response)) {
-      await cache.put(request, response.clone()).catch(() => {});
+function networkFirst(request, event) {
+  let cacheWrite = Promise.resolve();
+  const responseTask = (async () => {
+    const cache = await caches.open(SHELL_CACHE);
+    try {
+      const response = await fetch(request);
+      if (isCacheableResponse(response)) {
+        cacheWrite = cache.put(request, response.clone()).catch(() => {});
+      }
+      return response;
+    } catch {
+      const cached = await cache.match(request, { ignoreSearch: true });
+      if (cached) return cached;
+      const fallback = await cache.match('/');
+      if (fallback) return fallback;
+      return new Response('KINETIX is offline. Open the app once while connected to prepare the offline version.', {
+        status: 503,
+        statusText: 'Offline',
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+      });
     }
-    return response;
-  } catch {
-    const cached = await cache.match(request, { ignoreSearch: true });
-    if (cached) return cached;
-    const fallback = await cache.match('/');
-    if (fallback) return fallback;
-    return new Response('KINETIX is offline. Open the app once while connected to prepare the offline version.', {
-      status: 503,
-      statusText: 'Offline',
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-    });
-  }
+  })();
+
+  // Keep the worker alive for the cache write without delaying the navigation response.
+  event.waitUntil(responseTask.then(() => cacheWrite).catch(() => {}));
+  return responseTask;
 }
 
-async function cacheFirst(request) {
-  const runtime = await caches.open(RUNTIME_CACHE);
-  const cached = await runtime.match(request);
-  if (cached) return cached;
+function cacheFirst(request, event) {
+  let cacheWrite = Promise.resolve();
+  const responseTask = (async () => {
+    const runtime = await caches.open(RUNTIME_CACHE);
+    const cached = await runtime.match(request);
+    if (cached) return cached;
 
-  try {
-    const response = await fetch(request);
-    if (isCacheableResponse(response)) {
-      await runtime.put(request, response.clone()).catch(() => {});
+    try {
+      const response = await fetch(request);
+      if (isCacheableResponse(response)) {
+        cacheWrite = runtime.put(request, response.clone()).catch(() => {});
+      }
+      return response;
+    } catch {
+      const shell = await caches.match(request);
+      if (shell) return shell;
+      return new Response('This KINETIX asset has not been cached yet. Reconnect once and try again.', {
+        status: 503,
+        statusText: 'Asset Not Cached',
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+      });
     }
-    return response;
-  } catch {
-    const shell = await caches.match(request);
-    if (shell) return shell;
-    return new Response('This KINETIX asset has not been cached yet. Reconnect once and try again.', {
-      status: 503,
-      statusText: 'Asset Not Cached',
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-    });
-  }
+  })();
+
+  // Large model/WASM responses can start loading before their cache write finishes.
+  event.waitUntil(responseTask.then(() => cacheWrite).catch(() => {}));
+  return responseTask;
 }
 
 self.addEventListener('fetch', (event) => {
@@ -89,7 +103,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(networkFirst(request));
+    event.respondWith(networkFirst(request, event));
     return;
   }
 
@@ -100,6 +114,6 @@ self.addEventListener('fetch', (event) => {
   const isLocalIconOrManifest = path.startsWith('/icons/') || path === '/manifest.webmanifest';
 
   if (isVersionedBuildAsset || isMotionRuntime || isPoseModel || isLocalIconOrManifest) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(cacheFirst(request, event));
   }
 });
