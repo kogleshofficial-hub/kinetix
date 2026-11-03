@@ -46,11 +46,6 @@ const COMBO_BANNERS=Object.freeze({
  unstoppable:{name:'UNSTOPPABLE',price:100},
  riftbreaker:{name:'RIFT BREAKER',price:250}
 });
-function rankForXp(value){
- let current=RANKS[0];
- for(const rank of RANKS)if(value>=rank.xp)current=rank;
- return current;
-}
 const CHARACTER_STYLES=Object.freeze({
  starter:{name:'Rift Runner',rarity:'Starter',price:0,core:'#bac4ff',aura:'#7b8bff',accent:'#7df5ff',glow:'#71eaff',halo:false},
  elite:{name:'Pulse Knight',rarity:'Elite',price:120,core:'#b7ffe4',aura:'#42d9a4',accent:'#e0fff4',glow:'#65ffd0',halo:false},
