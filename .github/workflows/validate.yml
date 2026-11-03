@@ -82,7 +82,7 @@ jobs:
           const idSet = new Set(ids);
           const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
           if (duplicates.length) throw new Error('Duplicate DOM IDs: ' + [...new Set(duplicates)].join(', '));
-          const referenced = [...new Set(source.split("$('").slice(1).map(part => part.split("')", 1)[0])];
+          const referenced = [...new Set(source.split("$('").slice(1).map(part => part.split("')", 1)[0]))];
           const missing = referenced.filter(id => !idSet.has(id));
           if (missing.length) throw new Error('JavaScript references missing DOM IDs: ' + missing.join(', '));
           if (!html.includes('data-duo-action="PULSE" data-player="1"') || !html.includes('data-duo-action="PULSE" data-player="2"')) throw new Error('Split-duel touch fallback controls are missing.');
