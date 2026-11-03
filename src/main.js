@@ -546,10 +546,15 @@ document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventL
  const summaries={max:'MAX sensitivity selected — detects smaller hand raises, but may also register incidental movement.',high:'HIGH sensitivity selected — looks for deliberate hand raises and filters small wrist jitter.'};
  document.querySelectorAll('[data-sensitivity-summary]').forEach(node=>node.textContent=summaries[motionSensitivity]);
 }));
-$('play-keyboard').addEventListener('click',()=>chooseGameMode('solo'));
+$('play-keyboard').addEventListener('click',()=>startSoloWithoutCamera());
+$('play-camera').addEventListener('click',()=>chooseGameMode('solo'));
+$('play-duo-touch').addEventListener('click',()=>startTouchDuel());
 $('play-duo-camera').addEventListener('click',()=>chooseGameMode('duo'));
-$('enable-camera').addEventListener('click',()=>{void startCamera('lobby');});
-$('gate-retry').addEventListener('click',()=>{void startCamera('lobby');});
+$('play-daily').addEventListener('click',()=>startSoloWithoutCamera(createDailyChallenge()));
+$('play-daily-camera').addEventListener('click',()=>chooseGameMode('solo',createDailyChallenge()));
+$('enable-camera').addEventListener('click',()=>{void startCamera(cameraTargetMode);});
+$('gate-retry').addEventListener('click',()=>{void startCamera(cameraTargetMode);});
+$('gate-skip').addEventListener('click',()=>continueWithoutCamera());
 $('calibrate-start').addEventListener('click',async()=>{
  if(!trackingOkay||!motionEngine.isReady){
   $('calibrate-start').disabled=true;
@@ -588,14 +593,45 @@ window.addEventListener('keydown',e=>{
  }
 });
 window.addEventListener('resize',()=>{canvas.width=0;canvas.height=0;});
+function startSoloWithoutCamera(dailyChallenge=null){
+ pendingDailyChallenge=null;
+ stopCamera(true);
+ cameraMode=false;calibrated=false;cameraTargetMode='lobby';
+ $('camera-gate').classList.add('hidden');$('setup').classList.add('hidden');
+ beginGame('solo',dailyChallenge);
+ $('mode-pill').innerHTML='<b></b>KEYBOARD / TOUCH MODE';
+ $('move-mode').textContent='KEYBOARD / TOUCH CONTROLS';
+}
+function startTouchDuel(){
+ pendingDailyChallenge=null;
+ stopCamera(true);
+ cameraMode=false;calibrated=false;cameraTargetMode='lobby';
+ $('camera-gate').classList.add('hidden');$('setup').classList.add('hidden');
+ beginGame('duo');
+ $('mode-pill').innerHTML='<b></b>2P TOUCH DUEL';
+ $('move-mode').textContent='SPLIT TOUCH CONTROLS';
+ $('camera-hint').classList.add('hidden');
+}
+function continueWithoutCamera(){
+ if(cameraStarting)return;
+ $('camera-gate').classList.add('hidden');
+ $('setup').classList.add('hidden');
+ cameraTargetMode='lobby';
+ $('gate-status').className='gate-status';
+ $('gate-status').textContent='CAMERA OFF · TOUCH / KEYBOARD READY';
+}
 function chooseGameMode(mode,dailyChallenge=null){
+ cameraTargetMode=mode;
  pendingDailyChallenge=mode==='solo'&&dailyChallenge?dailyChallenge:null;
  if(cameraStatus!=='ready'||!stream||!motionEngine.isReady){
-  $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Enable your camera to continue.';
-  $('gate-copy').textContent='Both Solo and Duo use your camera for motion controls. Allow camera access and wait for motion tracking to load.';
-  if(!cameraStarting)void startCamera('lobby');return;
+  $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Enable optional camera motion.';
+  $('gate-copy').textContent='Allow camera access to play with body movement. Your camera stays local. You can continue without camera and use touch or keyboard instead.';
+  $('gate-status').className='gate-status';
+  $('gate-status').textContent='CAMERA PERMISSION NEEDED FOR MOTION CONTROLS';
+  $('gate-skip').disabled=false;
+  if(!cameraStarting)void startCamera(mode);
+  return;
  }
- cameraTargetMode=mode;
  motionEngine.configure({players:mode==='duo'?2:1,requiredPlayers:mode==='duo'?2:1});
  trackingOkay=false;calibrated=false;lastTrackingAt=0;
  $('camera-gate').classList.add('hidden');$('setup').classList.remove('hidden');
@@ -608,13 +644,19 @@ function chooseGameMode(mode,dailyChallenge=null){
 }
 function lockToCameraGate(message){
  stopCamera(true);cameraStarting=false;cameraMode=false;calibrated=false;paused=false;g=freshGame('solo');showScreen('home');$('overlay').classList.add('hidden');
- $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Camera access is required.';$('gate-copy').textContent=message+' Kinetix cannot start a round without the camera.';
- $('gate-status').className='gate-status error';$('gate-status').textContent='CAMERA DISCONNECTED';$('gate-retry').disabled=false;
+ $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Camera motion is unavailable.';
+ $('gate-copy').textContent=message+' Retry camera setup for motion controls, or continue without camera and play with touch/keyboard.';
+ $('gate-status').className='gate-status error';$('gate-status').textContent='CAMERA DISCONNECTED · NON-CAMERA PLAY IS AVAILABLE';
+ $('gate-retry').disabled=false;$('gate-skip').disabled=false;
 }
 function returnToModeSelection(){
- if(cameraStatus!=='ready'||!stream||!motionEngine.isReady){lockToCameraGate('Reconnect your camera to return to the arena.');return;}
+ if(cameraStatus!=='ready'||!stream||!motionEngine.isReady){
+  combatDirector.reset();paused=false;calibrated=false;cameraMode=false;g=freshGame('solo');
+  showScreen('home');$('overlay').classList.add('hidden');$('camera-gate').classList.add('hidden');
+  $('setup').classList.add('hidden');cameraTargetMode='lobby';return;
+ }
  combatDirector.reset();paused=false;calibrated=false;g=freshGame('solo');showScreen('home');$('overlay').classList.add('hidden');cameraTargetMode='lobby';$('setup').classList.remove('hidden');
- $('setup-title').textContent='CAMERA CONNECTED';$('setup-copy').textContent='Choose Solo or Duo, then calibrate your movement before the fight.';$('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('camera-hint').classList.add('hidden');
+ $('setup-title').textContent='CAMERA CONNECTED';$('setup-copy').textContent='Choose a camera-motion mode, then calibrate your movement before the fight.';$('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('camera-hint').classList.add('hidden');
 }
 function showError(text){$('setup-error').textContent=text;$('setup-error').classList.toggle('hidden',!text);}
 async function startCamera(targetMode='lobby'){
@@ -622,8 +664,8 @@ async function startCamera(targetMode='lobby'){
  if(cameraStatus==='ready'&&stream&&motionEngine.isReady){cameraTargetMode=targetMode;return;}
  cameraStarting=true;cameraTargetMode=targetMode;combatDirector.connectCamera();
  $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Your camera is your controller.';
- $('gate-copy').textContent='Requesting camera permission. Camera frames are processed locally in a dedicated worker and are not recorded.';
- $('gate-status').className='gate-status';$('gate-status').innerHTML='<span class="gate-spin"></span> REQUESTING CAMERA PERMISSION…';$('gate-retry').disabled=true;
+ $('gate-copy').textContent='Requesting camera permission for the motion mode you selected. Camera frames are processed locally in a dedicated worker and are not recorded.';
+ $('gate-status').className='gate-status';$('gate-status').innerHTML='<span class="gate-spin"></span> REQUESTING CAMERA PERMISSION…';$('gate-retry').disabled=true;$('gate-skip').disabled=true;
  $('setup').classList.remove('hidden');$('setup-title').textContent='REQUESTING CAMERA';
  $('setup-copy').textContent='Your browser will ask for permission. Camera processing stays on this device.';
  $('calibrate-start').classList.add('hidden');$('duo-touch-start').classList.add('hidden');showError('');
@@ -641,8 +683,10 @@ async function startCamera(targetMode='lobby'){
   $('camera-label').textContent='LOADING MOTION WORKER';$('setup-title').textContent='INITIALIZING MOTION TRACKING';
   $('setup-copy').textContent='Loading the locally hosted pose model in a dedicated worker. Camera frames stay on this device.';
   await motionEngine.start(video,{players:2,requiredPlayers:1,sensitivity:motionSensitivity});
+  const selectedMode=cameraTargetMode;
+  motionEngine.configure({players:selectedMode==='duo'?2:1,requiredPlayers:selectedMode==='duo'?2:1});
   cameraStatus='ready';cameraStarting=false;cameraMode=true;calibrated=false;trackingOkay=false;lastTrackingAt=0;
-  $('camera-gate').classList.add('hidden');$('gate-retry').disabled=false;$('setup').classList.remove('hidden');
+  $('camera-gate').classList.add('hidden');$('gate-retry').disabled=false;$('gate-skip').disabled=false;$('setup').classList.remove('hidden');
   $('setup-title').textContent='CAMERA CONNECTED';
   $('setup-copy').textContent='Camera permission is active. Choose Solo or Duo, then calibrate your movement before the fight.';
   $('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('duo-touch-start').classList.add('hidden');
@@ -651,11 +695,11 @@ async function startCamera(targetMode='lobby'){
  }catch(err){
   await motionEngine.stop().catch(()=>{});
   stopCamera(false);cameraStarting=false;cameraStatus='error';cameraMode=false;
-  $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Camera access is required.';
-  $('gate-copy').textContent='Kinetix cannot start a round until the browser allows camera access. Check site permissions, then retry. Your camera is not recorded.';
+  $('camera-gate').classList.remove('hidden');$('gate-title').textContent='Camera setup did not finish.';
+  $('gate-copy').textContent='Motion controls could not start. Check browser camera permissions and retry, or continue with keyboard/touch. Camera footage is never uploaded by this prototype.';
   $('gate-status').className='gate-status error';
-  $('gate-status').textContent=err?.name==='NotAllowedError'?'CAMERA PERMISSION DENIED — ALLOW IT IN BROWSER SETTINGS':(err?.message||'CAMERA SETUP FAILED');
-  $('gate-retry').disabled=false;$('setup-title').textContent='CAMERA UNAVAILABLE';
+  $('gate-status').textContent=err?.name==='NotAllowedError'?'CAMERA PERMISSION DENIED — TOUCH / KEYBOARD STILL AVAILABLE':(err?.message||'CAMERA SETUP FAILED');
+  $('gate-retry').disabled=false;$('gate-skip').disabled=false;$('setup-title').textContent='CAMERA UNAVAILABLE';
   showError(err?.message||'Camera setup failed. Please retry.');
   $('setup-copy').textContent='Allow camera access in your browser, then select Retry.';
   $('enable-camera').disabled=false;$('enable-camera').textContent='RETRY CAMERA ACCESS';$('enable-camera').classList.remove('hidden');
@@ -669,6 +713,7 @@ function stopCamera(resetUI){
  $('enable-camera').innerHTML='<svg viewBox="0 0 24 24"><path d="M4 7.5h3l1.7-2h6.6l1.7 2h3A1.5 1.5 0 0 1 21.5 9v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9A1.5 1.5 0 0 1 4 7.5Z"/><circle cx="12" cy="13" r="3.5"/></svg> PLAY WITH CAMERA';
  $('mode-pill').innerHTML='<b></b>KEYBOARD MODE';$('mode-pill').classList.remove('live');$('move-mode').textContent='KEYBOARD / CLICK CONTROLS';
  if(resetUI)$('setup').classList.add('hidden');$('duo-touch-start').classList.add('hidden');
+ $('gate-skip').disabled=false;
  combatDirector.reset();
 }
 function handleMotionTracking(info){
