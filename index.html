@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#090a16">
+<meta name="theme-color" content="#080B10">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="KINETIX">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="description" content="KINETIX is a motion-controlled browser combat game with solo, local duel and daily seeded challenges. Your body. Your power. Your arena.">
+<meta name="description" content="KINETIX is a browser-based motion gaming experience. Play solo, challenge a friend locally, and enter the Daily Rift. Your movement. Your game.">
 <meta name="google-site-verification" content="LI6z3Avdq6RsVP2faZ6nlhcbRwvnMIdjJkrSBygvnZM">
-<title>KINETIX 3.0 — Your body. Your power.</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230a0b19'/%3E%3Cpath d='M17 13v38h9V35l15 16h12L34 30 52 13H40L26 28V13z' fill='%239d8fff'/%3E%3C/svg%3E">
+<title>KINETIX — Your Movement. Your Game.</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230a0b19'/%3E%3Cpath d='M17 13v38h9V35l15 16h12L34 30 52 13H40L26 28V13z' fill='%23C8FF3D'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -129,6 +129,477 @@
 .daily-rift-card{max-width:540px;margin:14px 0 4px;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid rgba(103,232,239,.22);border-radius:9px;background:linear-gradient(115deg,rgba(23,38,58,.86),rgba(14,18,36,.92))}.gate-skip{display:block;width:100%;margin-top:10px;padding:10px;color:#98a2c5;font:400 8px var(--mono);letter-spacing:.08em}.gate-skip:disabled{opacity:.45;cursor:wait}.mode-actions{max-width:450px}.mode-actions .btn{min-height:45px}.daily-rift-actions{display:flex;flex-direction:column;gap:5px;min-width:180px}.daily-rift-actions .btn{width:100%}.daily-rift-actions .text-btn{font:400 7px var(--mono);letter-spacing:.06em;color:#9eadd0;padding:8px}.creator-youtube{display:inline-flex;align-items:center;color:#aeb8d8;font:400 7px var(--mono);letter-spacing:.06em;text-decoration:none}.creator-youtube:hover{color:#ff9a9a;text-decoration:underline}.daily-rift-copy{min-width:0}.daily-rift-copy small{display:block;font:400 7px var(--mono);letter-spacing:.12em;color:var(--cyan)}.daily-rift-copy strong{display:block;margin-top:5px;font:500 10px var(--mono);letter-spacing:.04em;color:#f0f3ff}.daily-rift-copy p{font-size:10px;line-height:1.5;color:#858eae;margin:6px 0 0;max-width:320px}.daily-rift-copy .daily-rift-record{display:block;margin-top:9px;color:#aeb8d8;font-size:7px;line-height:1.5;letter-spacing:.05em}.daily-rift-card .btn{min-height:39px;flex:0 0 auto}
 @media(max-width:760px){.daily-rift-card{max-width:none;align-items:flex-start;flex-direction:column}.daily-rift-card .btn{width:100%}}
 </style>
+
+<style id="kinetix-world-class-design">
+:root{
+  color-scheme:dark;
+  --bg:#080B10;
+  --panel:#11161D;
+  --line:rgba(181,196,209,.14);
+  --muted:#91A0AD;
+  --white:#F5F7FA;
+  --violet:#C8FF3D;
+  --cyan:#C8FF3D;
+  --mint:#C8FF3D;
+  --amber:#FFC36B;
+  --mono:"DM Mono",ui-monospace,monospace;
+  --sans:"Space Grotesk",Inter,system-ui,sans-serif;
+}
+html{background:#080B10;scroll-behavior:smooth;scroll-padding-top:88px}
+body{
+  background:
+    radial-gradient(ellipse at 78% 8%,rgba(200,255,61,.055),transparent 32%),
+    radial-gradient(ellipse at 8% 40%,rgba(106,160,190,.045),transparent 38%),
+    #080B10;
+  color:#F5F7FA;
+}
+::selection{background:#C8FF3D;color:#080B10}
+button,input,select{accent-color:#C8FF3D}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
+  outline:2px solid #C8FF3D;outline-offset:3px
+}
+.topbar{
+  position:sticky;top:0;height:72px;padding:0 clamp(18px,4vw,64px);
+  border-bottom:1px solid rgba(190,204,216,.12);
+  background:rgba(8,11,16,.91);backdrop-filter:blur(22px);
+  box-shadow:0 10px 34px rgba(0,0,0,.14);z-index:30
+}
+.brand{gap:12px}
+.brand-mark{
+  width:38px;height:38px;border:1px solid rgba(200,255,61,.65);border-radius:11px;
+  background:linear-gradient(145deg,rgba(200,255,61,.16),rgba(200,255,61,.025));
+  box-shadow:0 0 28px rgba(200,255,61,.08);color:#C8FF3D
+}
+.brand-mark b{color:#C8FF3D;font-size:22px;font-weight:700}
+.brand-name{font-size:16px;letter-spacing:.19em;color:#F5F7FA}
+.brand-name i{color:#C8FF3D}
+.brand-name small{color:#71808C;letter-spacing:.15em;font-size:7px}
+.site-nav{display:flex;align-items:center;gap:clamp(12px,2.3vw,30px);margin-left:auto;margin-right:clamp(14px,2.4vw,34px)}
+.site-nav a{
+  color:#9BA8B4;text-decoration:none;font:500 8px var(--mono);letter-spacing:.1em;
+  transition:color .18s ease
+}
+.site-nav a:hover{color:#C8FF3D}
+.top-right{gap:8px}
+.prototype{color:#82909B;font-size:8px;letter-spacing:.1em}
+.live-dot{background:#C8FF3D;box-shadow:0 0 9px rgba(200,255,61,.55)}
+.icon-btn{
+  width:37px;height:37px;border:1px solid rgba(182,198,211,.17);
+  border-radius:10px;background:#111820;color:#AAB6C0
+}
+.icon-btn:hover{border-color:rgba(200,255,61,.5);color:#C8FF3D}
+.creator-launch{
+  min-height:36px;padding:0 12px;border:1px solid rgba(200,255,61,.32);
+  border-radius:8px;background:rgba(200,255,61,.075);color:#D9FCA0;
+  font:500 8px var(--mono);letter-spacing:.07em
+}
+.creator-launch:hover{background:rgba(200,255,61,.13);border-color:#C8FF3D}
+.wrap{max-width:1480px;padding-left:clamp(18px,4vw,64px);padding-right:clamp(18px,4vw,64px)}
+.home{
+  gap:clamp(26px,5vw,76px);padding-top:clamp(50px,7vw,100px);padding-bottom:40px;
+  align-items:center
+}
+.copy{position:relative;z-index:1}
+.eyebrow{color:#A4B0BA;font-size:8px;letter-spacing:.17em}
+.eyebrow:before{width:29px;background:#C8FF3D;box-shadow:0 0 12px rgba(200,255,61,.35)}
+.copy h1{
+  max-width:700px;margin:27px 0 22px;
+  font-size:clamp(62px,7.3vw,112px);line-height:.91;
+  letter-spacing:-.085em;font-weight:700;text-transform:uppercase
+}
+.gradient{
+  background:none;color:#C8FF3D;-webkit-text-fill-color:#C8FF3D;
+  text-shadow:0 0 48px rgba(200,255,61,.10)
+}
+.copy h1 em{color:#F5F7FA;font-style:normal}
+.lede{max-width:480px;color:#DAE1E6;font-size:clamp(16px,1.45vw,19px);line-height:1.55}
+.bodycopy{max-width:440px;color:#8E9DA9;font-size:12px;line-height:1.85;margin:13px 0 25px}
+.mode-actions{max-width:410px;gap:9px}
+.btn{
+  min-height:49px;padding:0 17px;border-radius:9px;
+  font:500 8px var(--mono);letter-spacing:.075em;
+  transition:transform .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease
+}
+.btn:hover:not(:disabled){transform:translateY(-2px)}
+.primary{
+  color:#0A0D08!important;background:#C8FF3D!important;
+  border:1px solid #D8FF8A!important;
+  box-shadow:0 8px 26px rgba(200,255,61,.10)!important
+}
+.primary:hover:not(:disabled){background:#D5FF69!important;box-shadow:0 12px 32px rgba(200,255,61,.16)!important}
+.secondary{
+  color:#D6DEE4!important;background:#111820!important;
+  border:1px solid rgba(180,196,207,.18)!important
+}
+.secondary:hover:not(:disabled){color:#F5F7FA!important;border-color:rgba(200,255,61,.5)!important;background:#17212A!important}
+.text-btn{color:#A2AFBA}
+.text-btn:hover{color:#C8FF3D}
+.trust{color:#71808C;font-size:7px;letter-spacing:.105em;gap:11px}
+.trust b{color:#C8FF3D}
+.trust i{background:#52606B}
+.stage{min-width:0}
+.stage-top,.stage-bottom{color:#82909B;font-size:7px;letter-spacing:.13em}
+.stage-top b{color:#C8FF3D}
+.stage-art{
+  height:clamp(360px,39vw,510px);margin:14px 0;border-radius:15px;
+  border:1px solid rgba(181,198,210,.17);
+  background:
+    radial-gradient(ellipse at 54% 45%,rgba(200,255,61,.105),transparent 34%),
+    radial-gradient(ellipse at 50% 50%,rgba(77,105,88,.13),transparent 65%),
+    linear-gradient(145deg,#101820,#090E13 72%);
+  box-shadow:inset 0 0 90px rgba(0,0,0,.35),0 24px 70px rgba(0,0,0,.18)
+}
+.stage-art:before{
+  background:
+    linear-gradient(rgba(174,195,205,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(174,195,205,.045) 1px,transparent 1px);
+  background-size:42px 42px;
+  mask-image:linear-gradient(180deg,transparent 0%,#000 20%,#000 76%,transparent 100%)
+}
+.floor{
+  background:
+    repeating-linear-gradient(0deg,transparent,transparent 31px,rgba(200,255,61,.13) 32px),
+    repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(200,255,61,.10) 41px);
+  opacity:.55
+}
+.ring.o{border-color:rgba(200,255,61,.18);box-shadow:0 0 55px rgba(200,255,61,.045)}
+.ring.m{border-color:rgba(197,213,220,.28)}
+.ring.i{border-color:rgba(200,255,61,.54);box-shadow:0 0 30px rgba(200,255,61,.10)}
+.core{
+  border-color:rgba(220,255,155,.85);
+  background:radial-gradient(ellipse at center,rgba(200,255,61,.5),rgba(140,178,50,.16) 38%,transparent 72%);
+  box-shadow:0 0 34px rgba(200,255,61,.16),inset 0 0 26px rgba(200,255,61,.18)
+}
+.core:after{background:linear-gradient(90deg,transparent,#E8FFB8,transparent);box-shadow:0 0 13px #C8FF3D}
+.spark{background:#E7FFC0;box-shadow:0 0 11px 3px rgba(200,255,61,.55)}
+.monster{filter:drop-shadow(0 0 24px rgba(200,255,61,.12))}
+.horn{background:linear-gradient(150deg,#D7E6C0,#4D5B42 70%)}
+.face{background:linear-gradient(135deg,#DCE9C9,#52634A 80%)}
+.face:before,.face:after{background:#C8FF3D;box-shadow:0 0 9px 3px rgba(200,255,61,.75)}
+.body-monster{background:linear-gradient(120deg,#B4C69A,#56634A 46%,#151D17)}
+.body-monster:before{background:linear-gradient(180deg,#DCE9C9,#81956C 25%,#273326 72%)}
+.arm-monster{background:linear-gradient(90deg,#8D9D79,#273326)}
+.stage-label small,.stage-label span{color:#9BA8A1}
+.stage-label strong{color:#EFF6E5;font-size:11px}
+.coords{color:#78877C}
+.coords b{color:#C8FF3D}
+.stage-bottom span:first-child{color:#BAC6B9}
+.stage-bottom b{color:#C8FF3D}
+.daily-rift-card{
+  max-width:540px;padding:16px 17px;border:1px solid rgba(200,255,61,.21);
+  border-radius:11px;background:linear-gradient(120deg,rgba(200,255,61,.065),rgba(17,24,29,.94) 58%);
+  box-shadow:inset 3px 0 0 rgba(200,255,61,.42)
+}
+.daily-rift-copy small{color:#C8FF3D;font-size:7px;letter-spacing:.15em}
+.daily-rift-copy strong{color:#F0F5E8;font-size:10px}
+.daily-rift-copy p{color:#8D9BA0}
+.daily-rift-copy .daily-rift-record{color:#B7C4B5}
+.daily-rift-card .btn{min-height:42px}
+.difficulty-picker{
+  border:1px solid rgba(181,198,210,.14);border-radius:11px;
+  background:linear-gradient(145deg,rgba(19,27,32,.9),rgba(11,16,21,.94))
+}
+.difficulty-picker-head strong{color:#E7ECEF}
+.difficulty-picker-head small{color:#82909B}
+.difficulty-option{
+  border:1px solid rgba(181,198,210,.14);border-radius:8px;
+  background:rgba(255,255,255,.018);color:#AEBBC3
+}
+.difficulty-option:hover{border-color:rgba(200,255,61,.4)}
+.difficulty-option.active{
+  border-color:rgba(200,255,61,.8);
+  background:linear-gradient(145deg,rgba(200,255,61,.12),rgba(200,255,61,.025));
+  box-shadow:inset 0 0 22px rgba(200,255,61,.035)
+}
+.difficulty-option b{color:#C8FF3D}
+.difficulty-option span{color:#E5EBEF}
+.difficulty-option small{color:#82919A}
+.difficulty-picker p{color:#A7BC90}
+.setup{
+  border:1px solid rgba(200,255,61,.25);border-radius:11px;
+  background:linear-gradient(120deg,rgba(200,255,61,.07),rgba(14,20,23,.97))
+}
+.setup h3{color:#EAF4D8}
+.setup p{color:#A7B3B7}
+.setup-actions .primary{color:#080B10}
+.camera{
+  border:1px solid rgba(200,255,61,.4);border-radius:12px;
+  box-shadow:0 16px 48px rgba(0,0,0,.48)
+}
+.camera-bar{background:linear-gradient(90deg,rgba(7,12,14,.95),rgba(7,12,14,.58));color:#E4EDE2}
+.camera-bar button{color:#E4EDE2}
+.camera-dot.live{background:#C8FF3D;box-shadow:0 0 8px #C8FF3D}
+.how-to-play,.progression-store{
+  border:1px solid rgba(181,198,210,.14);border-radius:15px;
+  background:
+    radial-gradient(ellipse at 0 0,rgba(200,255,61,.045),transparent 45%),
+    linear-gradient(145deg,rgba(17,24,29,.92),rgba(9,14,18,.96))
+}
+.how-to-heading h2,.store-heading h2{color:#F5F7FA;letter-spacing:-.06em}
+.how-to-heading h2 span,.store-heading h2 span{color:#C8FF3D}
+.how-to-heading>p{color:#9BA9B1}
+.how-to-card{
+  border:1px solid rgba(181,198,210,.13);border-radius:10px;
+  background:rgba(5,10,13,.44)
+}
+.how-icon{
+  border-color:rgba(200,255,61,.34);border-radius:8px;
+  color:#C8FF3D;background:rgba(200,255,61,.045)
+}
+.how-to-kicker{color:#C8FF3D}
+.how-to-card h3{color:#E9EEF0}
+.how-to-card p{color:#A1ADB4}
+.how-to-card small{color:#83938D}
+.sensitivity-panel{
+  border:1px solid rgba(200,255,61,.17);border-radius:10px;
+  background:rgba(200,255,61,.035)
+}
+.sensitivity-panel strong{color:#DFF7B3}
+.sensitivity-panel p{color:#9CAAAE}
+.sensitivity-panel .sensitivity-summary{color:#C8FF3D}
+.sensitivity-options button{
+  border-color:rgba(181,198,210,.2);border-radius:7px;background:#111820;color:#AAB7BE
+}
+.sensitivity-options button.active{
+  border-color:rgba(200,255,61,.8);background:rgba(200,255,61,.12);color:#E9F8D4
+}
+.gesture-guide{
+  border-color:rgba(200,255,61,.19);border-radius:10px;
+  background:linear-gradient(145deg,rgba(200,255,61,.045),rgba(11,16,20,.54))
+}
+.gesture-guide-head strong,.gesture-guide-grid b{color:#D9F99D}
+.gesture-guide-head small{color:#86958C}
+.gesture-guide-grid>div{background:rgba(255,255,255,.025);border-radius:8px}
+.gesture-guide-grid span{color:#BAC5C8}
+.gesture-guide p{color:#87969D}
+.duo-panel{
+  border:1px solid rgba(181,198,210,.17);border-radius:12px;
+  background:linear-gradient(145deg,rgba(19,27,32,.96),rgba(9,14,18,.98))
+}
+.player-chip{background:rgba(200,255,61,.1);border-color:rgba(200,255,61,.35);color:#DDF99F}
+.p2-panel .player-chip{background:rgba(123,190,228,.1);border-color:rgba(123,190,228,.35);color:#B9E5FF}
+.duo-hp{color:#D9F99D}
+.p2-panel .duo-hp{color:#B9E5FF}
+.duo-action-grid button{
+  border-color:rgba(181,198,210,.16);border-radius:8px;background:#111920;color:#E2E9EC
+}
+.duo-action-grid button:active{border-color:rgba(200,255,61,.7);background:rgba(200,255,61,.08)}
+.duo-action-grid button small{color:#8D9CA5}
+.duo-resource{color:#96A5AC}
+.duo-resource i{background:#C8FF3D}
+.p2-panel .duo-resource i{background:#78BFE8}
+.duo-kit-line{color:#8D9BA2}
+.duo-help{color:#87969E}
+.arena{padding-top:34px;padding-bottom:72px}
+.arena-head{margin-bottom:20px}
+.kicker{color:#95A4AC;letter-spacing:.14em}
+.kicker b{color:#C8FF3D}
+.arena-head h2{color:#F5F7FA;font-size:clamp(21px,2.2vw,30px);letter-spacing:-.055em}
+.pill{border-color:rgba(181,198,210,.17);border-radius:7px;background:#111820;color:#AAB7BE}
+.pill.live{border-color:rgba(200,255,61,.27);color:#E4F7C4}
+.pill.live b{background:#C8FF3D;box-shadow:0 0 8px #C8FF3D}
+.outline{border-color:rgba(181,198,210,.19);border-radius:8px;background:#111820;color:#D9E1E5}
+.outline:hover{border-color:rgba(200,255,61,.55);color:#C8FF3D}
+.game-frame{
+  height:clamp(430px,54vw,680px);border:1px solid rgba(181,198,210,.17);
+  border-radius:14px;background:#090E13;
+  box-shadow:0 28px 90px rgba(0,0,0,.28),inset 0 0 60px rgba(0,0,0,.18)
+}
+.hud{top:20px;left:22px;right:22px;grid-template-columns:minmax(0,1fr) 124px minmax(0,1fr);gap:16px}
+.fighter .symbol{
+  border-color:rgba(200,255,61,.38);border-radius:10px;
+  color:#C8FF3D;background:rgba(200,255,61,.08)
+}
+.fighter.enemy .symbol{
+  border-color:rgba(123,190,228,.38);color:#B9E5FF;
+  background:rgba(123,190,228,.08)
+}
+.fighter-label{color:#9BAAB2;font-size:7px;letter-spacing:.1em}
+.fighter-label i{color:#C8FF3D}
+.enemy .fighter-label i{color:#9DD5F5}
+.fighter-data strong{color:#F5F7FA}
+.hp-track{height:5px;background:rgba(255,255,255,.11);border-radius:99px}
+.hp-player{background:#C8FF3D}
+.hp-enemy{background:#82BEE5}
+.clock{border-color:rgba(181,198,210,.18);border-radius:9px;background:rgba(7,12,15,.8)}
+.clock span,.clock small{color:#8B9AA2}
+.clock strong{color:#F5F7FA}
+.clock strong.urgent{color:#FFC36B}
+.feed{background:linear-gradient(90deg,transparent,rgba(7,12,15,.82),transparent)}
+.feed span{color:#95A3A9}
+.feed.good strong{color:#D8FF8A;text-shadow:0 0 22px rgba(200,255,61,.22)}
+.feed.danger strong{color:#FFBEA0}
+.bottom-hud{color:#99A7AE}
+.bottom-hud b{color:#F5F7FA}
+.energy-track{background:rgba(255,255,255,.13)}
+.energy-track i{background:#C8FF3D}
+.moves-head{color:#E3EAED}
+.moves-head small{color:#84939B}
+.move{
+  border:1px solid rgba(181,198,210,.16);border-radius:10px;
+  background:linear-gradient(145deg,#141D23,#0D1419);color:#F2F6F7;
+  min-height:108px
+}
+.move:hover:not(:disabled){border-color:rgba(200,255,61,.58);box-shadow:0 10px 25px rgba(0,0,0,.18)}
+.move:active:not(:disabled){transform:scale(.985)}
+.key{border-color:rgba(181,198,210,.18);color:#99A7AE;background:rgba(255,255,255,.025);font-size:7px}
+.move-icon{color:#C8FF3D}
+.move.pulse .move-icon,.move.guard .move-icon{color:#C8FF3D}
+.move.nova{
+  border-color:rgba(200,255,61,.23);
+  background:linear-gradient(145deg,rgba(200,255,61,.09),#10191A)
+}
+.move.nova.ready{border-color:rgba(200,255,61,.8);box-shadow:inset 0 0 25px rgba(200,255,61,.08),0 0 24px rgba(200,255,61,.08)}
+.move.nova.ready .move-icon{color:#E2FF9C}
+.move strong{font-size:10px}
+.move small{color:#95A3AA}
+.move.last-light{border-color:rgba(255,152,123,.25);background:linear-gradient(120deg,rgba(255,152,123,.07),#111820)}
+.move.last-light .move-icon{color:#FFAD8E}
+.move.last-light.ready{border-color:rgba(255,152,123,.85);background:linear-gradient(120deg,rgba(255,152,123,.17),#12191D)}
+.note{color:#87969D}
+.note b{color:#E4EAEC}
+.pickup-status{border-color:rgba(181,198,210,.15);border-radius:8px;background:#10171C;color:#A7B4B9}
+.pickup-status.active{color:#E2F9BC;border-color:rgba(200,255,61,.42);box-shadow:0 0 25px rgba(200,255,61,.045)}
+.dialog{
+  border:1px solid rgba(181,198,210,.2);border-radius:15px;
+  background:linear-gradient(145deg,rgba(19,27,32,.99),rgba(8,13,17,.99));
+  box-shadow:0 32px 110px rgba(0,0,0,.58)
+}
+.dialog .tag{color:#C8FF3D}
+.dialog h2{color:#F5F7FA}
+.dialog p{color:#A5B1B7}
+.result h2{background:none;color:#F5F7FA;-webkit-text-fill-color:initial}
+.stats div{border-color:rgba(181,198,210,.14);border-radius:8px;background:#111920}
+.stats span{color:#91A0A8}
+.stats b{color:#F5F7FA}
+.entry-gate{background:rgba(4,8,10,.94);backdrop-filter:blur(22px)}
+.gate-panel{
+  width:min(480px,100%);border:1px solid rgba(200,255,61,.22);border-radius:18px;
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(200,255,61,.11),transparent 54%),
+    linear-gradient(145deg,#151E21,#0B1115);
+  box-shadow:0 34px 110px rgba(0,0,0,.6);text-align:left
+}
+.gate-mark{
+  width:54px;height:54px;margin:0 0 22px;border:1px solid rgba(200,255,61,.62);
+  border-radius:15px;background:rgba(200,255,61,.10);color:#C8FF3D;
+  box-shadow:0 0 35px rgba(200,255,61,.10)
+}
+.gate-mark span{color:#F5F7FA}
+.gate-kicker{color:#9CA9A7;letter-spacing:.17em}
+.gate-panel h2{font-size:clamp(30px,5vw,42px);letter-spacing:-.06em;color:#F5F7FA}
+.gate-panel>p{color:#A7B3B7;line-height:1.7}
+.gate-status{
+  justify-content:flex-start;border-color:rgba(200,255,61,.18);border-radius:9px;
+  background:rgba(200,255,61,.045);color:#D5E9B2;text-align:left
+}
+.gate-status.ready{color:#D8FF8A;border-color:rgba(200,255,61,.35)}
+.gate-status.error{color:#FFBBA8;border-color:rgba(255,132,108,.3);background:rgba(255,132,108,.05)}
+.gate-panel .btn{border-radius:9px}
+.gate-note{color:#82918E!important}
+.footerbar{
+  padding:10px clamp(18px,4vw,64px) max(10px,env(safe-area-inset-bottom));
+  border-top:1px solid rgba(181,198,210,.10);background:rgba(8,11,16,.94);
+  color:#7C8A91;letter-spacing:.10em;backdrop-filter:blur(18px)
+}
+.footerbar .creator-credit{color:#AAB6B8}
+.footerbar svg{color:#C8FF3D}
+.reward-rates{border-color:rgba(181,198,210,.15);background:rgba(255,255,255,.018)}
+.reward-rates>strong{color:#AEBBBF}
+.reward-rates span{border-color:rgba(181,198,210,.16);color:#C3CDD0}
+.reward-rates b{color:#C8FF3D}
+.store-heading p,.store-footnote{color:#98A6AA}
+.wallet-card{border-color:rgba(200,255,61,.28);background:rgba(200,255,61,.055)}
+.wallet-card small,.wallet-card em{color:#A8B69A}
+.wallet-card strong{color:#DDFB9E}
+.profile-card,.rank-track,.combo-banner-shop{
+  border-color:rgba(181,198,210,.14);border-radius:10px;background:rgba(5,10,13,.43)
+}
+.profile-avatar{border-color:rgba(200,255,61,.38);background:rgba(200,255,61,.08);color:#DFFF9B}
+.profile-identity small,.profile-equipped small{color:#8E9D9D}
+.profile-equipped strong{color:#E2F4C3}
+.rename-form input{border-color:rgba(181,198,210,.2);background:#0C1318;color:#F5F7FA}
+.rename-form input:focus{outline-color:rgba(200,255,61,.6)}
+.store-status{border-left-color:#C8FF3D;background:rgba(200,255,61,.045);color:#D4E6BE}
+.character-card{border-color:rgba(181,198,210,.15);border-radius:11px;background:linear-gradient(160deg,#151E23,#0A1014)}
+.character-card.equipped{border-color:rgba(200,255,61,.62);box-shadow:inset 0 0 24px rgba(200,255,61,.04)}
+.character-art{background:radial-gradient(circle at center,rgba(200,255,61,.10),transparent 70%);color:#C8FF3D}
+.character-info h3{color:#F0F4F2}
+.character-info p{color:#A0ACAF}
+.character-info>small{color:#C4D0C7}
+.rarity-label{color:#C8FF3D}
+.rank-track-top small{color:#8D9B9E}
+.rank-track-top strong{color:#EAF1E7}
+.rank-track-top span{color:#A0B78B}
+.rank-track-top>b{color:#D0F28F}
+.rank-progress-track{background:rgba(181,198,210,.13)}
+.rank-progress-track i{background:#C8FF3D}
+.rank-tier{border-color:rgba(181,198,210,.13);background:rgba(255,255,255,.015)}
+.rank-tier>b{color:#D9E2E2}
+.rank-tier.current{border-color:rgba(200,255,61,.65);background:rgba(200,255,61,.055)}
+.rank-tier.current small{color:#D8F5A8}
+.banner-card{border-color:rgba(181,198,210,.15);border-radius:8px;background:rgba(255,255,255,.018)}
+.banner-card.equipped{border-color:rgba(200,255,61,.55);background:rgba(200,255,61,.045)}
+.banner-card>span,.banner-card>small{color:#98A7A8}
+.banner-card>b,.banner-card:nth-child(2)>b,.banner-card:nth-child(3)>b{color:#E5ECE6}
+.reward-earned{border-color:rgba(200,255,61,.26);background:rgba(200,255,61,.05)}
+.reward-earned>span{color:#B7C69B}
+.reward-earned>b{color:#D9F99C}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*:before,*:after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+@media(max-width:1000px){
+  .site-nav{gap:13px;margin-right:14px}
+  .site-nav a{font-size:7px}
+}
+@media(max-width:760px){
+  .topbar{height:66px;padding:0 16px}
+  .site-nav{display:none}
+  .home{padding-top:42px}
+  .copy h1{font-size:clamp(56px,10.6vw,82px)}
+  .stage-art{height:clamp(330px,65vw,420px)}
+  .arena{padding:21px 14px 76px}
+  .game-frame{height:clamp(450px,72vw,570px)}
+  .hud{top:13px;left:11px;right:11px;grid-template-columns:minmax(0,1fr) 78px minmax(0,1fr);gap:5px}
+  .fighter .symbol{display:none}
+  .footerbar{padding-left:14px;padding-right:14px}
+}
+@media(max-width:520px){
+  .topbar{padding:0 13px}
+  .brand-mark{width:34px;height:34px}
+  .brand-name{font-size:14px}
+  .brand-name small{font-size:6px}
+  .copy h1{font-size:clamp(47px,12vw,66px);margin:22px 0 17px}
+  .lede{font-size:15px}
+  .bodycopy{font-size:11px}
+  .stage-art{height:322px}
+  .how-to-play,.progression-store{padding:15px}
+  .arena-head h2{font-size:17px}
+  .game-frame{height:500px}
+  .hud{grid-template-columns:minmax(0,1fr) 62px minmax(0,1fr);left:8px;right:8px;gap:3px}
+  .fighter-label{font-size:5px}
+  .fighter-data strong{font-size:8px}
+  .clock strong{font-size:17px}
+  .clock span,.clock small{font-size:5px}
+  .feed{width:94%;min-width:0;padding:10px 0}
+  .feed strong{font-size:8px;letter-spacing:.06em}
+  .bottom-hud{left:12px;right:12px;bottom:11px;font-size:5.5px;gap:6px}
+  .bottom-hud b{font-size:8px;margin-left:3px}
+  .energy-track{width:35px;margin-left:3px}
+  .move-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .move{min-height:92px}
+  .move.nova{grid-column:span 2;min-height:78px}
+  .move.last-light{grid-column:1/-1}
+  .footerbar span:nth-child(2){display:none}
+  .footerbar{font-size:6px}
+  .daily-rift-card{padding:13px}
+}
+@media(max-width:380px){
+  .prototype{display:none}
+  .footerbar .creator-youtube{display:none}
+}
+</style>
 </head>
 <body>
 <div class="entry-gate" id="camera-gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
@@ -144,20 +615,21 @@
   </div>
 </div>
 <header class="topbar">
-  <button class="brand" id="brand-home" aria-label="Kinetix home"><span class="brand-mark"><b>K</b></span><span class="brand-name">KINETIX<i>.</i><small>MOTION COMBAT PROTOCOL</small></span></button>
-  <div class="top-right"><a class="creator-launch" href="/creator.html" title="Build a motion-game blueprint">✦ CREATE GAME</a><span class="prototype"><i class="live-dot"></i>KINETIX 3.0 / DEV PREVIEW</span><button class="icon-btn hidden" id="pwa-install" aria-label="Install KINETIX" title="Install KINETIX"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg></button><button class="icon-btn hidden" id="pwa-update" aria-label="Update KINETIX" title="Install available KINETIX update"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 1-2-5"/></svg></button><button class="icon-btn" id="sound-toggle" aria-label="Toggle sound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6"/></svg></button><button class="icon-btn" id="motion-toggle" aria-label="Toggle reduced motion" title="Toggle reduced motion"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4.5 14 2.5-7H21"/></svg></button></div>
+  <button class="brand" id="brand-home" aria-label="Kinetix home"><span class="brand-mark"><b>K</b></span><span class="brand-name">KINETIX<i>.</i><small>WEB-NATIVE MOTION GAMING</small></span></button>
+  <nav class="site-nav" aria-label="Main navigation"><a href="#home">PLAY</a><a href="#how-to-play">HOW IT WORKS</a><a href="#kinet-store">PROGRESSION</a><a href="/creator.html">CREATOR STUDIO ↗</a></nav>
+  <div class="top-right"><a class="creator-launch" href="/creator.html" title="Build a motion-game blueprint">✦ CREATOR STUDIO</a><span class="prototype"><i class="live-dot"></i>KINETIX 3.0 / IN DEVELOPMENT</span><button class="icon-btn hidden" id="pwa-install" aria-label="Install KINETIX" title="Install KINETIX"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg></button><button class="icon-btn hidden" id="pwa-update" aria-label="Update KINETIX" title="Install available KINETIX update"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 1-2-5"/></svg></button><button class="icon-btn" id="sound-toggle" aria-label="Toggle sound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6"/></svg></button><button class="icon-btn" id="motion-toggle" aria-label="Toggle reduced motion" title="Toggle reduced motion"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4.5 14 2.5-7H21"/></svg></button></div>
 </header>
 <main id="home" class="wrap home">
   <section class="copy">
-    <div class="eyebrow">A NEW KIND OF PLAYER INPUT</div>
-    <h1>Your body.<br><span class="gradient">Your power.</span><br>Your arena<em>.</em></h1>
-    <p class="lede">No download. No account. Play with touch, keyboard, or optional camera motion.</p>
-    <p class="bodycopy">Train smart. Survive the Rift. Read the warning, find the opening, and make every counter count.</p>
+    <div class="eyebrow">MOTION-NATIVE GAMING / BUILT FOR THE WEB</div>
+    <h1>Your<br><span class="gradient">movement.</span><br><em>Your game.</em></h1>
+    <p class="lede">A new way to play, where movement becomes part of the control system.</p>
+    <p class="bodycopy">Enter the Rift. Read the pattern. Time your moves. Play with touch, keyboard, or optional camera motion—no download or account required.</p>
     <div class="actions mode-actions">
-      <button class="btn primary" id="play-keyboard"><svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg> SOLO VS RIFT AI · TOUCH / KEYBOARD</button>
-      <button class="btn secondary" id="play-camera"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg> SOLO · CAMERA MOTION</button>
-      <button class="btn secondary" id="play-duo-touch"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c.4-4 2.4-6 5.5-6s5.2 2 5.5 6m1-4c3.6-.7 6 .8 7 3.5"/></svg> 2-PLAYER LOCAL DUEL · TOUCH</button>
-      <button class="btn secondary" id="play-duo-camera"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg> 2-PLAYER LOCAL DUEL · CAMERA</button>
+      <button class="btn primary" id="play-keyboard"><svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg> PLAY NOW · TOUCH / KEYBOARD</button>
+      <button class="btn secondary" id="play-camera"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg> ENABLE MOTION CONTROL</button>
+      <button class="btn secondary" id="play-duo-touch"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c.4-4 2.4-6 5.5-6s5.2 2 5.5 6m1-4c3.6-.7 6 .8 7 3.5"/></svg> LOCAL DUEL · 2 PLAYERS</button>
+      <button class="btn secondary" id="play-duo-camera"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg> DUEL · OPTIONAL CAMERA</button>
     </div>
     <section class="daily-rift-card" aria-label="Daily seeded Rift challenge">
       <div class="daily-rift-copy"><small>DAILY RIFT / UTC</small><strong id="daily-challenge-date">LOADING TODAY'S SEED…</strong><p>Same UTC date, same seeded encounter. Play with touch/keyboard or optional camera motion.</p><small class="daily-rift-record" id="daily-challenge-record">NO PERSONAL RECORD YET · YOUR FIRST RUN SETS IT</small></div>
@@ -176,9 +648,9 @@
     <section id="setup" class="setup hidden"><h3><span class="live-dot"></span><span id="setup-title">CONNECTING TO CAMERA</span></h3><p id="setup-copy">Your browser will ask for permission. The preview is processed locally and is never recorded.</p><p id="setup-error" class="error hidden"></p><div class="setup-actions"><button class="btn primary hidden" id="calibrate-start">CALIBRATE & START →</button><button class="text-btn hidden" id="enable-camera">RETRY CAMERA ACCESS</button><button class="btn secondary hidden" id="duo-touch-start">PLAY DUEL WITH TOUCH</button><button class="text-btn" id="stop-camera">STOP CAMERA</button></div></section>
   </section>
   <section class="stage" aria-label="Kinetix visual preview">
-    <div class="stage-top"><span>SIMULATION / LIVE CONCEPT</span><span>60 FPS TARGET <b>●</b></span></div>
+    <div class="stage-top"><span>KINETIX / RIFT ENVIRONMENT</span><span>MOTION SYSTEM <b>●</b></span></div>
     <div class="stage-art"><div class="ring o"></div><div class="ring m"></div><div class="ring i"></div><div class="core"></div><i class="spark s1"></i><i class="spark s2"></i><i class="spark s3"></i><i class="spark s4"></i><i class="spark s5"></i><i class="spark s6"></i><div class="monster"><i class="horn l"></i><i class="horn r"></i><div class="face"></div><div class="body-monster"></div><div class="arm-monster l"></div><div class="arm-monster r"></div></div><div class="stage-label label-a"><small>PLAYER INPUT</small><strong>MOTION</strong><span>01 / DETECT</span></div><div class="stage-label label-b"><small>RIFT SIGNATURE</small><strong>HOSTILE</strong><span>THREAT / 01</span></div><div class="coords">X 042.8<br>Y 018.2<br><b>SYNC READY</b></div><div class="floor"></div></div>
-    <div class="stage-bottom"><span><b>◇</b> ONE CAMERA. THREE MOVES.</span><span>BUILT BY KOGLESH R. MURUGAN</span></div>
+    <div class="stage-bottom"><span><b>◇</b> TOUCH / KEYBOARD / OPTIONAL MOTION</span><span>BUILT BY KOGLESH R. MURUGAN</span></div>
   </section>
   <section class="how-to-play" id="how-to-play" aria-labelledby="how-to-title">
     <div class="how-to-heading">
@@ -257,7 +729,7 @@
     <p class="store-footnote">No purchase with real money. Local profile only for this browser/device right now; username and Kinets are not connected to an online account yet. Duo matches do not pay Kinets.</p>
   </section>
   <section class="features"><div class="feature"><em>01</em><div><strong>READ THE RIFT</strong><p>Every attack tells a story before it lands.</p></div></div><div class="feature"><em>02</em><div><strong>MOVE WITH INTENT</strong><p>Guard, phase, and pulse at the right moment.</p></div></div><div class="feature"><em>03</em><div><strong>OWN THE FINISH</strong><p>Build energy. Release NOVA. Claim the round.</p></div></div></section>
-  <footer class="home-footer"><span>KINETIX 3.0 / DEVELOPMENT PREVIEW</span><span>ORIGINAL GAME CONCEPT / MOTION-CONTROLLED COMBAT</span></footer>
+  <footer class="home-footer"><span>KINETIX 3.0 / IN DEVELOPMENT</span><span>ORIGINAL GAME CONCEPT / MOTION-CONTROLLED COMBAT</span></footer>
 </main>
 <main id="arena" class="wrap arena hidden">
   <div class="arena-head"><div><div class="kicker">RIFT DUEL <b>/</b> ROUND 01</div><h2>THE FIRST BREACH</h2></div><div class="arena-head-actions"><span class="pill" id="mode-pill"><b></b>KEYBOARD MODE</span><button class="outline" id="pause">Ⅱ PAUSE <kbd>ESC</kbd></button></div></div>
