@@ -274,11 +274,12 @@ export class KinetixProgressionVault {
       const reward = KinetixProgressionVault.rewardFor(difficulty);
       if (typeof this.adapter.transact === 'function') return this._remoteTransaction({ operation: 'award-victory', difficulty: String(difficulty).toLowerCase() });
       const next = clone(this.profile);
-      const rankBefore = KinetixProgressionVault.rankForXp(next.rankXp);
+      const clearedCount = next.campaign?.clearedMissions?.length || 0;
+      const rankBefore = rankForCampaign(next.rankXp, clearedCount);
       next.kinets += reward.kinets;
       next.rankXp += reward.xp;
       next.soloWins += 1;
-      const rankAfter = KinetixProgressionVault.rankForXp(next.rankXp);
+      const rankAfter = rankForCampaign(next.rankXp, clearedCount);
       const result = await this._commitProfile(next);
       return freeze({
         ...result,
