@@ -236,7 +236,7 @@ function refreshDailyChallengePanel(){
  label.textContent=record?'PERSONAL BEST · '+(record.best.cleared?'CLEAR':'BEST ATTEMPT')+' · '+record.best.combo+'× COMBO · '+record.attempts+' RUNS':'NO PERSONAL RECORD YET · YOUR FIRST RUN SETS IT';
 }
 refreshDailyChallengePanel();
-$('play-daily').addEventListener('click',()=>chooseGameMode('solo',createDailyChallenge()));
+$('play-daily').addEventListener('click',()=>{refreshDailyChallengePanel();chooseGameMode('solo',createDailyChallenge());});
 
 function freshFighter(){return {hp:100,mana:70,combo:0,best:0,lane:0,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,attackUntil:0,hurtUntil:0,medkits:1,collectCooldown:0,pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0};}
 function freshGame(mode='solo'){
@@ -459,7 +459,7 @@ function showResult(){
   const title=won?(difficulty==='hard'?'HARD CLEAR — RIFT COLLAPSED.':'RIFT COLLAPSED.'):g.status==='time-up'?'TIME FRACTURED.':'SIGNAL LOST';
   const description=won?(difficulty==='hard'?'You survived the 420 HP Rift Master. Every counter, guard and phase mattered.':'You read the pattern and closed the breach on '+difficultyRules().label+'.'):g.status==='time-up'?'The Rift is still standing. Review your timing and try a different approach.':'The Hollow won this round. Try '+(difficulty==='hard'?'Normal to practice your timing, then return to Hard':difficulty==='normal'?'Easy to learn the moves, then return to Normal':'the round again')+' when ready.';
   const dailyTag=g.dailyChallenge?'DAILY RIFT / UTC '+g.dailyChallenge.date+' / SEED '+g.dailyChallenge.code:'RIFT DUEL / '+difficultyRules().label+' / SESSION REPORT';
-  const dailyCopy=g.dailyChallenge?' Daily seed: '+g.dailyChallenge.code+'. Personal best: '+(g.dailyRecord?.best.cleared?'CLEAR':'ATTEMPT')+', '+(g.dailyRecord?.best.combo||0)+'× combo across '+(g.dailyRecord?.attempts||1)+' local runs. This is a device-only record, not an online leaderboard or verified score.':'';
+  const dailyCopy=g.dailyChallenge?' Daily seed: '+g.dailyChallenge.code+'. Personal best: '+(g.dailyRecord?.best.cleared?'CLEAR':'ATTEMPT')+', '+(g.dailyRecord?.best.combo||0)+'× combo across '+(g.dailyRecord?.attempts||1)+' local runs. This is a device-only record, not an online leaderboard or verified score.'+(g.dailyRecordPersisted===false?' Browser storage was unavailable, so this record lasts only for this page session.':''):'';
   showOverlay(title,description+dailyCopy,dailyTag,[{label:g.dailyChallenge?'REPLAY DAILY RIFT →':'RUN IT BACK →',style:'primary',action:'restart'},{label:'OPEN KINET STORE ◈',style:'secondary',action:'store'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
 }
 function pauseGame(){if(g.status!=='playing')return;paused=true;combatDirector.clearCommands('paused');showOverlay('Catch your breath.','The rift is frozen. Your progress is still here.','SESSION PAUSED',[{label:'RESUME ROUND →',style:'primary',action:'resume'},{label:'RESTART ROUND',style:'secondary',action:'restart'}],false);}
