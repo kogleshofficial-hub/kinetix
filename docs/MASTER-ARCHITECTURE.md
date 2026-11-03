@@ -1,6 +1,6 @@
 # KINETIX — Production Architecture & Evolution Plan
 
-**Status:** Architecture proposal for the existing browser prototype  
+**Status:** Living production architecture and implementation record (updated 2026-11-03)  
 **Owner:** Koglesh R. Murugan  
 **Principle:** Ship measurable player value before infrastructure scale.
 
@@ -13,6 +13,15 @@ The repository currently uses a static Vite application with two HTML entry poin
 The current motion system detects a calibrated wrist raise as PULSE, wrists held close to the chest as GUARD, and torso lean as PHASE. It uses 33-point pose landmarks. It does not yet run a hand-landmark model, face analysis, an authoritative network service, cloud progression, online matchmaking, WebGPU rendering, or server-side transactions.
 
 Preserve this foundation. Do not migrate to a large framework or add multiple ML runtimes until measurements show a clear need.
+
+### Delivered client foundation in the current development branch
+
+- Camera permission is requested only after an explicit player action; page load does not open the camera.
+- A root-scoped service worker caches the app shell, Creator Studio, versioned same-origin bundles, and fetched local MediaPipe WASM/model assets.
+- A web app manifest includes standard 192 px and 512 px app icons plus a scalable SVG icon.
+- Installation is offered only when the browser emits its install-prompt event. An available service-worker update waits for an explicit update action.
+- Service-worker caching is limited to same-origin GET requests. Camera frames, pose landmarks, cross-origin fonts and arbitrary network requests are not stored by the service worker.
+- These changes establish install/offline plumbing; they do not make first-time use offline, guarantee persistent browser storage, or provide native mobile camera capabilities.
 
 ## 2. Target logical architecture
 
@@ -170,7 +179,7 @@ A proposed 70% creator share must be calculated from a clearly defined net-recei
 
 - Desktop browsers: primary development target.
 - Mobile browsers: responsive UI, conservative inference rate and thermal-aware quality.
-- PWA: installability and caching, without promising unsupported background camera behaviour.
+- PWA: installable shell and same-origin offline caching are implemented in the development branch; first-visit network requirements, browser storage eviction and camera permission limits still apply.
 - Capacitor: evaluate only after the mobile browser experience is stable.
 - Electron: only if desktop packaging delivers a clear benefit.
 - Quest / Vision Pro: treat as a separate compatibility and interaction validation effort. RGB camera availability and app sandbox rules vary; do not promise unrestricted access to headset cameras.
@@ -231,7 +240,8 @@ Include a launch URL and a privacy-respecting share card. Never auto-post.
 **Exit gate:** Load tests, abuse tests, fairness evaluation and real-world regional latency reports pass.
 
 ### Phase 6 — Platform and creator expansion
-- PWA, then mobile packaging if warranted.
+- **PWA shell and offline asset caching:** initial implementation delivered; validate install prompts and offline camera/model startup on a device matrix before calling this complete.
+- Mobile packaging if warranted.
 - Constrained creator asset pipeline.
 - Moderation and rights-management workflow.
 - Creator analytics and compliant payouts only after legal readiness.
