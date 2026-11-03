@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#879c9d"/><stop offset=".55" stop-color="#a8b9af"/><stop offset="1" stop-color="#526e70"/></linearGradient>
+ <linearGradient id="water" x2="0" y2="1"><stop stop-color="#829c96"/><stop offset=".25" stop-color="#426462"/><stop offset="1" stop-color="#152d30"/></linearGradient>
+ <linearGradient id="concrete" x2="0" y2="1"><stop stop-color="#667877"/><stop offset="1" stop-color="#202e32"/></linearGradient>
+ <filter id="blur"><feGaussianBlur stdDeviation="18"/></filter>
+ <linearGradient id="fog" x2="0" y2="1"><stop stop-color="#d5dfd6" stop-opacity="0"/><stop offset="1" stop-color="#d5dfd6" stop-opacity=".48"/></linearGradient>
+</defs>
+<rect width="1600" height="900" fill="url(#sky)"/>
+<g fill="#d7e1d8" opacity=".28" filter="url(#blur)"><ellipse cx="970" cy="190" rx="380" ry="120"/><ellipse cx="420" cy="220" rx="300" ry="100"/></g>
+<!-- skyline -->
+<g fill="#344548" opacity=".9">
+ <path d="M0 500V205l65-35 70 35v295Z"/><path d="M110 500V275l62-45 80 45v225Z"/>
+ <path d="M275 500V100l110-42 100 42v400Z"/><path d="M470 500V245l65-30 60 30v255Z"/>
+ <path d="M630 500V155l85-48 100 48v345Z"/><path d="M810 500V235l65-33 72 33v265Z"/>
+ <path d="M1050 500V118l105-48 105 48v382Z"/><path d="M1280 500V255l85-42 80 42v245Z"/>
+ <path d="M1450 500V165l70-42 80 42v335Z"/>
+</g>
+<g fill="#91a39a" opacity=".38">
+ <path d="M28 245h85v9H28zm0 42h85v8H28zm0 43h85v8H28zM302 142h150v8H302zm0 48h150v8H302zm0 48h150v8H302zM655 198h150v8H655zm0 48h150v8H655zM1080 170h150v8h-150zm0 48h150v8h-150z"/>
+</g>
+<!-- collapsed tower and exposed beams -->
+<g fill="none" stroke="#293a3d" stroke-width="22" stroke-linecap="square">
+ <path d="M-20 390 210 390 360 315 490 350 640 295 830 330 980 260 1190 295 1430 250 1630 275"/>
+ <path d="M340 325 295 470M635 295 650 470M970 270 950 480M1230 280 1270 480"/>
+ <path d="M455 250 530 190 610 242M1035 220 1110 150 1185 210"/>
+</g>
+<!-- green reclaiming the buildings -->
+<g fill="#294c3c">
+ <path d="M0 460Q10 370 80 375Q130 280 205 365Q285 330 315 460Z"/>
+ <path d="M1280 430Q1320 330 1405 352Q1500 260 1565 365Q1640 350 1660 445Z"/>
+ <path d="M530 485Q555 425 610 430Q670 360 725 430Q780 420 805 485Z"/>
+</g>
+<g stroke="#4e664f" stroke-width="12" fill="none" opacity=".9">
+ <path d="M42 550q-20-160 60-245m-20 155q60-70 105-90m125 205q-20-105 40-170"/>
+ <path d="M1410 550q70-165 25-260m-15 140q-70-55-100-85m205 185q50-130 35-190"/>
+</g>
+<!-- flooded boulevard -->
+<path d="M0 535Q250 495 480 545T900 540T1300 530T1600 545V900H0Z" fill="url(#water)"/>
+<path d="M0 570Q290 548 520 570T1030 570T1600 565" fill="none" stroke="#c6d9ca" stroke-opacity=".35" stroke-width="4"/>
+<g stroke="#b1c8c1" stroke-width="3" opacity=".28" fill="none">
+ <path d="M85 650q160-22 310-4m-200 54q185-18 365 5m-165 70q180-16 360 3m-235 75q170-15 340 2"/>
+ <path d="M900 642q210-22 410 4m-315 75q240-22 465 2m-300 77q245-19 490 4"/>
+</g>
+<!-- broken road and foreground -->
+<path d="M0 650 180 602 335 634 430 600 560 648 640 900H0Z" fill="#253638"/>
+<path d="M1600 630 1440 594 1325 638 1210 612 1100 700 1010 900H1600Z" fill="#243638"/>
+<g fill="#3e594b"><ellipse cx="180" cy="585" rx="115" ry="40"/><ellipse cx="1390" cy="585" rx="140" ry="48"/><ellipse cx="765" cy="565" rx="105" ry="26"/></g>
+<g stroke="#8b9b7e" stroke-width="5" fill="none" opacity=".65"><path d="M30 900q-10-145 80-230m-15 230q30-155 100-210m130 210q45-145 115-185M1390 900q-15-180 65-245m30 245q55-130 135-190m-20 190q25-115 95-150"/></g>
+<rect y="430" width="1600" height="470" fill="url(#fog)"/>
+<rect width="1600" height="900" fill="#071519" opacity=".13"/>
+</svg>

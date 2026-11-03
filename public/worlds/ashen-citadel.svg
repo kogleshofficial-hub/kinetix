@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#9b9b94"/><stop offset=".45" stop-color="#b8aa92"/><stop offset="1" stop-color="#68584c"/></linearGradient>
+ <linearGradient id="stone" x2="0" y2="1"><stop stop-color="#77736a"/><stop offset="1" stop-color="#2d302e"/></linearGradient>
+ <linearGradient id="ground" x2="0" y2="1"><stop stop-color="#675645"/><stop offset="1" stop-color="#1d201f"/></linearGradient>
+ <filter id="blur"><feGaussianBlur stdDeviation="20"/></filter>
+ <linearGradient id="dust" x2="0" y2="1"><stop stop-color="#ded0b6" stop-opacity="0"/><stop offset="1" stop-color="#dfc7a5" stop-opacity=".4"/></linearGradient>
+</defs>
+<rect width="1600" height="900" fill="url(#sky)"/>
+<g fill="#d6c6ac" opacity=".25" filter="url(#blur)"><ellipse cx="420" cy="150" rx="420" ry="100"/><ellipse cx="1180" cy="210" rx="390" ry="100"/></g>
+<!-- distant mountain wall -->
+<path d="M0 410 155 300 310 342 460 245 580 335 740 260 905 340 1045 220 1215 335 1380 265 1600 350V635H0Z" fill="#544f48" opacity=".6"/>
+<!-- citadel silhouette -->
+<g fill="#353a38">
+ <path d="M150 590V315h95V225h72v90h84v275Z"/>
+ <path d="M260 310 281 180 303 310Z"/>
+ <path d="M340 590V275h86V190h70v85h92v315Z"/>
+ <path d="M430 275 460 135 490 275Z"/>
+ <path d="M895 590V285h96V205h72v80h92v305Z"/>
+ <path d="M1000 285 1027 130 1055 285Z"/>
+ <path d="M1190 590V335h85V250h70v85h95v255Z"/>
+ <path d="M1290 335 1310 190 1340 335Z"/>
+</g>
+<!-- stone courses and battlements -->
+<g fill="none" stroke="#8a8171" stroke-width="7" opacity=".4">
+ <path d="M146 375h260m-260 50h260m-260 50h260M880 350h285m-285 50h285m-285 50h285"/>
+ <path d="M155 325h36v-40h40v40h45v-40h40v40h45v-40h40v40M892 295h40v-40h40v40h48v-40h40v40h48v-40h40v40"/>
+</g>
+<!-- central keep and gate -->
+<path d="M470 600V330l85-55 95 55v270Z" fill="url(#stone)" stroke="#a69b87" stroke-opacity=".3" stroke-width="8"/>
+<path d="M510 600V445Q600 310 690 445V600Z" fill="#171d1d"/>
+<path d="M548 600V470Q600 390 652 470V600Z" fill="#080e10"/>
+<g stroke="#9d8b72" stroke-width="8" opacity=".45" fill="none">
+ <path d="M500 360h200M500 405h200M500 520h200"/>
+ <path d="M535 330v-55m130 55v-55"/>
+</g>
+<!-- foreground ruined approach -->
+<path d="M0 570Q270 535 520 580T1050 570T1600 575V900H0Z" fill="url(#ground)"/>
+<path d="M0 650 220 602 355 628 490 600 620 665 670 900H0Z" fill="#2f302b"/>
+<path d="M1600 640 1400 590 1280 632 1140 610 1050 675 980 900H1600Z" fill="#30312d"/>
+<!-- broken stone blocks -->
+<g fill="#777064" opacity=".84">
+ <path d="M0 600 120 576 188 615 135 662 22 650Z"/>
+ <path d="M180 652 270 620 350 655 302 696 208 686Z"/>
+ <path d="M1270 642 1380 605 1450 645 1395 696 1295 688Z"/>
+ <path d="M1455 584 1545 565 1600 596 1550 640 1470 628Z"/>
+</g>
+<!-- sparse dead trees -->
+<g fill="none" stroke="#393b35" stroke-width="15" stroke-linecap="round">
+ <path d="M100 600Q95 420 70 260m20 180L10 350m80 20 70-130m-50 35-10-95"/>
+ <path d="M1480 610Q1460 420 1515 220m-40 230-85-130m92 75 105-120m-70 80 15-130"/>
+ <path d="M1325 600Q1300 455 1340 330m-22 100-70-70m75 35 65-80"/>
+</g>
+<g fill="none" stroke="#9d8060" stroke-width="3" opacity=".24"><path d="M0 780q270-35 520 5m-360 60q260-28 490 2m420-75q260-35 520 0m-350 82q230-26 470 3"/></g>
+<rect y="425" width="1600" height="475" fill="url(#dust)"/>
+<circle cx="1050" cy="270" r="190" fill="#e3b780" opacity=".09" filter="url(#blur)"/>
+<rect width="1600" height="900" fill="#131512" opacity=".2"/>
+</svg>

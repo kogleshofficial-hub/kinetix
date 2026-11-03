@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#8fa9a7"/><stop offset=".48" stop-color="#b6c4af"/><stop offset="1" stop-color="#667e6c"/></linearGradient>
+ <linearGradient id="water" x2="0" y2="1"><stop stop-color="#6c8980"/><stop offset=".55" stop-color="#344f49"/><stop offset="1" stop-color="#172c29"/></linearGradient>
+ <linearGradient id="stone" x2="0" y2="1"><stop stop-color="#888d7b"/><stop offset="1" stop-color="#303f39"/></linearGradient>
+ <linearGradient id="sunbeam"><stop stop-color="#e4e7c9" stop-opacity=".0"/><stop offset=".5" stop-color="#e4e7c9" stop-opacity=".22"/><stop offset="1" stop-color="#e4e7c9" stop-opacity="0"/></linearGradient>
+ <linearGradient id="mist" x2="0" y2="1"><stop stop-color="#cbd5bd" stop-opacity="0"/><stop offset="1" stop-color="#d1d9c5" stop-opacity=".48"/></linearGradient>
+ <filter id="blur"><feGaussianBlur stdDeviation="20"/></filter>
+ <filter id="soft"><feGaussianBlur stdDeviation="5"/></filter>
+ <linearGradient id="vignette"><stop offset="0" stop-color="#08100e" stop-opacity="0"/><stop offset="1" stop-color="#08100e" stop-opacity=".72"/></linearGradient>
+</defs>
+<rect width="1600" height="900" fill="url(#sky)"/>
+<circle cx="1120" cy="185" r="155" fill="#f5edcb" opacity=".34" filter="url(#blur)"/>
+<path d="M0 370 130 250 240 315 365 196 490 310 640 205 765 332 930 204 1050 320 1200 185 1360 290 1510 200 1600 270V590H0Z" fill="#607970" opacity=".52"/>
+<path d="M0 430 175 310 278 382 420 270 550 394 700 288 820 395 990 273 1130 382 1290 265 1430 370 1600 280V640H0Z" fill="#344f46" opacity=".42"/>
+<path d="M0 440Q260 350 460 425T890 405T1300 390T1600 410V620H0Z" fill="#526d57"/>
+<!-- far ruins -->
+<g opacity=".68" fill="#344640">
+ <path d="M90 460V290l44-35 43 35v170h-25V335h-37v125Z"/>
+ <path d="M185 468V345h18V300h22v45h18v123Z"/>
+ <path d="M1250 430V258l34-26 35 26v172h-20V305h-31v125Z"/>
+ <path d="M1340 430V323h20v-50h25v50h18v107Z"/>
+ <path d="M1420 445V354h25v-44l22-16 22 16v135Z"/>
+</g>
+<!-- old broken viaduct -->
+<g fill="none" stroke="#39433c" stroke-width="27" stroke-linecap="round" opacity=".92">
+ <path d="M-45 330 240 330 390 288 545 310 715 285 840 316 1005 276 1190 302 1350 260 1650 278"/>
+ <path d="M270 330 295 480M470 303 445 490M750 295 780 500M1050 290 1020 495M1280 280 1315 485"/>
+</g>
+<g stroke="#8b947a" stroke-width="5" opacity=".7">
+ <path d="M-10 315 245 315M480 290 720 272M1010 260 1205 286M1350 243 1615 261"/>
+ <path d="M279 370 288 450M460 340 452 450M775 330 782 460M1040 321 1030 450M1300 320 1310 453"/>
+</g>
+<!-- overgrown tree trunks and canopy -->
+<g fill="#243d32">
+ <path d="M5 600Q36 412 18 130l40-12q-4 275 30 482l-36 28Z"/>
+ <path d="M85 610Q110 380 205 90l38 10Q170 380 130 620Z"/>
+ <path d="M1450 610Q1418 382 1502 80l38 8q-52 300-42 530Z"/>
+ <path d="M1530 600Q1510 350 1590 150l34 15q-63 300-60 450Z"/>
+</g>
+<g fill="#1e3d2d">
+ <path d="M-70 270Q-15 45 180 90Q265 -10 390 120Q480 115 485 245Q365 275 270 220Q120 340-70 270Z"/>
+ <path d="M-45 385Q35 170 190 220Q310 130 400 265Q490 265 500 395Q330 430 230 365Q95 470-45 385Z"/>
+ <path d="M1215 240Q1280 55 1425 75Q1540 -15 1665 145V360Q1515 402 1420 310Q1315 355 1215 240Z"/>
+ <path d="M1255 395Q1325 215 1460 245Q1555 170 1650 300V490Q1495 510 1415 425Q1320 470 1255 395Z"/>
+</g>
+<g fill="#52724d" opacity=".75">
+ <circle cx="110" cy="185" r="92"/><circle cx="260" cy="155" r="112"/><circle cx="390" cy="210" r="75"/>
+ <circle cx="1395" cy="180" r="105"/><circle cx="1520" cy="260" r="112"/><circle cx="1290" cy="295" r="82"/>
+</g>
+<!-- river -->
+<path d="M0 575Q290 530 520 580T980 570T1600 580V900H0Z" fill="url(#water)"/>
+<path d="M0 620Q280 588 520 624T960 625T1600 618" fill="none" stroke="#b9c9a8" stroke-opacity=".34" stroke-width="5"/>
+<g fill="none" stroke="#c6d2b6" stroke-width="3" opacity=".22">
+ <path d="M85 674q170-22 285 0m-190 48q210-20 355 3m-140 48q190-26 360 0m-180 53q190-18 345 4"/>
+ <path d="M950 680q210-28 380-2m-340 62q205-28 475 0m-310 73q205-25 445 0"/>
+</g>
+<!-- broken stone landing / grasses -->
+<path d="M0 570 180 552 310 590 430 574 530 630 580 900H0Z" fill="#293c30"/>
+<path d="M1600 550 1470 535 1370 586 1265 565 1170 630 1090 900H1600Z" fill="#293a2e"/>
+<g stroke="#8b9b6c" stroke-width="6" opacity=".7" fill="none">
+ <path d="M30 900q-20-150 60-275m-35 275q-15-130-85-190m170 190q15-185 80-260m-20 260q35-145 110-200"/>
+ <path d="M1400 900q35-160-15-255m100 255q65-125 40-240m10 240q10-140 95-200m-5 200q60-110 95-145"/>
+</g>
+<rect y="470" width="1600" height="430" fill="url(#mist)"/>
+<path d="M0 0H1600V900H0Z" fill="url(#vignette)"/>
+<path d="M900 0 1160 0 830 610 730 610Z" fill="url(#sunbeam)" opacity=".55"/>
+</svg>

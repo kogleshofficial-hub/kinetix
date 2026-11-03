@@ -1,0 +1,36 @@
+name: KINETIX Campaign Validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, feature/campaign-world-progression-v1]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kinetix-campaign-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install
+      - name: Check application and campaign module syntax
+        run: |
+          node --check src/main.js
+          node --check src/engine/campaign/KinetixCampaign.js
+          node --check src/engine/progression/KinetixProgressionVault.js
+      - name: Run unit and integration tests
+        run: npm test
+      - name: Build production bundle
+        run: npm run build

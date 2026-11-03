@@ -1,4 +1,5 @@
 import './kinetix-game-world.css';
+import { CAMPAIGN_RANKS, KINETIX_MISSIONS, KINETIX_WORLDS, calculateMissionStars, getMissionById, rankForCampaign } from './engine/campaign/KinetixCampaign.js';
 import { KinetixMotionEngine } from './engine/motion/KinetixMotionEngine.js';
 import { KinetixCombatDirector } from './engine/combat/KinetixCombatDirector.js';
 import { KinetixProgressionVault, LocalProfileAdapter } from './engine/progression/KinetixProgressionVault.js';
@@ -25,6 +26,7 @@ const DIFFICULTIES=Object.freeze({
  hard:{label:'HARD / RIFT MASTER',enemyHP:420,enemyDamage:48,firstWait:.3,telegraph:.24,opening:.36,recovery:.08,guardDuration:.72,dodgeDuration:.68}
 });
 let difficulty='normal';
+let activeMission=null, selectedMissionId=0, pendingCampaignMission=null;
 function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.easy;}
 const MOTION_SENSITIVITY=Object.freeze({high:{label:'HIGH'},max:{label:'MAX'}});
 let motionSensitivity='high';
@@ -34,25 +36,17 @@ const PROFILE_STORAGE_KEY='kinetix-profile-v2';
 const SOLO_REWARDS=Object.freeze({easy:15,normal:20,hard:30});
 const USERNAME_CHANGE_COST=100;
 const RANK_XP_BY_DIFFICULTY=Object.freeze({easy:10,normal:20,hard:35});
-const RANKS=Object.freeze([
- {id:'recruit',name:'Rift Recruit',xp:0},
- {id:'initiate',name:'Kinetic Initiate',xp:100},
- {id:'adept',name:'Pulse Adept',xp:250},
- {id:'hunter',name:'Rift Hunter',xp:500},
- {id:'vanguard',name:'Void Vanguard',xp:850},
- {id:'champion',name:'Rift Champion',xp:1300},
- {id:'sovereign',name:'Kinetix Sovereign',xp:1900}
-]);
+// Campaign rank catalogue: Rift Recruit, Kinetic Initiate, Pulse Adept, Rift Hunter, Void Vanguard, Rift Champion, Kinetix Sovereign.
+const RANKS=CAMPAIGN_RANKS;
+function rankForXp(value, activeProfile=null){
+ const cleared=activeProfile?.campaign?.clearedMissions?.length||0;
+ return rankForCampaign(value,cleared);
+}
 const COMBO_BANNERS=Object.freeze({
  classic:{name:'COMBO',price:0},
  unstoppable:{name:'UNSTOPPABLE',price:100},
  riftbreaker:{name:'RIFT BREAKER',price:250}
 });
-function rankForXp(value){
- let current=RANKS[0];
- for(const rank of RANKS)if(value>=rank.xp)current=rank;
- return current;
-}
 const CHARACTER_STYLES=Object.freeze({
  starter:{name:'Rift Runner',rarity:'Starter',price:0,core:'#bac4ff',aura:'#7b8bff',accent:'#7df5ff',glow:'#71eaff',halo:false},
  elite:{name:'Pulse Knight',rarity:'Elite',price:120,core:'#b7ffe4',aura:'#42d9a4',accent:'#e0fff4',glow:'#65ffd0',halo:false},
@@ -72,21 +66,31 @@ setupKinetixPWA({
 });
 let profile = await progressionVault.load();
 async function saveProfile(){ return progressionVault.save(profile); }
+const worldImages=Object.fromEntries(Object.entries(KINETIX_WORLDS).map(([id,world])=>{
+ const image=new Image();image.decoding='async';image.src=world.art;return [id,image];
+}));
 function refreshStore(message){
  const name=$('profile-username'),wallet=$('wallet-balance'),wins=$('profile-wins'),equipped=$('equipped-character'),input=$('profile-name-input'),status=$('store-status');
  const rankName=$('rank-name'),rankXpLabel=$('rank-xp-label'),rankFill=$('rank-progress-fill'),rankNext=$('rank-next-label');
- const currentRank=rankForXp(profile.rankXp),rankIndex=RANKS.findIndex(rank=>rank.id===currentRank.id),nextRank=RANKS[rankIndex+1]||null;
+ const clearedCount=profile.campaign?.clearedMissions?.length||0;
+ const currentRank=rankForXp(profile.rankXp,profile),rankIndex=RANKS.findIndex(rank=>rank.id===currentRank.id),nextRank=RANKS[rankIndex+1]||null;
  if(rankName)rankName.textContent=currentRank.name;
- if(rankXpLabel)rankXpLabel.textContent=nextRank?profile.rankXp+' / '+nextRank.xp+' RANK XP':profile.rankXp+' RANK XP · MAX RANK';
- if(rankFill)rankFill.style.width=(nextRank?Math.max(0,Math.min(100,(profile.rankXp-currentRank.xp)/(nextRank.xp-currentRank.xp)*100)):100)+'%';
- if(rankNext)rankNext.textContent=nextRank?(nextRank.xp-profile.rankXp)+' XP TO '+nextRank.name.toUpperCase():'MAX RANK ACHIEVED';
+ if(rankXpLabel)rankXpLabel.textContent=nextRank?profile.rankXp+' / '+nextRank.xp+' XP · '+clearedCount+' / '+nextRank.clears+' LEVELS':profile.rankXp+' XP · '+clearedCount+' / 12 LEVELS';
+ if(rankFill){
+  const xpProgress=nextRank?Math.max(0,Math.min(1,(profile.rankXp-currentRank.xp)/Math.max(1,nextRank.xp-currentRank.xp))):1;
+  const levelProgress=nextRank?Math.max(0,Math.min(1,(clearedCount-currentRank.clears)/Math.max(1,nextRank.clears-currentRank.clears))):1;
+  rankFill.style.width=(Math.min(xpProgress,levelProgress)*100)+'%';
+ }
+ if(rankNext)rankNext.textContent=nextRank?Math.max(0,nextRank.xp-profile.rankXp)+' XP + '+Math.max(0,nextRank.clears-clearedCount)+' MISSION CLEAR(S) TO '+nextRank.name.toUpperCase():'CAMPAIGN COMPLETE · MAX RANK';
  document.querySelectorAll('[data-rank-id]').forEach(card=>{
   const rank=RANKS.find(item=>item.id===card.dataset.rankId);if(!rank)return;
-  card.classList.toggle('unlocked',profile.rankXp>=rank.xp);
+  const unlocked=profile.rankXp>=rank.xp&&clearedCount>=rank.clears;
+  card.classList.toggle('unlocked',unlocked);
   card.classList.toggle('current',rank.id===currentRank.id);
   const state=card.querySelector('[data-rank-state]');
-  if(state)state.textContent=rank.id===currentRank.id?'CURRENT':profile.rankXp>=rank.xp?'UNLOCKED':'LOCKED';
+  if(state)state.textContent=rank.id===currentRank.id?'CURRENT':unlocked?'UNLOCKED':'LOCKED';
  });
+ renderCampaignMap();
  if(name)name.textContent=profile.username;
  if(wallet)wallet.textContent=String(profile.kinets);
  if(wins)wins.textContent=profile.soloWins+' solo '+(profile.soloWins===1?'victory':'victories');
@@ -134,11 +138,24 @@ async function handleCharacterAction(id){
 async function awardSoloWin(){
  if(g.mode!=='solo'||g.rewardGranted)return;
  g.rewardGranted=true;
- const result=await progressionVault.awardVictory(g.difficulty);
+ const stars=g.mission?calculateMissionStars({
+  healthRatio:g.pHP/Math.max(1,g.playerMaxHP||120),accuracy:accuracy(),bestCombo:g.best
+ }):0;
+ g.missionStars=stars;
+ const result=g.mission
+  ?await progressionVault.awardMissionClear(g.mission.id,stars)
+  :await progressionVault.awardPracticeVictory();
+ if(!result.ok)throw new Error('This campaign mission is not unlocked yet.');
  profile=result.profile;
  g.rewardEarned=result.reward.kinets;g.rankXpEarned=result.reward.xp;
- g.rankUp=result.rankedUp;g.rankName=result.rankAfter.name;
- refreshStore('Victory! +'+g.rewardEarned+' Kinets and +'+g.rankXpEarned+' Rank XP earned'+(g.rankUp?' · RANK UP: '+g.rankName:'')+'.');
+ g.missionFirstClear=Boolean(result.firstClear);
+ g.missionBestStars=result.stars||stars;
+ g.missionNextId=result.nextMissionId||null;
+ g.rankUp=Boolean(result.rankedUp);g.rankName=(result.rankAfter||rankForXp(profile.rankXp,profile)).name;
+ const message=g.mission
+  ?(g.missionFirstClear?'Mission cleared. ':'Replay complete. ')+(g.missionFirstClear?'+'+g.rewardEarned+' Kinets · +'+g.rankXpEarned+' Rank XP earned.':'Best stars updated; first-clear rewards are not repeated.')
+  :'Practice victory. +'+g.rewardEarned+' Kinets. Clear campaign missions to earn Rank XP.';
+ refreshStore(message+(g.rankUp?' · RANK UP: '+g.rankName:''));
 }
 let bestRecord = 0;
 try { bestRecord = Number(localStorage.getItem('kinetix-best-combo') || 0); } catch {}
@@ -250,10 +267,33 @@ refreshDailyChallengePanel();
 function freshFighter(){return {hp:100,mana:70,combo:0,best:0,lane:0,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,attackUntil:0,hurtUntil:0,medkits:1,collectCooldown:0,pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0};}
 function freshGame(mode='solo'){
  const p1=freshFighter(),p2=freshFighter();
- return {status:'ready',mode:mode,difficulty:difficulty,phase:mode==='duo'?'duel':'idle',time:mode==='duo'?60:75,clock:0,pHP:mode==='duo'?100:120,playerMaxHP:mode==='duo'?100:120,eHP:mode==='duo'?100:difficultyRules().enemyHP,enemyMaxHP:mode==='duo'?100:difficultyRules().enemyHP,energy:72,playerHurtUntil:0,playerAttackUntil:0,playerAttackSide:1,enemyHurtUntil:0,combo:0,best:0,lane:0,target:0,attackIndex:0,phaseTimer:mode==='duo'?1.35:difficultyRules().firstWait,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0,rewardGranted:false,rewardEarned:0,rankXpEarned:0,rankUp:false,rankName:'',perfectGuardArmedUntil:-9999,perfectPhaseArmedUntil:-9999,perfectReads:0,perfectFxUntil:0,hitStopUntil:0,adrenalineTriggered:false,adrenalineUsed:false,adrenalineUntil:0};
+ return {
+ status:'ready',mode:mode,difficulty:difficulty,phase:mode==='duo'?'duel':'idle',
+ time:mode==='duo'?60:(activeMission?.time||75),clock:0,
+ pHP:mode==='duo'?100:120,playerMaxHP:mode==='duo'?100:120,
+ eHP:mode==='duo'?100:(activeMission?.enemyHp||difficultyRules().enemyHP),
+ enemyMaxHP:mode==='duo'?100:(activeMission?.enemyHp||difficultyRules().enemyHP),
+ energy:72,playerHurtUntil:0,playerAttackUntil:0,playerAttackSide:1,enemyHurtUntil:0,
+ combo:0,best:0,lane:0,target:0,attackIndex:0,
+ phaseTimer:mode==='duo'?1.35:(activeMission?.firstWait||difficultyRules().firstWait),
+ guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,
+ event:'none',eventAt:0,msg:mode==='duo'?'LOCAL DUEL READY':'THE RIFT IS STIRRING',tone:'neutral',
+ pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0,p1:p1,p2:p2,winner:null,
+ medkits:1,pickup:null,nextSupplyAt:8,supplyCount:0,damageFlashAt:0,hitPlayer:0,
+ rewardGranted:false,rewardEarned:0,rankXpEarned:0,rankUp:false,rankName:'',
+ perfectGuardArmedUntil:-9999,perfectPhaseArmedUntil:-9999,perfectReads:0,perfectFxUntil:0,hitStopUntil:0,
+ adrenalineTriggered:false,adrenalineUsed:false,adrenalineUntil:0,
+ mission:mode==='solo'&&activeMission?{...activeMission}:null,missionStars:0,missionFirstClear:false,
+ missionBestStars:0,missionNextId:null
+ };
 }
 function beginGame(mode='solo',dailyChallenge=null){
- g=freshGame(mode);g.dailyChallenge=mode==='solo'&&dailyChallenge?dailyChallenge:null;g.status='playing';g.msg=g.dailyChallenge?'DAILY RIFT '+g.dailyChallenge.date+' — READ THE PATTERN':mode==='duo'?'DUEL ONLINE — MAKE YOUR MOVE':'READ THE RIFT. FIND YOUR MOMENT.';
+ g=freshGame(mode);g.dailyChallenge=mode==='solo'&&dailyChallenge?dailyChallenge:null;g.status='playing';
+ if(g.mission)activeMission=g.mission;
+ const arenaKicker=document.querySelector('.arena-head .kicker');
+ if(arenaKicker)arenaKicker.textContent=g.mission?'CAMPAIGN / CHAPTER '+String(g.mission.chapter).padStart(2,'0')+' / LEVEL '+String(g.mission.id).padStart(2,'0'):g.dailyChallenge?'DAILY RIFT / UTC '+g.dailyChallenge.date:'RIFT DUEL / FREE PLAY';
+ const arenaTitle=$('arena-title');if(arenaTitle)arenaTitle.textContent=g.mission?g.mission.title:g.dailyChallenge?'THE DAILY BREACH':'THE FIRST BREACH';
+ canvas.parentElement.dataset.world=g.mission?.world||'verdant';g.msg=g.dailyChallenge?'DAILY RIFT '+g.dailyChallenge.date+' — READ THE PATTERN':mode==='duo'?'DUEL ONLINE — MAKE YOUR MOVE':'READ THE RIFT. FIND YOUR MOMENT.';
  paused=false;lastEventStamp=-1;combatDirector.beginMatch(g.dailyChallenge?{seed:g.dailyChallenge.seed}:undefined);$('overlay').classList.add('hidden');eventFxAt=performance.now();previousFrame=performance.now();showScreen('arena');setCameraPanelInArena(cameraMode&&cameraStatus==='ready');
  $('moves-main').classList.toggle('hidden',mode==='duo');$('duo-controls').classList.toggle('hidden',mode!=='duo');
  $('mode-pill').innerHTML='<b></b>'+(mode==='duo'?(cameraMode?'2P MOTION ONLINE':'2P LOCAL DUEL'):(cameraMode?'MOTION ONLINE':'SOLO VS AI'));
@@ -378,17 +418,17 @@ function action(kind,player=1,source='ui',details=null){
 function enemyAttack(){
  if(g.guardUntil>g.clock){
   const perfect=g.perfectGuardArmedUntil>=g.clock;g.perfectGuardArmedUntil=-9999;
-  g.energy=Math.min(100,g.energy+(perfect?24:17));g.blocks++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=difficultyRules().opening;
+  g.energy=Math.min(100,g.energy+(perfect?24:17));g.blocks++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=g.mission?.opening||difficultyRules().opening;
   if(perfect){triggerPerfectDefense('guard');return;}
   announce('block','GUARD  +17 ENERGY','good');sfx('block');return;
  }
  if(g.lane!==g.target||g.dodgeUntil>g.clock){
   const perfect=g.perfectPhaseArmedUntil>=g.clock;g.perfectPhaseArmedUntil=-9999;
-  g.energy=Math.min(100,g.energy+(perfect?25:18));g.dodges++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=difficultyRules().opening;
+  g.energy=Math.min(100,g.energy+(perfect?25:18));g.dodges++;g.combo++;g.best=Math.max(g.best,g.combo);g.phase='vulnerable';g.phaseTimer=g.mission?.opening||difficultyRules().opening;
   if(perfect){triggerPerfectDefense('phase');return;}
   announce('dodge','PHASE SHIFT  +18 ENERGY','good');sfx('dodge');return;
  }
- const damage=difficultyRules().enemyDamage;g.pHP=Math.max(0,g.pHP-damage);g.playerHurtUntil=g.clock+.48;g.hits++;g.combo=0;g.phase='vulnerable';g.phaseTimer=difficultyRules().opening;announce('hit','RIFT IMPACT  −'+damage+' HP','danger');sfx('hit');showImpact(1,damage);
+ const damage=g.mission?.enemyDamage||difficultyRules().enemyDamage;g.pHP=Math.max(0,g.pHP-damage);g.playerHurtUntil=g.clock+.48;g.hits++;g.combo=0;g.phase='vulnerable';g.phaseTimer=g.mission?.opening||difficultyRules().opening;announce('hit','RIFT IMPACT  −'+damage+' HP','danger');sfx('hit');showImpact(1,damage);
  if(g.pHP>0)checkAdrenaline();
  if(g.pHP<=0)void finish('lost');
 }
@@ -425,7 +465,16 @@ function simulateStep(dt){
  if(g.mode==='duo'){stepDuo(dt);return;}if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;
  dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.phaseTimer-=dt;g.energy=Math.min(100,g.energy+1.4*dt);stepSupplyDrops();
  if(g.time<=0){void finish(g.eHP<=0?'won':'time-up');return;}if(g.eHP<=0){void finish('won');return;}
- if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=difficulty==='easy'?[0,0,1,0,-1,0]:[0,1,-1,0,-1,1];if(g.dailyChallenge||difficulty==='hard'){g.target=selectDailyLane(()=>combatDirector.random(),g.target);}else g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
+ if(g.phaseTimer<=0){if(g.phase==='idle'){const patterns={
+ scout:[0,0,1,0,-1,0],stalker:[-1,1,-1,0,1,0],watcher:[0,-1,0,1,0,-1],
+ warden:[0,1,-1,1,0,-1],tide:[1,0,-1,1,-1,0],echo:[-1,0,1,0,-1,1],
+ heavy:[0,1,1,-1,0,-1], 'drowned-boss':[1,-1,0,-1,1,0],fortress:[0,0,-1,1,0,1],
+ furnace:[1,0,1,-1,0,-1],champion:[-1,1,0,1,-1,0],sovereign:[0,1,-1,0,1,-1]
+ };
+ const basePattern=difficulty==='easy'?[0,0,1,0,-1,0]:[0,1,-1,0,-1,1];
+ const encounterPattern=g.mission?(patterns[g.mission.pattern]||basePattern):basePattern;
+ if(g.dailyChallenge||(!g.mission&&difficulty==='hard')){g.target=selectDailyLane(()=>combatDirector.random(),g.target);}
+ else{g.target=encounterPattern[g.attackIndex%encounterPattern.length];}g.attackIndex++;g.phase='telegraph';g.phaseTimer=g.mission?.telegraph||difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=g.mission?.recovery||difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
  if(g.pHP<=0)void finish('lost');
 }
 function paintHud(){
@@ -441,7 +490,7 @@ function paintHud(){
    $('p1-mini-hp').textContent=g.p1.hp+' HP';$('p2-mini-hp').textContent=g.p2.hp+' HP';$('p1-mana').textContent=Math.round(g.p1.mana);$('p2-mana').textContent=Math.round(g.p2.mana);$('p1-mana-bar').style.transform='scaleX('+Math.max(0,Math.min(1,g.p1.mana/100))+')';$('p2-mana-bar').style.transform='scaleX('+Math.max(0,Math.min(1,g.p2.mana/100))+')';$('p1-kit').textContent='MED KITS · '+g.p1.medkits;$('p2-kit').textContent='MED KITS · '+g.p2.medkits;
    const labels=document.querySelectorAll('.fighter-label');if(labels[1])labels[1].innerHTML='PLAYER TWO <i>● CHALLENGER</i>';const names=document.querySelectorAll('.fighter-data strong');if(names[1])names[1].textContent='RIFT RUNNER II';
    document.querySelectorAll('.duo-action-grid button').forEach(b=>{const p=b.dataset.player==='2'?g.p2:g.p1,k=b.dataset.duoAction;b.disabled=g.status!=='playing'||paused||(k==='NOVA'&&p.mana<60)||(k==='MEDKIT'&&(!p.medkits||p.hp>=100));});
- }else{const labels=document.querySelectorAll('.fighter-label');if(labels[1])labels[1].innerHTML='RIFT ENTITY <i>● HOSTILE</i>';const names=document.querySelectorAll('.fighter-data strong');if(names[0])names[0].textContent=profile.username;if(names[1])names[1].textContent='THE HOLLOW';}
+ }else{const labels=document.querySelectorAll('.fighter-label');if(labels[1])labels[1].innerHTML='RIFT ENTITY <i>● HOSTILE</i>';const names=document.querySelectorAll('.fighter-data strong');if(names[0])names[0].textContent=profile.username;if(names[1])names[1].textContent=g.mission?.enemyName||'THE HOLLOW';}
  const ps=$('pickup-status');if(g.pickup){ps.textContent=(g.pickup.type==='medkit'?'MED KIT SUPPLY DROP':'MANA ORB SUPPLY DROP')+' · CLAIM NOW · '+Math.ceil(g.pickup.expires-g.clock)+'s LEFT'+(g.mode==='solo'?' · MED KITS '+g.medkits:'');ps.classList.add('active');}else{ps.textContent='NEXT SUPPLY DROP · '+Math.max(0,Math.ceil(g.nextSupplyAt-g.clock))+'s'+(g.mode==='solo'?' · MED KITS '+g.medkits:'');ps.classList.remove('active');}
  $('best-combo').textContent=String(bestRecord).padStart(2,'0')+'×';
 }
@@ -463,18 +512,89 @@ function showOverlay(title,desc,tag,buttons,stats) {
  dialog.className='dialog'+(stats?' result':'');
  let html='<span class="tag">'+tag+'</span><h2>'+title+'</h2><p>'+desc+'</p>';
  if(stats)html+='<div class="stats"><div><span>BEST COMBO</span><b>'+String(g.best).padStart(2,'0')+'×</b></div><div><span>DAMAGE</span><b>'+String(g.damage).padStart(3,'0')+'</b></div><div><span>ACCURACY</span><b>'+accuracy()+'%</b></div><div><span>DODGES</span><b>'+String(g.dodges).padStart(2,'0')+'</b></div></div>';
- if(stats&&g.mode==='solo'&&g.rewardEarned>0)html+='<div class="reward-earned"><span>SOLO VICTORY REWARD</span><b>+'+g.rewardEarned+' KINETS</b><small>+'+g.rankXpEarned+' RANK XP · '+rankForXp(profile.rankXp).name+' · Wallet: '+profile.kinets+' Kinets</small></div>';
+ if(stats&&g.mode==='solo'&&g.rewardEarned>0)html+='<div class="reward-earned"><span>'+(g.mission?'MISSION REWARD':'PRACTICE REWARD')+'</span><b>+'+g.rewardEarned+' KINETS</b><small>'+(g.rankXpEarned?'+'+g.rankXpEarned+' RANK XP · ':'NO RANK XP · ')+rankForXp(profile.rankXp,profile).name+' · Wallet: '+profile.kinets+' Kinets</small></div>';
+ if(stats&&g.mission&&g.status==='won'){
+  const stars=g.missionBestStars||g.missionStars||1;
+  html+='<div class="mission-result"><span>MISSION PERFORMANCE / LEVEL '+String(g.mission.id).padStart(2,'0')+'</span><div class="mission-result-stars">'+[1,2,3].map(index=>'<b class="'+(index<=stars?'earned':'')+'">★</b>').join('')+'</div><strong>'+stars+' / 3 STARS</strong><small>'+(g.missionFirstClear?'FIRST CLEAR · NEXT LEVEL UNLOCKED':'REPLAY · FIRST-CLEAR REWARDS ALREADY CLAIMED')+'</small></div>';
+ }
  if(stats&&g.mode==='solo'&&g.rankUp)html+='<div class="rank-up-banner"><span>RANK PROMOTED</span><b>✧ '+g.rankName.toUpperCase()+' ✧</b><small>Keep winning solo rounds to reach the next tier.</small></div>';
  buttons.forEach(b=>html+='<button class="btn '+b.style+'" data-overlay="'+b.action+'">'+b.label+'</button>');
  if(!stats)html+='<button class="text-btn" data-overlay="home">EXIT TO MAIN MENU</button>';
  dialog.innerHTML=html;
- dialog.querySelectorAll('[data-overlay]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.overlay;if(action==='resume'){paused=false;$('overlay').classList.add('hidden');updateHud();}else if(action==='restart'){beginGame(g.mode,g.dailyChallenge||null);}else if(action==='home'){stopCamera(true);paused=false;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');}else if(action==='store'){stopCamera(true);paused=false;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');$('kinet-store').scrollIntoView({behavior:'smooth',block:'start'});}else if(action==='card')downloadCard();}));
+ dialog.querySelectorAll('[data-overlay]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.overlay;if(action==='resume'){paused=false;$('overlay').classList.add('hidden');updateHud();}else if(action==='restart'){beginGame(g.mode,g.dailyChallenge||null);}else if(action==='next-mission'){
+ const next=getMissionById(g.missionNextId);if(next){activeMission=next;selectedMissionId=next.id;setDifficulty(next.difficulty);beginGame('solo');}
+ }else if(action==='campaign'){
+ stopCamera(true);paused=false;activeMission=null;selectedMissionId=profile.campaign?.highestUnlocked||1;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');renderCampaignMap();$('campaign-panel').scrollIntoView({behavior:'smooth',block:'start'});
+ }else if(action==='home'){stopCamera(true);paused=false;activeMission=null;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');renderCampaignMap();}else if(action==='store'){stopCamera(true);paused=false;activeMission=null;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');$('kinet-store').scrollIntoView({behavior:'smooth',block:'start'});}else if(action==='card')downloadCard();}));
 }
 function accuracy(){return g.pulses?Math.round(g.clean/g.pulses*100):0;}
+function setDifficulty(next){
+ if(!DIFFICULTIES[next])return;
+ difficulty=next;
+ document.querySelectorAll('[data-difficulty]').forEach(option=>{
+  const selected=option.dataset.difficulty===next;option.classList.toggle('active',selected);option.setAttribute('aria-pressed',String(selected));
+ });
+}
+function renderCampaignMap(){
+ const root=$('campaign-missions');if(!root||!profile)return;
+ const cleared=new Set(profile.campaign?.clearedMissions||[]);
+ const highest=profile.campaign?.highestUnlocked||1;
+ const firstUncleared=KINETIX_MISSIONS.find(m=>!cleared.has(m.id))||KINETIX_MISSIONS[KINETIX_MISSIONS.length-1];
+ if(!getMissionById(selectedMissionId)||selectedMissionId>highest)selectedMissionId=firstUncleared.id;
+ const selected=getMissionById(selectedMissionId)||firstUncleared;
+ const stars=profile.campaign?.stars||{};
+ const completed=cleared.size;
+ root.innerHTML=[1,2,3].map(chapter=>{
+  const missions=KINETIX_MISSIONS.filter(m=>m.chapter===chapter);
+  const world=KINETIX_WORLDS[missions[0].world];
+  const clearedInChapter=missions.filter(m=>cleared.has(m.id)).length;
+  return '<section class="campaign-chapter"><div class="campaign-chapter-head"><div><small>REGION 0'+chapter+'</small><strong>'+missions[0].chapterName+'</strong><em>'+world.subtitle+'</em></div><span>'+clearedInChapter+' / 4 CLEARED</span></div><div class="mission-grid">'+missions.map(m=>{
+   const isCleared=cleared.has(m.id),locked=m.id>highest,selectedMission=m.id===selected.id,score=Number(stars[m.id]||0);
+   return '<button type="button" class="mission-card'+(isCleared?' cleared':'')+(locked?' locked':'')+(selectedMission?' selected':'')+'" data-mission-id="'+m.id+'" aria-pressed="'+selectedMission+'" '+(locked?'disabled':'')+'><span class="mission-thumb" style="background-image:linear-gradient(180deg,rgba(4,9,9,.08),rgba(4,9,9,.82)),url('+world.art+')"></span><span class="mission-card-top"><small>LEVEL '+String(m.id).padStart(2,'0')+'</small><b>'+(locked?'LOCKED':isCleared?'CLEARED':'AVAILABLE')+'</b></span><strong>'+m.title+'</strong><small class="mission-location">'+m.location+'</small><span class="mission-card-bottom"><em>'+m.threat+'</em><span class="mission-card-stars">'+[1,2,3].map(i=>'<i class="'+(i<=score?'earned':'')+'">★</i>').join('')+'</span></span></button>';
+  }).join('')+'</div></section>';
+ }).join('');
+ const world=KINETIX_WORLDS[selected.world];
+ $('campaign-progress').textContent=completed+' / 12 MISSIONS COMPLETE';
+ $('campaign-progress-fill').style.width=(completed/12*100)+'%';
+ $('campaign-selected-world').textContent='REGION 0'+selected.chapter+' / '+selected.chapterName;
+ $('campaign-selected-title').textContent=selected.title;
+ $('campaign-selected-description').textContent=selected.description;
+ $('campaign-selected-location').textContent=selected.location+' · THREAT: '+selected.threat+' · '+selected.difficulty.toUpperCase();
+ $('campaign-selected-objective').textContent=selected.objective;
+ $('campaign-selected-scene').src=world.art;
+ $('campaign-selected-scene').alt=world.name+' environment';
+ $('campaign-play').textContent=cleared.has(selected.id)?'REPLAY LEVEL →':'DEPLOY LEVEL →';
+ $('campaign-play').disabled=selected.id>highest;
+ $('campaign-camera').disabled=selected.id>highest;
+ $('campaign-next-hint').textContent=cleared.has(selected.id)?'BEST RECORD · '+(stars[selected.id]||1)+' / 3 STARS':'CLEAR THIS LEVEL TO UNLOCK THE NEXT';
+ $('campaign-complete').textContent=completed===12?'FIRST CAMPAIGN COMPLETE · ALL REGIONS CLEARED':'NEXT UNLOCK · '+String(highest).padStart(2,'0')+' / 12';
+}
+function startCampaignMission(id,useCamera=false){
+ const mission=getMissionById(id);
+ if(!mission||mission.id>(profile.campaign?.highestUnlocked||1))return;
+ selectedMissionId=mission.id;activeMission=mission;setDifficulty(mission.difficulty);renderCampaignMap();
+ if(useCamera){chooseGameMode('solo');return;}
+ pendingCampaignMission=mission;
+ startSoloWithoutCamera();
+}
+
 function showResult(){
  if(g.mode==='duo'){const winner=g.winner;const title=winner===0?'PERFECTLY EVEN.':'PLAYER '+winner+' WINS.';const desc=winner===0?'Both fighters end the round with the same health. Local Duo is practice play: no Kinets or Rank XP are awarded.':(winner===1?'Player One controlled the arena this round.':'Player Two controlled the arena this round.')+' No progression currency is awarded in local Duo.'
  showOverlay(title,desc,'LOCAL DUEL / SESSION REPORT',[{label:'RUN IT BACK →',style:'primary',action:'restart'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);return;}
  const won=g.status==='won';
+ if(g.mission){
+  if(won){
+   const next=KINETIX_MISSIONS.find(m=>!profile.campaign.clearedMissions.includes(m.id))||null;
+   g.missionNextId=next?.id||null;
+   const buttons=next
+    ?[{label:'CONTINUE CAMPAIGN →',style:'primary',action:'next-mission'},{label:'REPLAY THIS LEVEL',style:'secondary',action:'restart'},{label:'CAMPAIGN MAP',style:'secondary',action:'campaign'}]
+    :[{label:'REPLAY FINAL LEVEL',style:'primary',action:'restart'},{label:'CAMPAIGN MAP',style:'secondary',action:'campaign'},{label:'BACK TO MENU',style:'secondary',action:'home'}];
+   showOverlay(next?'MISSION COMPLETE':'CAMPAIGN COMPLETE',g.mission.description+' '+(next?'Next objective: '+next.title+'.':'You have closed the first KINETIX campaign.'),'CHAPTER '+g.mission.chapter+' / LEVEL '+String(g.mission.id).padStart(2,'0'),buttons,true);
+  }else{
+   showOverlay('MISSION FAILED',g.mission.description+' Study the warning, adjust your timing and try again. No level progress or first-clear rewards are awarded for an unfinished mission.','CAMPAIGN / '+g.mission.title.toUpperCase(),[{label:'RETRY MISSION →',style:'primary',action:'restart'},{label:'CAMPAIGN MAP',style:'secondary',action:'campaign'},{label:'BACK TO MENU',style:'secondary',action:'home'}],true);
+  }
+  return;
+ }
   const title=won?(difficulty==='hard'?'HARD CLEAR — RIFT COLLAPSED.':'RIFT COLLAPSED.'):g.status==='time-up'?'TIME FRACTURED.':'SIGNAL LOST';
   const description=won?(difficulty==='hard'?'You survived the 420 HP Rift Master. Every counter, guard and phase mattered.':'You read the pattern and closed the breach on '+difficultyRules().label+'.'):g.status==='time-up'?'The Rift is still standing. Review your timing and try a different approach.':'The Hollow won this round. Try '+(difficulty==='hard'?'Normal to practice your timing, then return to Hard':difficulty==='normal'?'Easy to learn the moves, then return to Normal':'the round again')+' when ready.';
   const dailyTag=g.dailyChallenge?'DAILY RIFT / UTC '+g.dailyChallenge.date+' / SEED '+g.dailyChallenge.code:'RIFT DUEL / '+difficultyRules().label+' / SESSION REPORT';
@@ -517,60 +637,33 @@ function draw(t) {
  };
 
  // The world: a deep, enclosed arena rather than a floating grid.
- const sky=ctx.createLinearGradient(0,0,0,h);
- sky.addColorStop(0,'#101b20');sky.addColorStop(.38,'#111d20');
- sky.addColorStop(.66,'#0b1315');sky.addColorStop(1,'#060a0c');
- ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
- let glow=ctx.createRadialGradient(w*.5,h*.39,4,w*.5,h*.39,w*.5);
- glow.addColorStop(0,'rgba(161,198,150,.18)');glow.addColorStop(.48,'rgba(81,123,103,.07)');glow.addColorStop(1,'rgba(3,8,10,0)');
- ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
-
- // Distant architectural shell and tiered stands.
- const wall=ctx.createLinearGradient(0,horizon-100,0,horizon+100);
- wall.addColorStop(0,'rgba(40,58,58,.12)');wall.addColorStop(.5,'rgba(22,38,39,.9)');wall.addColorStop(1,'rgba(7,13,15,.15)');
- ctx.fillStyle=wall;ctx.fillRect(0,horizon-70,w,170);
- for(let row=0;row<5;row++){
-  const y=horizon-5+row*13;
-  ctx.strokeStyle='rgba(164,190,174,'+(0.10-row*.012)+')';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(w*.06,y);ctx.lineTo(w*.94,y);ctx.stroke();
-  for(let i=0;i<34;i++){
-   const x=w*.07+i*w*.86/33;
-   if((i+row)%4!==0){ctx.fillStyle='rgba(205,225,201,'+(0.11+((i*7+row*3)%5)*.018)+')';ctx.fillRect(x,y-4,1.7,2.2);}
-  }
+ const worldId=g.mission?.world||'verdant';
+ const worldImage=worldImages[worldId];
+ if(worldImage?.complete&&worldImage.naturalWidth)ctx.drawImage(worldImage,0,0,w,h);
+ else{
+  const fallback=ctx.createLinearGradient(0,0,0,h);
+  fallback.addColorStop(0,'#819a91');fallback.addColorStop(.55,'#364e48');fallback.addColorStop(1,'#111a18');
+  ctx.fillStyle=fallback;ctx.fillRect(0,0,w,h);
  }
- // Massive segmented arch framing the rift.
- ctx.save();ctx.translate(w*.5,horizon*.91);
- ctx.strokeStyle='rgba(154,183,167,.22)';ctx.lineWidth=Math.max(5,w*.009);
- ctx.beginPath();ctx.ellipse(0,-h*.10,w*.31,h*.53,0,Math.PI*1.08,Math.PI*1.92);ctx.stroke();
- ctx.strokeStyle='rgba(200,255,61,.17)';ctx.lineWidth=2;
- ctx.beginPath();ctx.ellipse(0,-h*.10,w*.285,h*.49,0,Math.PI*1.1,Math.PI*1.9);ctx.stroke();
- for(let side of [-1,1]){
-  const x=side*w*.255;
-  const pillar=ctx.createLinearGradient(x-22,0,x+24,0);
-  pillar.addColorStop(0,'#091114');pillar.addColorStop(.45,'#35484a');pillar.addColorStop(1,'#0a1114');
-  poly([[x-20,-h*.51],[x+20,-h*.51],[x+31,-h*.02],[x-29,-h*.02]],pillar,'rgba(189,216,198,.24)',1);
-  ctx.strokeStyle='rgba(200,255,61,.2)';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(x,-h*.48);ctx.lineTo(x,-h*.08);ctx.stroke();
-  ctx.fillStyle='rgba(200,255,61,.72)';ctx.fillRect(x-3,-h*.3,6,3);
+ const worldPalette=KINETIX_WORLDS[worldId]?.palette||KINETIX_WORLDS.verdant.palette;
+ const atmosphere=ctx.createLinearGradient(0,0,0,h);
+ atmosphere.addColorStop(0,'rgba(5,11,12,.08)');atmosphere.addColorStop(.48,'rgba(5,11,12,.12)');atmosphere.addColorStop(1,'rgba(4,9,9,.72)');
+ ctx.fillStyle=atmosphere;ctx.fillRect(0,0,w,h);
+ const horizonGlow=ctx.createRadialGradient(w*.52,horizon*.74,2,w*.52,horizon*.74,Math.min(w,h)*.58);
+ horizonGlow.addColorStop(0,worldId==='ashen'?'rgba(255,190,115,.15)':worldId==='drowned'?'rgba(128,221,214,.14)':'rgba(200,255,61,.12)');
+ horizonGlow.addColorStop(1,'rgba(3,8,9,0)');ctx.fillStyle=horizonGlow;ctx.fillRect(0,0,w,h);
+ const lowMist=ctx.createLinearGradient(0,horizon-24,0,horizon+115);
+ lowMist.addColorStop(0,'rgba(190,211,190,0)');lowMist.addColorStop(.55,worldId==='ashen'?'rgba(193,164,133,.11)':'rgba(178,204,192,.12)');lowMist.addColorStop(1,'rgba(8,15,14,0)');
+ ctx.fillStyle=lowMist;ctx.fillRect(0,horizon-24,w,145);
+ for(let i=0;i<28;i++){
+  const x=((i*97.3+tm*(.003+(i%4)*.0012))%(w+24))-12;
+  const y=((i*59.1+Math.sin(tm*.0004+i)*10)%(h*.72));
+  ctx.fillStyle=worldId==='ashen'?'rgba(242,205,160,.16)':'rgba(221,236,215,.15)';
+  ctx.beginPath();ctx.arc(x,y,i%8===0?1.35:.65,0,Math.PI*2);ctx.fill();
  }
- ctx.restore();
- beam(w*.19,h*.02,w*.22,'#d6e6ba',.15);
- beam(w*.81,h*.02,-w*.22,'#c9d9c5',.13);
-
- // A distant energy aperture, restrained so the combatants remain dominant.
- const portal=ctx.createRadialGradient(w*.5,horizon*.72,2,w*.5,horizon*.72,Math.min(w,h)*.25);
- portal.addColorStop(0,'rgba(200,255,61,.12)');portal.addColorStop(.23,'rgba(117,153,124,.08)');
- portal.addColorStop(1,'rgba(10,17,18,0)');
- ctx.fillStyle=portal;ctx.fillRect(w*.27,h*.15,w*.46,h*.56);
- ctx.save();ctx.translate(w*.5,horizon*.72);ctx.scale(1,.65);
- ctx.strokeStyle='rgba(200,255,61,.26)';ctx.lineWidth=1.4;
- ctx.beginPath();ctx.arc(0,0,Math.min(w,h)*.17,0,Math.PI*2);ctx.stroke();
- ctx.strokeStyle='rgba(193,215,199,.2)';ctx.beginPath();ctx.arc(0,0,Math.min(w,h)*.205,0,Math.PI*2);ctx.stroke();
- ctx.restore();
-
  // Arena floor with physical perspective, floor seams and a central ring.
  const floorGrad=ctx.createLinearGradient(0,horizon,0,h);
- floorGrad.addColorStop(0,'#1b2929');floorGrad.addColorStop(.18,'#111d1d');floorGrad.addColorStop(1,'#070d0f');
+ floorGrad.addColorStop(0,worldPalette.floor);floorGrad.addColorStop(.18,'#111d1d');floorGrad.addColorStop(1,'#070d0f');
  poly([[w*.18,horizon],[w*.82,horizon],[w*1.12,h],[-w*.12,h]],floorGrad,'rgba(178,204,185,.22)',1);
  for(let i=-8;i<=8;i++){
   ctx.strokeStyle=i===0?'rgba(200,255,61,.23)':'rgba(176,204,186,.1)';
@@ -610,9 +703,10 @@ function draw(t) {
   const attacking=isOpponent?g.phase==='strike':(soloPlayer?g.playerAttackUntil>g.clock:actor.attackUntil>g.clock);
   const guarding=isOpponent?false:(soloPlayer?g.guardUntil>g.clock:actor.guardUntil>g.clock);
   const dodging=!isOpponent&&!soloPlayer&&actor.dodgeUntil>g.clock;
-  const accent=isOpponent?(hurt?'#ff9a83':g.phase==='vulnerable'?acid:g.phase==='telegraph'?'#ffbd79':violet):(side===2?'#c2a7ff':(style?.glow||acid));
+  const accent=isOpponent?(hurt?'#ff9a83':g.phase==='vulnerable'?worldPalette.accent:g.phase==='telegraph'?'#ffbd79':violet):(side===2?'#c2a7ff':(style?.glow||acid));
   const trim=isOpponent?'#bca7e8':(side===2?'#e2d2ff':(style?.accent||ice));
-  const scale=baseScale*(isOpponent?1.11:1);
+  const threatScale={SCOUT:.88,STALKER:1.02,ELITE:1.12,BOSS:1.24,HEAVY:1.2,VETERAN:1.13,CHAMPION:1.27,'FINAL BOSS':1.36};
+  const scale=baseScale*(isOpponent?(threatScale[g.mission?.threat]||1.11):1);
   const laneShift=lane===-1?-1:lane===1?1:0;
   const bob=reducedMotion?0:Math.sin(tm*.0025+(isEnemy?1:0))*scale*.018;
   const sway=reducedMotion?0:Math.sin(tm*.002+(isEnemy?1.8:0))*scale*.025;
@@ -648,6 +742,10 @@ function draw(t) {
   if(isOpponent){
    poly([[-scale*.36,-scale*2.05],[-scale*.63,-scale*2.42],[-scale*.44,-scale*2.13],[-scale*.14,-scale*2.2]],armorDark,edge,1);
    poly([[scale*.36,-scale*2.05],[scale*.63,-scale*2.42],[scale*.44,-scale*2.13],[scale*.14,-scale*2.2]],armorDark,edge,1);
+   if(['BOSS','CHAMPION','FINAL BOSS'].includes(g.mission?.threat)){
+    poly([[-scale*.39,-scale*2.02],[-scale*.78,-scale*2.28],[-scale*.62,-scale*1.83],[-scale*.32,-scale*1.74]],armorDark,edge,1.2);
+    poly([[scale*.39,-scale*2.02],[scale*.78,-scale*2.28],[scale*.62,-scale*1.83],[scale*.32,-scale*1.74]],armorDark,edge,1.2);
+   }
   }
 
   // Legs: segmented greaves, knees and planted boots.
@@ -818,12 +916,7 @@ function loop(t){
  previousFrame=t;raf=requestAnimationFrame(loop);
 }
 raf=requestAnimationFrame(loop);
-document.querySelectorAll('[data-difficulty]').forEach(button=>button.addEventListener('click',()=>{
- const next=button.dataset.difficulty;if(!DIFFICULTIES[next])return;difficulty=next;
- document.querySelectorAll('[data-difficulty]').forEach(option=>{const selected=option===button;option.classList.toggle('active',selected);option.setAttribute('aria-pressed',String(selected));});
- const summaries={easy:'Easy selected — generous warnings, light damage and wide counter windows.',normal:'Normal selected — 210 HP, 28-damage hits and a tighter practice rhythm.',hard:'Hard selected — THE RIFT MASTER: 420 HP, 48-damage hits, shifting lanes and tiny counter windows. Brutal, but beatable with clean timing.'};
- $('difficulty-summary').textContent=summaries[difficulty];
-}));
+document.querySelectorAll('[data-difficulty]').forEach(button=>button.addEventListener('click',()=>setDifficulty(button.dataset.difficulty)));
 document.querySelectorAll('[data-character-action]').forEach(button=>button.addEventListener('click',()=>handleCharacterAction(button.dataset.characterAction)));
 document.querySelectorAll('[data-banner-action]').forEach(button=>button.addEventListener('click',()=>handleBannerAction(button.dataset.bannerAction)));
 $('username-form').addEventListener('submit',async event=>{
@@ -847,6 +940,12 @@ document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventL
 }));
 $('play-keyboard').addEventListener('click',()=>startSoloWithoutCamera());
 $('play-camera').addEventListener('click',()=>chooseGameMode('solo'));
+$('campaign-missions').addEventListener('click',event=>{
+ const card=event.target.closest('[data-mission-id]');if(!card||card.disabled)return;
+ selectedMissionId=Number(card.dataset.missionId);renderCampaignMap();
+});
+$('campaign-play').addEventListener('click',()=>startCampaignMission(selectedMissionId,false));
+$('campaign-camera').addEventListener('click',()=>startCampaignMission(selectedMissionId,true));
 $('play-duo-touch').addEventListener('click',()=>startTouchDuel());
 $('play-duo-camera').addEventListener('click',()=>chooseGameMode('duo'));
 $('play-daily').addEventListener('click',()=>startSoloWithoutCamera(createDailyChallenge()));
@@ -893,7 +992,7 @@ window.addEventListener('keydown',e=>{
 });
 window.addEventListener('resize',()=>{canvas.width=0;canvas.height=0;});
 function startSoloWithoutCamera(dailyChallenge=null){
- pendingDailyChallenge=null;
+ activeMission=pendingCampaignMission;pendingCampaignMission=null;pendingDailyChallenge=null;
  stopCamera(true);
  cameraMode=false;calibrated=false;cameraTargetMode='lobby';
  $('camera-gate').classList.add('hidden');$('setup').classList.add('hidden');
@@ -913,6 +1012,11 @@ function startTouchDuel(){
 }
 function continueWithoutCamera(){
  if(cameraStarting)return;
+ if(cameraTargetMode==='solo'&&activeMission){
+  const mission=activeMission,daily=pendingDailyChallenge;pendingDailyChallenge=null;
+  pendingCampaignMission=mission;
+  startSoloWithoutCamera(daily);return;
+ }
  $('camera-gate').classList.add('hidden');
  $('setup').classList.add('hidden');
  cameraTargetMode='lobby';
@@ -920,6 +1024,7 @@ function continueWithoutCamera(){
  $('gate-status').textContent='CAMERA OFF · TOUCH / KEYBOARD READY';
 }
 async function chooseGameMode(mode,dailyChallenge=null){
+ if(dailyChallenge)activeMission=null;
  cameraTargetMode=mode;
  pendingDailyChallenge=mode==='solo'&&dailyChallenge?dailyChallenge:null;
  if(cameraStatus!=='ready'||!stream||!motionEngine.isReady){
