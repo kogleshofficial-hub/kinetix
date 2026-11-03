@@ -17,6 +17,9 @@ Preserve this foundation. Do not migrate to a large framework or add multiple ML
 ### Delivered client foundation in the current development branch
 
 - Camera permission is requested only after an explicit player action; page load does not open the camera.
+- Keyboard/touch Solo and same-device Duo are first-class camera-free modes. Solo and Duo camera motion are separate opt-in paths; camera denial does not block the game.
+- The first camera gate offers a clear continue-without-camera action, and returning to the lobby after a camera-free match does not route back into a mandatory camera gate.
+- Daily Rift supports both camera-free and camera-motion input.
 - A root-scoped service worker caches the app shell, Creator Studio, versioned same-origin bundles, and fetched local MediaPipe WASM/model assets.
 - A web app manifest includes standard 192 px and 512 px app icons plus a scalable SVG icon.
 - Installation is offered only when the browser emits its install-prompt event. An available service-worker update waits for an explicit update action.
@@ -267,6 +270,8 @@ Measure these before talking about global scale:
 - Creator asset approval time and moderation incident rate.
 
 Revenue projections should be scenario models, not promises. A billion-dollar outcome would require exceptional global distribution, durable retention, a strong brand, large-scale operations and profitable monetization. No architecture can guarantee it.
+
+The current growth and monetization gate is documented in `docs/GO_TO_MARKET_AND_MONETIZATION.md`. Do not add payments, subscriber incentives or behavioral tracking before the product, server authority, legal requirements and player-consent model are ready.
 
 ## 11. Non-negotiable engineering rules
 
