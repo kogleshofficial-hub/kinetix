@@ -93,6 +93,8 @@ Open the **Create Game** link or visit `/creator.html` to use the local-first Cr
 
 This is currently a **game blueprint editor**, not a fully generated motion-game runtime. Preview gestures are simulated and do not activate the camera. The blueprint describes the intended configuration for a future engine runtime; it is not yet a published custom game. No creator accounts, sharing platform, paid passes, marketplace, revenue share, cloud project storage, or server-backed game logic exists yet.
 
+Future business ideas and the release gates for privacy, accounts and payments are documented in [GO_TO_MARKET_AND_MONETIZATION.md](docs/GO_TO_MARKET_AND_MONETIZATION.md). KINETIX currently has no checkout, paid currency or subscriber-verification system.
+
 ## Current scope and limitations
 
 The development branch includes solo AI, same-device local duel, optional camera motion, camera-free keyboard/touch solo, camera-free touch/keyboard Duo, health and mana, med kits, supply drops, hit/heal feedback, Canvas fighter visuals, sound effects, pause/replay and a downloadable result card. Real-time online multiplayer, accounts, cloud leaderboards, payments and automatic camera recording are not included. Camera tracking, touch usability and small-screen performance still need testing on a range of real devices before this can be called production-ready.
