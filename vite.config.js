@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 // Both pages are static. Only the main game imports MediaPipe; the Creator
 // Studio is a local editor that does not request camera access.
 export default defineConfig({
-  worker: { format: 'es' },
+  worker: { format: 'iife' },
   build: {
     minify: 'esbuild',
     sourcemap: false,

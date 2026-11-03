@@ -12,8 +12,8 @@ let calibrated = false;
 let memories = [];
 
 const profiles = Object.freeze({
-  high: Object.freeze({ lift: 0.125, liftSpeed: 0.48, lean: 0.155, cooldown: 420 }),
-  max: Object.freeze({ lift: 0.085, liftSpeed: 0.34, lean: 0.12, cooldown: 340 })
+  high: Object.freeze({ lift: 0.125, liftSpeed: 0.48, forwardReach: 0.13, forwardSpeed: 0.28, lean: 0.155, cooldown: 420 }),
+  max: Object.freeze({ lift: 0.085, liftSpeed: 0.34, forwardReach: 0.09, forwardSpeed: 0.2, lean: 0.12, cooldown: 340 })
 });
 
 function makeMemory() {
@@ -22,6 +22,8 @@ function makeMemory() {
     baselineLean: 0,
     baselineWristY: [null, null],
     previousWristY: [null, null],
+    baselineWristZ: [null, null],
+    previousWristZ: [null, null],
     pulseArmed: [true, true],
     lastPulseAt: [-Infinity, -Infinity],
     guard: false,
@@ -87,6 +89,8 @@ function calibrate() {
     memory.baselineLean = body.lean;
     memory.baselineWristY = body.wrists.map((wrist) => wrist ? wrist.y : null);
     memory.previousWristY = memory.baselineWristY.slice();
+    memory.baselineWristZ = body.wrists.map((wrist) => wrist ? (wrist.z || 0) : null);
+    memory.previousWristZ = memory.baselineWristZ.slice();
     memory.pulseArmed = [true, true];
     memory.wristHistory = [[], []];
     memory.guard = false;
@@ -142,22 +146,31 @@ function updateGestures(points, playerIndex, timestamp) {
     for (let side = 0; side < 2; side++) {
       const wrist = wristPair[side];
       let baseline = memory.baselineWristY[side];
+      let baselineZ = memory.baselineWristZ[side];
       const previousY = memory.previousWristY[side];
+      const previousZ = memory.previousWristZ[side];
       if (!wrist) {
         memory.previousWristY[side] = null;
+        memory.previousWristZ[side] = null;
         memory.wristHistory[side] = [];
         continue;
       }
       if (baseline === null || baseline === undefined) {
         memory.baselineWristY[side] = wrist.y;
         memory.previousWristY[side] = wrist.y;
+        memory.baselineWristZ[side] = wrist.z || 0;
+        memory.previousWristZ[side] = wrist.z || 0;
         baseline = wrist.y;
+        baselineZ = wrist.z || 0;
         continue;
       }
 
       const lift = (baseline - wrist.y) / body.shoulderWidth;
       const riseSpeed = previousY === null ? 0 : ((previousY - wrist.y) / body.shoulderWidth) / seconds;
-      if (!memory.pulseArmed[side] && lift < config.lift * 0.34) {
+      const depthReach = (baselineZ - (wrist.z || 0)) / body.shoulderWidth;
+      const forwardSpeed = previousZ === null ? 0 : ((previousZ - (wrist.z || 0)) / body.shoulderWidth) / seconds;
+      const returnedToReady = lift < config.lift * 0.34 && depthReach < config.forwardReach * 0.34;
+      if (!memory.pulseArmed[side] && returnedToReady) {
         memory.pulseArmed[side] = true;
         memory.wristHistory[side] = [];
       }
@@ -171,13 +184,14 @@ function updateGestures(points, playerIndex, timestamp) {
       if (history.length > 10) history.shift();
 
       const raisedIntoControlZone = wrist.y < body.sy + body.shoulderWidth * 0.3;
+      const handRaise = lift >= config.lift && riseSpeed >= config.liftSpeed && raisedIntoControlZone;
+      const forwardReach = depthReach >= config.forwardReach && forwardSpeed >= config.forwardSpeed;
       if (memory.pulseArmed[side]
-        && lift >= config.lift
-        && riseSpeed >= config.liftSpeed
-        && raisedIntoControlZone
+        && (handRaise || forwardReach)
         && timestamp - memory.lastPulseAt[side] >= config.cooldown) {
         const trajectory = classifyPulseTrajectory(history);
         emitAction('PULSE', playerIndex, timestamp, {
+          gestureType: forwardReach ? 'FORWARD_REACH' : 'HAND_RAISE',
           pulseStyle: trajectory.pulseStyle,
           pulseConfidence: trajectory.confidence
         });
@@ -185,9 +199,11 @@ function updateGestures(points, playerIndex, timestamp) {
         memory.pulseArmed[side] = false;
       }
       memory.previousWristY[side] = wrist.y;
+      memory.previousWristZ[side] = wrist.z || 0;
     }
   } else {
     memory.previousWristY = wristPair.map((wrist) => wrist ? wrist.y : null);
+    memory.previousWristZ = wristPair.map((wrist) => wrist ? (wrist.z || 0) : null);
     memory.wristHistory = [[], []];
   }
 
@@ -256,7 +272,11 @@ async function processFrame(bitmap, timestamp) {
     const ready = count >= requiredPlayerCount;
     lastTrackingAt = ready ? safeTimestamp : lastTrackingAt;
 
-    self.postMessage({ type: 'TRACKING', ready, count, required: requiredPlayerCount, tracked: playerLimit, timestamp: safeTimestamp });
+    self.postMessage({
+      type: 'TRACKING', ready, count, required: requiredPlayerCount, tracked: playerLimit, timestamp: safeTimestamp,
+      // Landmark coordinates stay on-device and are used only for the live camera skeleton overlay.
+      poses: latest.map((pose) => pose.map((point) => point ? { x: point.x, y: point.y, visibility: point.visibility } : null))
+    });
 
     if (calibrated && ready) {
       latest.forEach((pose, index) => updateGestures(pose, index, safeTimestamp));
