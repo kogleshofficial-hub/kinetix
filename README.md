@@ -9,9 +9,15 @@ This is an early playable prototype—not a finished commercial game or a claim 
 
 ## Camera is required
 
-Kinetix requests camera access automatically when the page opens. The browser may reuse a permission already granted for this site, so it might not show a new prompt every visit. No match can start until camera access and the pose model are ready.
+KINETIX does not request camera permission when the page opens. The camera prompt appears only after you press **ENABLE CAMERA & CONTINUE**. No match can start until camera access and the pose model are ready.
 
-If the request is denied, open the browser's site permissions, allow camera access, then retry. Camera access requires HTTPS (or localhost). Camera frames and pose landmarks are processed locally in the browser; Kinetix does not record or upload camera footage and does not request microphone access. The production build bundles the MediaPipe JavaScript library and serves its WASM runtime and pose model from the same site, avoiding runtime JavaScript-module CDN imports.
+If permission is denied, open the browser's site permissions, allow camera access, then retry. Camera access requires HTTPS (or localhost). Camera frames and pose landmarks are processed locally in the browser; Kinetix does not record or upload camera footage and does not request microphone access. The production build bundles the MediaPipe JavaScript library and serves its WASM runtime and pose model from the same site, avoiding runtime JavaScript-module CDN imports.
+
+## Install and offline use
+
+KINETIX includes an installable web-app manifest and a same-origin service worker. In browsers that support installation, an **Install KINETIX** control appears when the browser offers the install prompt; other browsers can use their own browser-menu install/add-to-home-screen option when available. The app shell and Creator Studio are cached for repeat visits. Hashed build assets, the local MediaPipe WASM runtime and pose model are cached as they are successfully fetched. This means offline launch is intended after a successful connected visit—not on the very first visit—and it depends on the browser retaining site storage. A cleared cache or a model never downloaded on that device requires a connection again. Camera availability and permission remain browser/device dependent even when the shell is offline.
+
+The app checks for a newer service worker and exposes an update control when one is waiting. Updates are activated only after the player selects that control; the page then reloads onto the new version.
 
 ## Play modes
 
