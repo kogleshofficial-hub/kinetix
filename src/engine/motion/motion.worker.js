@@ -1,5 +1,5 @@
 import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
-import { classifyPulseTrajectory } from './KinetixMotionMath.js';
+import { classifyPulseTrajectory, detectArmPulse, measureForwardReach, measureForwardSpeed } from './KinetixMotionMath.js';
 
 let landmarker = null;
 let playerLimit = 1;
@@ -12,8 +12,8 @@ let calibrated = false;
 let memories = [];
 
 const profiles = Object.freeze({
-  high: Object.freeze({ lift: 0.125, liftSpeed: 0.48, forwardReach: 0.13, forwardSpeed: 0.28, lean: 0.155, cooldown: 420 }),
-  max: Object.freeze({ lift: 0.085, liftSpeed: 0.34, forwardReach: 0.09, forwardSpeed: 0.2, lean: 0.12, cooldown: 340 })
+  high: Object.freeze({ lift: 0.12, liftSpeed: 0.38, forwardReach: 0.095, forwardSpeed: 0.18, lean: 0.155, cooldown: 380 }),
+  max: Object.freeze({ lift: 0.075, liftSpeed: 0.23, forwardReach: 0.055, forwardSpeed: 0.11, lean: 0.12, cooldown: 280 })
 });
 
 function makeMemory() {
@@ -24,6 +24,8 @@ function makeMemory() {
     previousWristY: [null, null],
     baselineWristZ: [null, null],
     previousWristZ: [null, null],
+    baselineShoulderZ: null,
+    previousShoulderZ: null,
     pulseArmed: [true, true],
     lastPulseAt: [-Infinity, -Infinity],
     guard: false,
@@ -50,7 +52,7 @@ function smoothLandmarks(points, memory) {
       memory.filters.set(index, first);
       return first;
     }
-    const alpha = 0.62;
+    const alpha = index === 15 || index === 16 ? 0.74 : 0.62;
     const next = {
       x: previous.x + (point.x - previous.x) * alpha,
       y: previous.y + (point.y - previous.y) * alpha,
@@ -75,6 +77,7 @@ function torso(points) {
   if (shoulderWidth < 0.035 || torsoHeight < 0.035 || torsoHeight > 0.8) return null;
   return {
     sx, sy, hx, hy, shoulderWidth,
+    shoulderZ: ((ls.z || 0) + (rs.z || 0)) / 2,
     lean: (sx - hx) / shoulderWidth,
     wrists: [visible(points[15], 0.12) ? points[15] : null, visible(points[16], 0.12) ? points[16] : null]
   };
@@ -91,6 +94,8 @@ function calibrate() {
     memory.previousWristY = memory.baselineWristY.slice();
     memory.baselineWristZ = body.wrists.map((wrist) => wrist ? (wrist.z || 0) : null);
     memory.previousWristZ = memory.baselineWristZ.slice();
+    memory.baselineShoulderZ = body.shoulderZ;
+    memory.previousShoulderZ = body.shoulderZ;
     memory.pulseArmed = [true, true];
     memory.wristHistory = [[], []];
     memory.guard = false;
@@ -113,6 +118,7 @@ function updateGestures(points, playerIndex, timestamp) {
     memory.guard = false;
     memory.phaseSide = 0;
     memory.previousWristY = [null, null];
+    memory.previousShoulderZ = null;
     memory.wristHistory = [[], []];
     return;
   }
@@ -122,6 +128,7 @@ function updateGestures(points, playerIndex, timestamp) {
   memory.lastFrameAt = timestamp;
 
   const wristPair = body.wrists;
+  const previousShoulderZ = Number.isFinite(memory.previousShoulderZ) ? memory.previousShoulderZ : body.shoulderZ;
   const chestY = body.sy + (body.hy - body.sy) * 0.36;
   const insideChest = wristPair.every((wrist) => wrist
     && wrist.x >= body.sx - body.shoulderWidth * 0.66
@@ -167,8 +174,8 @@ function updateGestures(points, playerIndex, timestamp) {
 
       const lift = (baseline - wrist.y) / body.shoulderWidth;
       const riseSpeed = previousY === null ? 0 : ((previousY - wrist.y) / body.shoulderWidth) / seconds;
-      const depthReach = (baselineZ - (wrist.z || 0)) / body.shoulderWidth;
-      const forwardSpeed = previousZ === null ? 0 : ((previousZ - (wrist.z || 0)) / body.shoulderWidth) / seconds;
+      const depthReach = measureForwardReach({ baselineWristZ: baselineZ, wristZ: wrist.z || 0, baselineShoulderZ: Number.isFinite(memory.baselineShoulderZ) ? memory.baselineShoulderZ : body.shoulderZ, shoulderZ: body.shoulderZ, shoulderWidth: body.shoulderWidth });
+      const forwardSpeed = previousZ === null ? 0 : measureForwardSpeed({ previousWristZ: previousZ, wristZ: wrist.z || 0, previousShoulderZ, shoulderZ: body.shoulderZ, shoulderWidth: body.shoulderWidth, seconds });
       const returnedToReady = lift < config.lift * 0.34 && depthReach < config.forwardReach * 0.34;
       if (!memory.pulseArmed[side] && returnedToReady) {
         memory.pulseArmed[side] = true;
@@ -184,14 +191,13 @@ function updateGestures(points, playerIndex, timestamp) {
       if (history.length > 10) history.shift();
 
       const raisedIntoControlZone = wrist.y < body.sy + body.shoulderWidth * 0.3;
-      const handRaise = lift >= config.lift && riseSpeed >= config.liftSpeed && raisedIntoControlZone;
-      const forwardReach = depthReach >= config.forwardReach && forwardSpeed >= config.forwardSpeed;
+      const pulse = detectArmPulse({ lift, riseSpeed, depthReach, forwardSpeed, raisedIntoControlZone }, config);
       if (memory.pulseArmed[side]
-        && (handRaise || forwardReach)
+        && pulse.detected
         && timestamp - memory.lastPulseAt[side] >= config.cooldown) {
         const trajectory = classifyPulseTrajectory(history);
         emitAction('PULSE', playerIndex, timestamp, {
-          gestureType: forwardReach ? 'FORWARD_REACH' : 'HAND_RAISE',
+          gestureType: pulse.gestureType,
           pulseStyle: trajectory.pulseStyle,
           pulseConfidence: trajectory.confidence
         });
@@ -207,6 +213,7 @@ function updateGestures(points, playerIndex, timestamp) {
     memory.wristHistory = [[], []];
   }
 
+  memory.previousShoulderZ = body.shoulderZ;
   const leanDelta = body.lean - memory.baselineLean;
   const side = leanDelta <= -config.lean ? -1 : leanDelta >= config.lean ? 1 : 0;
   if (!guardNow && side !== 0 && memory.phaseSide === 0 && timestamp - memory.lastPhaseAt >= 420) {
