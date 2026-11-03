@@ -37,3 +37,22 @@ export function createDailyChallenge(date = new Date()) {
     difficulty: 'player-selected'
   });
 }
+
+/**
+ * Picks a new lane without repeating the immediately previous lane.
+ * The injected RNG keeps encounter generation deterministic and testable.
+ */
+export function selectDailyLane(random, previousLane = 0) {
+  if (typeof random !== 'function') {
+    throw new TypeError('A deterministic random function is required.');
+  }
+  if (![-1, 0, 1].includes(previousLane)) {
+    throw new RangeError('Previous lane must be -1, 0, or 1.');
+  }
+  const candidates = [-1, 0, 1].filter((lane) => lane !== previousLane);
+  const sample = random();
+  if (!Number.isFinite(sample) || sample < 0 || sample >= 1) {
+    throw new RangeError('Random sample must be in the range [0, 1).');
+  }
+  return candidates[Math.floor(sample * candidates.length)];
+}
