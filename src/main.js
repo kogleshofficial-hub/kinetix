@@ -842,7 +842,7 @@ document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventL
  document.querySelectorAll('[data-sensitivity]').forEach(option=>{
   const selected=option.dataset.sensitivity===motionSensitivity;option.classList.toggle('active',selected);option.setAttribute('aria-pressed',String(selected));
  });
- const summaries={max:'MAX sensitivity selected — detects smaller hand raises, but may also register incidental movement.',high:'HIGH sensitivity selected — looks for deliberate hand raises and filters small wrist jitter.'};
+ const summaries={max:'MAX sensitivity selected — detects smaller hand raises and forward reaches, but may also register incidental movement.',high:'HIGH sensitivity selected — looks for deliberate hand raises or gentle forward reaches and filters small wrist jitter.'};
  document.querySelectorAll('[data-sensitivity-summary]').forEach(node=>node.textContent=summaries[motionSensitivity]);
 }));
 $('play-keyboard').addEventListener('click',()=>startSoloWithoutCamera());
