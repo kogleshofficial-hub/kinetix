@@ -68,6 +68,9 @@ jobs:
           if (source.includes("from '@mediapipe/tasks-vision'")) throw new Error('MediaPipe inference must not be imported into the window thread.');
           if (!worker.includes("from '@mediapipe/tasks-vision'")) throw new Error('The dedicated worker must own MediaPipe inference.');
           if (!motion.includes("new Worker(new URL('./motion.worker.js', import.meta.url)")) throw new Error('Motion engine worker URL is not wired.');
+          const viteConfig = fs.readFileSync('vite.config.js', 'utf8');
+          if (!motion.includes("type: 'classic'") || !viteConfig.includes("worker: { format: 'iife' }")) throw new Error('MediaPipe must run in a classic worker so its WASM loader can register ModuleFactory through importScripts().');
+          if (worker.includes('installModuleWorkerDynamicImport')) throw new Error('The module-worker import shim must not be used with MediaPipe WASM.');
           if (!source.includes("'/mediapipe/wasm'") || !source.includes("'/models/pose_landmarker_lite.task'")) throw new Error('Local MediaPipe model/runtime paths are missing.');
           if (!worker.includes("delegate: 'GPU'") || !worker.includes("delegate: 'CPU'")) throw new Error('GPU with CPU fallback is required.');
           if (!worker.includes('smoothLandmarks') || !worker.includes('const alpha = 0.62')) throw new Error('Motion smoothing is missing.');
