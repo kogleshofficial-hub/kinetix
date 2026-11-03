@@ -236,7 +236,6 @@ function refreshDailyChallengePanel(){
  label.textContent=record?'PERSONAL BEST · '+(record.best.cleared?'CLEAR':'BEST ATTEMPT')+' · '+record.best.combo+'× COMBO · '+record.attempts+' RUNS':'NO PERSONAL RECORD YET · YOUR FIRST RUN SETS IT';
 }
 refreshDailyChallengePanel();
-$('play-daily').addEventListener('click',()=>{refreshDailyChallengePanel();chooseGameMode('solo',createDailyChallenge());});
 
 function freshFighter(){return {hp:100,mana:70,combo:0,best:0,lane:0,guardUntil:0,dodgeUntil:0,lastPulse:-9999,lastNova:-9999,lastPhase:-9999,attackUntil:0,hurtUntil:0,medkits:1,collectCooldown:0,pulses:0,clean:0,dodges:0,blocks:0,hits:0,damage:0};}
 function freshGame(mode='solo'){
