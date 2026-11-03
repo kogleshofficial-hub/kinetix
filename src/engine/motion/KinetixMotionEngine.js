@@ -21,7 +21,9 @@ export class KinetixMotionEngine {
     onTracking = () => {},
     onError = () => {},
     workerFactory = () => new Worker(new URL('./motion.worker.js', import.meta.url), {
-      type: 'module',
+      // MediaPipe's WASM loader uses importScripts() to register ModuleFactory.
+      // A classic worker provides that API; Vite bundles it as a single IIFE.
+      type: 'classic',
       name: 'kinetix-motion-worker'
     })
   } = {}) {
