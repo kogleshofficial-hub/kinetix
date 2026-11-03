@@ -600,8 +600,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
   .footerbar .creator-youtube{display:none}
 }
 </style>
+<style id="kinetix-accessibility-polish">
+.skip-link{position:fixed;z-index:2000;top:8px;left:8px;transform:translateY(-160%);padding:12px 15px;border:1px solid #C8FF3D;border-radius:8px;background:#C8FF3D;color:#080B10;font:600 9px var(--mono);letter-spacing:.08em;text-decoration:none;transition:transform .18s ease}
+.skip-link:focus{transform:translateY(0)}
+</style>
 </head>
 <body>
+<a class="skip-link" href="#home">SKIP TO CONTENT</a>
 <div class="entry-gate" id="camera-gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
   <div class="gate-panel">
     <div class="gate-mark">K<span>•</span></div>
