@@ -1,4 +1,5 @@
 import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
+import { classifyPulseTrajectory } from './KinetixMotionMath.js';
 
 let landmarker = null;
 let playerLimit = 1;
@@ -26,7 +27,8 @@ function makeMemory() {
     guard: false,
     lastGuardAt: -Infinity,
     phaseSide: 0,
-    lastPhaseAt: -Infinity
+    lastPhaseAt: -Infinity,
+    wristHistory: [[], []]
   };
 }
 
@@ -36,7 +38,10 @@ function visible(point, threshold = 0.2) {
 
 function smoothLandmarks(points, memory) {
   return points.map((point, index) => {
-    if (!visible(point, 0.08)) return null;
+    if (!visible(point, 0.08)) {
+      memory.filters.delete(index);
+      return null;
+    }
     const previous = memory.filters.get(index);
     if (!previous) {
       const first = { x: point.x, y: point.y, z: point.z || 0, visibility: point.visibility ?? 1 };
@@ -83,6 +88,7 @@ function calibrate() {
     memory.baselineWristY = body.wrists.map((wrist) => wrist ? wrist.y : null);
     memory.previousWristY = memory.baselineWristY.slice();
     memory.pulseArmed = [true, true];
+    memory.wristHistory = [[], []];
     memory.guard = false;
     memory.phaseSide = 0;
     memories[index] = memory;
@@ -91,8 +97,8 @@ function calibrate() {
   return true;
 }
 
-function emitAction(kind, player, timestamp) {
-  self.postMessage({ type: 'ACTION', kind, player: player + 1, timestamp });
+function emitAction(kind, player, timestamp, details = null) {
+  self.postMessage({ type: 'ACTION', kind, player: player + 1, timestamp, details });
 }
 
 function updateGestures(points, playerIndex, timestamp) {
@@ -103,6 +109,7 @@ function updateGestures(points, playerIndex, timestamp) {
     memory.guard = false;
     memory.phaseSide = 0;
     memory.previousWristY = [null, null];
+    memory.wristHistory = [[], []];
     return;
   }
 
@@ -149,7 +156,18 @@ function updateGestures(points, playerIndex, timestamp) {
 
       const lift = (baseline - wrist.y) / body.shoulderWidth;
       const riseSpeed = previousY === null ? 0 : ((previousY - wrist.y) / body.shoulderWidth) / seconds;
-      if (!memory.pulseArmed[side] && lift < config.lift * 0.34) memory.pulseArmed[side] = true;
+      if (!memory.pulseArmed[side] && lift < config.lift * 0.34) {
+        memory.pulseArmed[side] = true;
+        memory.wristHistory[side] = [];
+      }
+
+      const history = memory.wristHistory[side];
+      history.push({
+        x: (wrist.x - body.sx) / body.shoulderWidth,
+        y: (wrist.y - body.sy) / body.shoulderWidth,
+        timestamp
+      });
+      if (history.length > 10) history.shift();
 
       const raisedIntoControlZone = wrist.y < body.sy + body.shoulderWidth * 0.3;
       if (memory.pulseArmed[side]
@@ -157,7 +175,11 @@ function updateGestures(points, playerIndex, timestamp) {
         && riseSpeed >= config.liftSpeed
         && raisedIntoControlZone
         && timestamp - memory.lastPulseAt[side] >= config.cooldown) {
-        emitAction('PULSE', playerIndex, timestamp);
+        const trajectory = classifyPulseTrajectory(history);
+        emitAction('PULSE', playerIndex, timestamp, {
+          pulseStyle: trajectory.pulseStyle,
+          pulseConfidence: trajectory.confidence
+        });
         memory.lastPulseAt[side] = timestamp;
         memory.pulseArmed[side] = false;
       }
@@ -165,6 +187,7 @@ function updateGestures(points, playerIndex, timestamp) {
     }
   } else {
     memory.previousWristY = wristPair.map((wrist) => wrist ? wrist.y : null);
+    memory.wristHistory = [[], []];
   }
 
   const leanDelta = body.lean - memory.baselineLean;
@@ -232,7 +255,7 @@ async function processFrame(bitmap, timestamp) {
     const ready = count >= requiredPlayerCount;
     lastTrackingAt = ready ? safeTimestamp : lastTrackingAt;
 
-    self.postMessage({ type: 'TRACKING', ready, count, required: playerLimit, timestamp: safeTimestamp });
+    self.postMessage({ type: 'TRACKING', ready, count, required: requiredPlayerCount, tracked: playerLimit, timestamp: safeTimestamp });
 
     if (calibrated && ready) {
       latest.forEach((pose, index) => updateGestures(pose, index, safeTimestamp));
