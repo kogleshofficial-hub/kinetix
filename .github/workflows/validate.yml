@@ -56,7 +56,9 @@ jobs:
           if (!html.includes('<link rel="manifest" href="/manifest.webmanifest">') || !pwa.includes("register('/sw.js'")) throw new Error('Installable PWA manifest/service-worker registration is missing.');
           if (!manifest.icons.some(icon => icon.sizes === '192x192' && icon.type === 'image/png') || !manifest.icons.some(icon => icon.sizes === '512x512' && icon.type === 'image/png')) throw new Error('PWA 192px and 512px icons are missing.');
           if (!serviceWorker.includes("request.method !== 'GET'") || !serviceWorker.includes("url.origin !== self.location.origin") || !serviceWorker.includes("path.startsWith('/models/')") || !serviceWorker.includes("path.startsWith('/mediapipe/wasm/')")) throw new Error('Offline cache must be same-origin, GET-only and include local motion assets.');
-          if (source.includes("void startCamera('lobby')") || !source.includes('CAMERA OFF · WAITING FOR YOUR PERMISSION')) throw new Error('Camera permission must require an explicit player action.');
+          const bootTail = source.slice(source.lastIndexOf("window.addEventListener('beforeunload'"));
+          if (bootTail.includes("void startCamera('lobby')") || !source.includes("$('gate-retry').addEventListener('click',()=>{void startCamera('lobby');});")) throw new Error('Camera must start from the explicit consent button, not during page boot.');
+          if (!source.includes("$('enable-camera').addEventListener('click',()=>{void startCamera('lobby');});") || !source.includes('CAMERA OFF · WAITING FOR YOUR PERMISSION')) throw new Error('Camera retry or consent status is missing.');
           if (source.includes("from '@mediapipe/tasks-vision'")) throw new Error('MediaPipe inference must not be imported into the window thread.');
           if (!worker.includes("from '@mediapipe/tasks-vision'")) throw new Error('The dedicated worker must own MediaPipe inference.');
           if (!motion.includes("new Worker(new URL('./motion.worker.js', import.meta.url)")) throw new Error('Motion engine worker URL is not wired.');
