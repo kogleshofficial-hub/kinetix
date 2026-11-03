@@ -256,7 +256,11 @@ async function processFrame(bitmap, timestamp) {
     const ready = count >= requiredPlayerCount;
     lastTrackingAt = ready ? safeTimestamp : lastTrackingAt;
 
-    self.postMessage({ type: 'TRACKING', ready, count, required: requiredPlayerCount, tracked: playerLimit, timestamp: safeTimestamp });
+    self.postMessage({
+      type: 'TRACKING', ready, count, required: requiredPlayerCount, tracked: playerLimit, timestamp: safeTimestamp,
+      // Landmark coordinates stay on-device and are used only for the live camera skeleton overlay.
+      poses: latest.map((pose) => pose.map((point) => point ? { x: point.x, y: point.y, visibility: point.visibility } : null))
+    });
 
     if (calibrated && ready) {
       latest.forEach((pose, index) => updateGestures(pose, index, safeTimestamp));
