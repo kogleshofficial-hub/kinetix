@@ -126,6 +126,8 @@
 .creator-launch{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 12px;border:1px solid rgba(103,232,239,.33);border-radius:7px;background:rgba(23,42,56,.66);color:#aafaff;font:500 8px "DM Mono",monospace;letter-spacing:.075em;text-decoration:none;white-space:nowrap;transition:background .15s,border-color .15s}
 .creator-launch:hover{background:rgba(35,77,91,.45);border-color:rgba(103,232,239,.75)}
 @media(max-width:600px){.creator-launch{min-height:30px;padding:0 8px;font-size:7px}.prototype{display:none}}
+.daily-rift-card{max-width:540px;margin:14px 0 4px;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid rgba(103,232,239,.22);border-radius:9px;background:linear-gradient(115deg,rgba(23,38,58,.86),rgba(14,18,36,.92))}.daily-rift-copy{min-width:0}.daily-rift-copy small{display:block;font:400 7px var(--mono);letter-spacing:.12em;color:var(--cyan)}.daily-rift-copy strong{display:block;margin-top:5px;font:500 10px var(--mono);letter-spacing:.04em;color:#f0f3ff}.daily-rift-copy p{font-size:10px;line-height:1.5;color:#858eae;margin:6px 0 0;max-width:320px}.daily-rift-card .btn{min-height:39px;flex:0 0 auto}
+@media(max-width:760px){.daily-rift-card{max-width:none;align-items:flex-start;flex-direction:column}.daily-rift-card .btn{width:100%}}
 </style>
 </head>
 <body>
@@ -151,6 +153,10 @@
     <p class="lede">No controller. No headset. Just you, a camera, and a rift that needs closing.</p>
     <p class="bodycopy">Train smart. Survive the Rift. Read the warning, find the opening, and make every counter count.</p>
     <div class="actions mode-actions"><button class="btn primary" id="play-keyboard"><svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg> SOLO VS RIFT AI</button><button class="btn secondary" id="play-duo-camera"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c.4-4 2.4-6 5.5-6s5.2 2 5.5 6m1-4c3.6-.7 6 .8 7 3.5"/></svg> 2-PLAYER LOCAL DUEL</button></div>
+    <section class="daily-rift-card" aria-label="Daily seeded Rift challenge">
+      <div class="daily-rift-copy"><small>DAILY RIFT / UTC</small><strong id="daily-challenge-date">LOADING TODAY'S SEED…</strong><p>The same UTC date uses the same seeded lane sequence. Choose your difficulty and try to close the Rift.</p></div>
+      <button type="button" class="btn secondary" id="play-daily">ENTER TODAY'S RIFT →</button>
+    </section>
     <section class="difficulty-picker" aria-label="Solo robot difficulty">
       <div class="difficulty-picker-head"><strong>RIFT DIFFICULTY</strong><small>CHOOSE YOUR TRAINING LEVEL</small></div>
       <div class="difficulty-options" role="group" aria-label="Choose bot difficulty">
