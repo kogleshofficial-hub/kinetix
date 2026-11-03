@@ -26,7 +26,7 @@ const DIFFICULTIES=Object.freeze({
  hard:{label:'HARD / RIFT MASTER',enemyHP:420,enemyDamage:48,firstWait:.3,telegraph:.24,opening:.36,recovery:.08,guardDuration:.72,dodgeDuration:.68}
 });
 let difficulty='normal';
-let activeMission=null, selectedMissionId=1;
+let activeMission=null, selectedMissionId=0;
 function difficultyRules(){return DIFFICULTIES[difficulty]||DIFFICULTIES.easy;}
 const MOTION_SENSITIVITY=Object.freeze({high:{label:'HIGH'},max:{label:'MAX'}});
 let motionSensitivity='high';
@@ -469,7 +469,16 @@ function simulateStep(dt){
  if(g.mode==='duo'){stepDuo(dt);return;}if(g.status!=='playing'||paused||(cameraMode&&!trackingOkay))return;
  dt=Math.min(Math.max(dt,0),.05);g.clock+=dt;g.time=Math.max(0,g.time-dt);g.phaseTimer-=dt;g.energy=Math.min(100,g.energy+1.4*dt);stepSupplyDrops();
  if(g.time<=0){void finish(g.eHP<=0?'won':'time-up');return;}if(g.eHP<=0){void finish('won');return;}
- if(g.phaseTimer<=0){if(g.phase==='idle'){const pattern=difficulty==='easy'?[0,0,1,0,-1,0]:[0,1,-1,0,-1,1];if(g.dailyChallenge||difficulty==='hard'){g.target=selectDailyLane(()=>combatDirector.random(),g.target);}else g.target=pattern[g.attackIndex%pattern.length];g.attackIndex++;g.phase='telegraph';g.phaseTimer=g.mission?.telegraph||difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=g.mission?.recovery||difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
+ if(g.phaseTimer<=0){if(g.phase==='idle'){const patterns={
+ scout:[0,0,1,0,-1,0],stalker:[-1,1,-1,0,1,0],watcher:[0,-1,0,1,0,-1],
+ warden:[0,1,-1,1,0,-1],tide:[1,0,-1,1,-1,0],echo:[-1,0,1,0,-1,1],
+ heavy:[0,1,1,-1,0,-1], 'drowned-boss':[1,-1,0,-1,1,0],fortress:[0,0,-1,1,0,1],
+ furnace:[1,0,1,-1,0,-1],champion:[-1,1,0,1,-1,0],sovereign:[0,1,-1,0,1,-1]
+ };
+ const basePattern=difficulty==='easy'?[0,0,1,0,-1,0]:[0,1,-1,0,-1,1];
+ const encounterPattern=g.mission?(patterns[g.mission.pattern]||basePattern):basePattern;
+ if(g.dailyChallenge||(!g.mission&&difficulty==='hard')){g.target=selectDailyLane(()=>combatDirector.random(),g.target);}
+ else{g.target=encounterPattern[g.attackIndex%encounterPattern.length];}g.attackIndex++;g.phase='telegraph';g.phaseTimer=g.mission?.telegraph||difficultyRules().telegraph;announce('none',g.target===-1?'LEFT-LANE SURGE':g.target===1?'RIGHT-LANE SURGE':'CENTER-LANE SURGE','danger');}else if(g.phase==='telegraph'){g.phase='strike';enemyAttack();}else if(g.phase==='strike'){g.phase='vulnerable';g.phaseTimer=1.2;}else if(g.phase==='vulnerable'){g.phase='idle';g.phaseTimer=g.mission?.recovery||difficultyRules().recovery;g.guardUntil=Math.min(g.guardUntil,g.clock);g.msg='NEXT WINDOW APPROACHING';g.tone='neutral';}}
  if(g.pHP<=0)void finish('lost');
 }
 function paintHud(){
@@ -519,7 +528,7 @@ function showOverlay(title,desc,tag,buttons,stats) {
  dialog.querySelectorAll('[data-overlay]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.overlay;if(action==='resume'){paused=false;$('overlay').classList.add('hidden');updateHud();}else if(action==='restart'){beginGame(g.mode,g.dailyChallenge||null);}else if(action==='next-mission'){
  const next=getMissionById(g.missionNextId);if(next){activeMission=next;selectedMissionId=next.id;setDifficulty(next.difficulty);beginGame('solo');}
  }else if(action==='campaign'){
- stopCamera(true);paused=false;activeMission=null;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');renderCampaignMap();$('campaign-panel').scrollIntoView({behavior:'smooth',block:'start'});
+ stopCamera(true);paused=false;activeMission=null;selectedMissionId=profile.campaign?.highestUnlocked||1;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');renderCampaignMap();$('campaign-panel').scrollIntoView({behavior:'smooth',block:'start'});
  }else if(action==='home'){stopCamera(true);paused=false;activeMission=null;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');renderCampaignMap();}else if(action==='store'){stopCamera(true);paused=false;activeMission=null;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');$('kinet-store').scrollIntoView({behavior:'smooth',block:'start'});}else if(action==='card')downloadCard();}));
 }
 function accuracy(){return g.pulses?Math.round(g.clean/g.pulses*100):0;}
@@ -697,9 +706,10 @@ function draw(t) {
   const attacking=isOpponent?g.phase==='strike':(soloPlayer?g.playerAttackUntil>g.clock:actor.attackUntil>g.clock);
   const guarding=isOpponent?false:(soloPlayer?g.guardUntil>g.clock:actor.guardUntil>g.clock);
   const dodging=!isOpponent&&!soloPlayer&&actor.dodgeUntil>g.clock;
-  const accent=isOpponent?(hurt?'#ff9a83':g.phase==='vulnerable'?acid:g.phase==='telegraph'?'#ffbd79':violet):(side===2?'#c2a7ff':(style?.glow||acid));
+  const accent=isOpponent?(hurt?'#ff9a83':g.phase==='vulnerable'?worldPalette.accent:g.phase==='telegraph'?'#ffbd79':violet):(side===2?'#c2a7ff':(style?.glow||acid));
   const trim=isOpponent?'#bca7e8':(side===2?'#e2d2ff':(style?.accent||ice));
-  const scale=baseScale*(isOpponent?1.11:1);
+  const threatScale={SCOUT:.88,STALKER:1.02,ELITE:1.12,BOSS:1.24,HEAVY:1.2,VETERAN:1.13,CHAMPION:1.27,'FINAL BOSS':1.36};
+  const scale=baseScale*(isOpponent?(threatScale[g.mission?.threat]||1.11):1);
   const laneShift=lane===-1?-1:lane===1?1:0;
   const bob=reducedMotion?0:Math.sin(tm*.0025+(isEnemy?1:0))*scale*.018;
   const sway=reducedMotion?0:Math.sin(tm*.002+(isEnemy?1.8:0))*scale*.025;
@@ -735,6 +745,10 @@ function draw(t) {
   if(isOpponent){
    poly([[-scale*.36,-scale*2.05],[-scale*.63,-scale*2.42],[-scale*.44,-scale*2.13],[-scale*.14,-scale*2.2]],armorDark,edge,1);
    poly([[scale*.36,-scale*2.05],[scale*.63,-scale*2.42],[scale*.44,-scale*2.13],[scale*.14,-scale*2.2]],armorDark,edge,1);
+   if(['BOSS','CHAMPION','FINAL BOSS'].includes(g.mission?.threat)){
+    poly([[-scale*.39,-scale*2.02],[-scale*.78,-scale*2.28],[-scale*.62,-scale*1.83],[-scale*.32,-scale*1.74]],armorDark,edge,1.2);
+    poly([[scale*.39,-scale*2.02],[scale*.78,-scale*2.28],[scale*.62,-scale*1.83],[scale*.32,-scale*1.74]],armorDark,edge,1.2);
+   }
   }
 
   // Legs: segmented greaves, knees and planted boots.
@@ -938,7 +952,7 @@ $('campaign-camera').addEventListener('click',()=>startCampaignMission(selectedM
 $('play-duo-touch').addEventListener('click',()=>startTouchDuel());
 $('play-duo-camera').addEventListener('click',()=>chooseGameMode('duo'));
 $('play-daily').addEventListener('click',()=>startSoloWithoutCamera(createDailyChallenge()));
-$('play-daily-camera').addEventListener('click',()=>chooseGameMode('solo',createDailyChallenge()));
+$('play-daily-camera').addEventListener('click',()=>{activeMission=null;chooseGameMode('solo',createDailyChallenge());});
 $('enable-camera').addEventListener('click',()=>{void startCamera(cameraTargetMode);});
 $('gate-retry').addEventListener('click',()=>{void startCamera(cameraTargetMode);});
 $('gate-skip').addEventListener('click',()=>continueWithoutCamera());
