@@ -655,6 +655,13 @@ function draw(t) {
  const lowMist=ctx.createLinearGradient(0,horizon-24,0,horizon+115);
  lowMist.addColorStop(0,'rgba(190,211,190,0)');lowMist.addColorStop(.55,worldId==='ashen'?'rgba(193,164,133,.11)':'rgba(178,204,192,.12)');lowMist.addColorStop(1,'rgba(8,15,14,0)');
  ctx.fillStyle=lowMist;ctx.fillRect(0,horizon-24,w,145);
+ // Soft volumetric shafts give the scene a readable light source and stronger depth.
+ ctx.save();ctx.globalCompositeOperation='screen';
+ const shaftColor=worldId==='ashen'?'#f4cba0':worldId==='drowned'?'#a6e9e4':'#d8e9c8';
+ beam(w*.13,0,w*.31,shaftColor,.085);
+ beam(w*.83,0,-w*.24,shaftColor,.065);
+ beam(w*.48,-h*.04,w*.13,worldId==='ashen'?'#ffd09a':'#d9f2d6',.045);
+ ctx.restore();
  for(let i=0;i<28;i++){
   const x=((i*97.3+tm*(.003+(i%4)*.0012))%(w+24))-12;
   const y=((i*59.1+Math.sin(tm*.0004+i)*10)%(h*.72));
@@ -665,6 +672,33 @@ function draw(t) {
  const floorGrad=ctx.createLinearGradient(0,horizon,0,h);
  floorGrad.addColorStop(0,worldPalette.floor);floorGrad.addColorStop(.18,'#111d1d');floorGrad.addColorStop(1,'#070d0f');
  poly([[w*.18,horizon],[w*.82,horizon],[w*1.12,h],[-w*.12,h]],floorGrad,'rgba(178,204,185,.22)',1);
+ // Perspective floor slabs: a quieter, material-rich surface instead of a flat luminous grid.
+ ctx.save();
+ ctx.beginPath();ctx.moveTo(w*.18,horizon);ctx.lineTo(w*.82,horizon);ctx.lineTo(w*1.12,h);ctx.lineTo(-w*.12,h);ctx.closePath();ctx.clip();
+ for(let row=0;row<8;row++){
+  const p0=row/8,p1=(row+1)/8;
+  const y0=horizon+(h-horizon)*p0*p0,y1=horizon+(h-horizon)*p1*p1;
+  const half0=w*(.32+p0*.30),half1=w*(.32+p1*.30);
+  for(let col=0;col<9;col++){
+   const x00=w*.5-half0+(col/9)*half0*2,x01=w*.5-half0+((col+1)/9)*half0*2;
+   const x10=w*.5-half1+(col/9)*half1*2,x11=w*.5-half1+((col+1)/9)*half1*2;
+   const shade=.018+((row*3+col*5)%4)*.006;
+   ctx.fillStyle='rgba(186,207,194,'+shade+')';
+   ctx.beginPath();ctx.moveTo(x00,y0);ctx.lineTo(x01,y0);ctx.lineTo(x11,y1);ctx.lineTo(x10,y1);ctx.closePath();ctx.fill();
+   ctx.strokeStyle='rgba(205,222,210,'+(0.055-p0*.018)+')';ctx.lineWidth=.8;ctx.stroke();
+   if(row>2&&(row*9+col*4)%7===0){
+    const cx=(x10+x11)*.5,cy=y1-(y1-y0)*.22;
+    ctx.strokeStyle='rgba(4,9,10,.23)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx-w*.008,cy+4+p0*7);ctx.lineTo(cx+w*.004,cy+8+p0*8);ctx.stroke();
+   }
+  }
+ }
+ ctx.restore();
+ // Reflected rift light pools along the centerline of the floor.
+ const floorReflection=ctx.createRadialGradient(w*.5,h*.76,2,w*.5,h*.76,h*.42);
+ floorReflection.addColorStop(0,worldId==='ashen'?'rgba(255,183,105,.13)':worldId==='drowned'?'rgba(117,222,219,.13)':'rgba(200,255,61,.085)');
+ floorReflection.addColorStop(1,'rgba(4,9,10,0)');
+ ctx.fillStyle=floorReflection;ctx.fillRect(0,horizon,w,h-horizon);
  for(let i=-8;i<=8;i++){
   ctx.strokeStyle=i===0?'rgba(200,255,61,.23)':'rgba(176,204,186,.1)';
   ctx.lineWidth=i===0?1.4:1;
@@ -786,7 +820,18 @@ function draw(t) {
    ctx.save();ctx.translate(handX,handY);ctx.rotate(sign*.12);
    poly([[-scale*.105,-scale*.12],[scale*.105,-scale*.12],[scale*.13,scale*.075],[0,scale*.14],[-scale*.13,scale*.075]],'#243436',edge,.9);
    ctx.strokeStyle=accent;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(-scale*.07,-scale*.04);ctx.lineTo(scale*.07,-scale*.04);ctx.stroke();
+   // Reinforced gauntlet plate and a compact energy edge on an active strike.
+   poly([[-scale*.085,-scale*.035],[0,-scale*.105],[scale*.085,-scale*.035],[scale*.06,scale*.07],[0,scale*.11],[-scale*.06,scale*.07]],'#3a4c49','rgba(227,240,226,.32)',Math.max(.8,scale*.008));
+   ctx.strokeStyle='rgba(238,249,233,.42)';ctx.lineWidth=Math.max(1,scale*.01);
+   ctx.beginPath();ctx.moveTo(-scale*.055,-scale*.055);ctx.lineTo(scale*.045,-scale*.055);ctx.stroke();
    ctx.restore();
+   if(attacking&&!isOpponent){
+    ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.78;
+    const trail=ctx.createLinearGradient(handX,handY,handX+facing*scale*.42,handY-scale*.08);
+    trail.addColorStop(0,accent);trail.addColorStop(.45,trim);trail.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.strokeStyle=trail;ctx.lineWidth=scale*.065;ctx.lineCap='round';ctx.shadowBlur=scale*.16;ctx.shadowColor=accent;
+    ctx.beginPath();ctx.moveTo(handX,handY);ctx.lineTo(handX+facing*scale*.42,handY-scale*.08);ctx.stroke();ctx.restore();
+   }
   };
   arm(-1);arm(1);
 
@@ -797,6 +842,31 @@ function draw(t) {
   ctx.beginPath();ctx.moveTo(0,-scale*2.11);ctx.lineTo(0,-scale*1.57);ctx.stroke();
   ctx.save();ctx.shadowBlur=18;ctx.shadowColor=accent;ctx.fillStyle=accent;
   ctx.beginPath();ctx.moveTo(0,-scale*1.99);ctx.lineTo(scale*.09,-scale*1.82);ctx.lineTo(0,-scale*1.65);ctx.lineTo(-scale*.09,-scale*1.82);ctx.closePath();ctx.fill();ctx.restore();
+  // Fine machined seams, polished bevels and a glass-covered reactor add material definition.
+  ctx.save();
+  ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.strokeStyle='rgba(230,242,229,.25)';ctx.lineWidth=Math.max(1,scale*.012);
+  ctx.beginPath();ctx.moveTo(-scale*.22,-scale*2.055);ctx.lineTo(-scale*.12,-scale*2.12);ctx.lineTo(0,-scale*2.145);ctx.lineTo(scale*.12,-scale*2.12);ctx.lineTo(scale*.22,-scale*2.055);ctx.stroke();
+  ctx.strokeStyle='rgba(6,13,15,.62)';ctx.lineWidth=Math.max(1.2,scale*.018);
+  for(const sign of [-1,1]){
+   ctx.beginPath();ctx.moveTo(sign*scale*.205,-scale*1.9);ctx.lineTo(sign*scale*.255,-scale*1.72);ctx.lineTo(sign*scale*.205,-scale*1.53);ctx.stroke();
+   for(let vent=0;vent<3;vent++){
+    const vy=-scale*(1.78+vent*.065);
+    ctx.strokeStyle='rgba(5,11,13,.62)';ctx.lineWidth=Math.max(1,scale*.014);
+    ctx.beginPath();ctx.moveTo(sign*scale*.14,vy);ctx.lineTo(sign*scale*.19,vy-scale*.015);ctx.stroke();
+   }
+   ctx.fillStyle='rgba(224,238,223,.55)';
+   ctx.beginPath();ctx.arc(sign*scale*.275,-scale*1.96,Math.max(1,scale*.012),0,Math.PI*2);ctx.fill();
+  }
+  const reactor=ctx.createRadialGradient(-scale*.035,-scale*1.85,scale*.01,0,-scale*1.82,scale*.135);
+  reactor.addColorStop(0,'#f4fff0');reactor.addColorStop(.18,accent);reactor.addColorStop(.56,isEnemy?'rgba(151,119,255,.72)':'rgba(200,255,61,.58)');reactor.addColorStop(1,'rgba(5,12,13,0)');
+  ctx.shadowColor=accent;ctx.shadowBlur=scale*.14;ctx.fillStyle=reactor;
+  ctx.beginPath();ctx.arc(0,-scale*1.82,scale*.13,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(235,250,232,.62)';ctx.lineWidth=Math.max(1,scale*.009);
+  ctx.beginPath();ctx.arc(0,-scale*1.82,scale*.108,0,Math.PI*2);ctx.stroke();
+  ctx.strokeStyle='rgba(4,10,12,.7)';ctx.lineWidth=Math.max(1,scale*.012);
+  ctx.beginPath();ctx.arc(0,-scale*1.82,scale*.16,-.8,1.9);ctx.stroke();
+  ctx.restore();
   // Shoulder guards with layered bevels.
   for(const sign of [-1,1]){
    ctx.save();ctx.translate(sign*scale*.39,-scale*2.02);
@@ -805,6 +875,9 @@ function draw(t) {
    ctx.fillStyle=guard;ctx.strokeStyle=edge;ctx.lineWidth=1;
    ctx.beginPath();ctx.moveTo(-scale*.16,-scale*.06);ctx.quadraticCurveTo(-scale*.12,-scale*.23,scale*.08,-scale*.2);ctx.lineTo(scale*.2,-scale*.02);ctx.lineTo(scale*.12,scale*.12);ctx.lineTo(-scale*.1,scale*.1);ctx.closePath();ctx.fill();ctx.stroke();
    ctx.strokeStyle='rgba(224,236,218,.24)';ctx.beginPath();ctx.moveTo(-scale*.08,-scale*.1);ctx.lineTo(scale*.09,-scale*.09);ctx.stroke();
+   ctx.strokeStyle='rgba(238,247,232,.34)';ctx.lineWidth=Math.max(1,scale*.012);
+   ctx.beginPath();ctx.moveTo(-scale*.12,-scale*.045);ctx.quadraticCurveTo(-scale*.02,-scale*.19,scale*.075,-scale*.14);ctx.stroke();
+   ctx.fillStyle='rgba(230,241,223,.55)';ctx.beginPath();ctx.arc(-scale*.075,scale*.045,Math.max(1,scale*.012),0,Math.PI*2);ctx.fill();
    ctx.restore();
   }
 
@@ -824,6 +897,12 @@ function draw(t) {
   ctx.save();ctx.shadowBlur=14;ctx.shadowColor=accent;ctx.fillStyle=accent;
   ctx.beginPath();ctx.moveTo(-scale*.13,-scale*.045);ctx.lineTo(-scale*.015,-scale*.005);ctx.lineTo(-scale*.02,scale*.025);ctx.lineTo(-scale*.14,scale*.012);ctx.closePath();ctx.fill();
   ctx.beginPath();ctx.moveTo(scale*.13,-scale*.045);ctx.lineTo(scale*.015,-scale*.005);ctx.lineTo(scale*.02,scale*.025);ctx.lineTo(scale*.14,scale*.012);ctx.closePath();ctx.fill();ctx.restore();
+  // Visor glass catches the environment light without obscuring the eye sensors.
+  const visorSheen=ctx.createLinearGradient(-scale*.16,-scale*.1,scale*.15,scale*.14);
+  visorSheen.addColorStop(0,'rgba(238,255,249,.0)');visorSheen.addColorStop(.42,'rgba(238,255,249,.18)');visorSheen.addColorStop(1,'rgba(238,255,249,0)');
+  ctx.fillStyle=visorSheen;ctx.beginPath();ctx.moveTo(-scale*.155,-scale*.055);ctx.lineTo(scale*.155,-scale*.055);ctx.lineTo(scale*.12,scale*.105);ctx.lineTo(0,scale*.19);ctx.lineTo(-scale*.12,scale*.105);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(231,245,232,.28)';ctx.lineWidth=Math.max(1,scale*.01);
+  ctx.beginPath();ctx.moveTo(-scale*.17,-scale*.1);ctx.quadraticCurveTo(0,-scale*.15,scale*.17,-scale*.1);ctx.stroke();
   ctx.restore();
 
   // Active shield / pulse effects are visual feedback, not extra controls.
