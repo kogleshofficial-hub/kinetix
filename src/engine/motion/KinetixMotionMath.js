@@ -1,6 +1,29 @@
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const distance = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
 
+export function measureForwardReach({ baselineWristZ, wristZ, baselineShoulderZ = 0, shoulderZ = 0, shoulderWidth }) {
+  const values = [baselineWristZ, wristZ, baselineShoulderZ, shoulderZ, shoulderWidth];
+  if (!values.every(Number.isFinite) || shoulderWidth <= 0) return 0;
+  return ((baselineWristZ - wristZ) - (baselineShoulderZ - shoulderZ)) / Math.max(shoulderWidth, 1e-6);
+}
+
+export function measureForwardSpeed({ previousWristZ, wristZ, previousShoulderZ = 0, shoulderZ = 0, shoulderWidth, seconds }) {
+  const values = [previousWristZ, wristZ, previousShoulderZ, shoulderZ, shoulderWidth, seconds];
+  if (!values.every(Number.isFinite) || shoulderWidth <= 0 || seconds <= 0) return 0;
+  return ((previousWristZ - wristZ) - (previousShoulderZ - shoulderZ)) / Math.max(shoulderWidth, 1e-6) / Math.max(seconds, 0.001);
+}
+
+export function detectArmPulse(metrics, profile) {
+  const lift = Number.isFinite(metrics?.lift) ? metrics.lift : 0;
+  const riseSpeed = Number.isFinite(metrics?.riseSpeed) ? metrics.riseSpeed : 0;
+  const depthReach = Number.isFinite(metrics?.depthReach) ? metrics.depthReach : 0;
+  const forwardSpeed = Number.isFinite(metrics?.forwardSpeed) ? metrics.forwardSpeed : 0;
+  const handRaise = lift >= profile.lift && riseSpeed >= profile.liftSpeed && Boolean(metrics?.raisedIntoControlZone);
+  const forwardReach = depthReach >= profile.forwardReach
+    && (forwardSpeed >= profile.forwardSpeed || depthReach >= profile.forwardReach * 1.5);
+  return Object.freeze({ detected: handRaise || forwardReach, gestureType: forwardReach ? 'FORWARD_REACH' : handRaise ? 'HAND_RAISE' : 'NONE' });
+}
+
 /**
  * Classify a short, shoulder-normalized wrist trajectory.
  *
