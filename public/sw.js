@@ -1,5 +1,5 @@
 /* KINETIX offline shell and same-origin runtime asset cache. */
-const CACHE_VERSION = 'kinetix-pwa-v1';
+const CACHE_VERSION = 'kinetix-3.0.0';
 const SHELL_CACHE = CACHE_VERSION + '-shell';
 const RUNTIME_CACHE = CACHE_VERSION + '-runtime';
 const SHELL_URLS = [
