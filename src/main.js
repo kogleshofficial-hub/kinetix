@@ -9,11 +9,13 @@ import { DailyRiftRecords } from './engine/challenge/DailyRiftRecords.js';
 const $ = (id) => document.getElementById(id);
 const home = $('home'), arena = $('arena'), canvas = $('game-canvas'), ctx = canvas.getContext('2d');
 const video = $('video'), cameraPanel = $('camera-panel'), setup = $('setup');
+const cameraSkeleton = $('camera-skeleton');
+const cameraHomeParent = cameraPanel.parentNode, cameraHomeNextSibling = cameraPanel.nextSibling;
 const modelUrl = '/models/pose_landmarker_lite.task';
 const wasmUrl = '/mediapipe/wasm';
 let soundOn = true, reducedMotion = false, cameraStatus = 'off', cameraMode = false, trackingOkay = false, paused = false;
 let stream = null, cameraStarting = false;
-let lastTrackingAt = 0;
+let lastTrackingAt = 0, lastCameraActionAt = 0;
 let calibrated = false;
 let cameraTargetMode = 'lobby';
 let pendingDailyChallenge = null;
@@ -218,7 +220,14 @@ function paintComeback(){
 
 const motionEngine = new KinetixMotionEngine({
  modelUrl, wasmUrl,
- onAction: (kind,player,source,details) => action(kind,player,source,details),
+ onAction: (kind,player,source,details) => {
+  if(source==='camera'&&kind!=='GUARD_RELEASE'){
+   lastCameraActionAt=performance.now();
+   const labels={PULSE:'PULSE DETECTED',GUARD:'GUARD ACTIVE',PHASE_LEFT:'PHASE LEFT',PHASE_RIGHT:'PHASE RIGHT',NOVA:'NOVA RELEASED'};
+   const label=$('camera-label');if(label)label.textContent=labels[kind]||'MOTION DETECTED';
+  }
+  action(kind,player,source,details);
+ },
  onTracking: handleMotionTracking,
  onError: (error) => {
   console.error('[KINETIX MOTION]',error);
@@ -245,12 +254,22 @@ function freshGame(mode='solo'){
 }
 function beginGame(mode='solo',dailyChallenge=null){
  g=freshGame(mode);g.dailyChallenge=mode==='solo'&&dailyChallenge?dailyChallenge:null;g.status='playing';g.msg=g.dailyChallenge?'DAILY RIFT '+g.dailyChallenge.date+' — READ THE PATTERN':mode==='duo'?'DUEL ONLINE — MAKE YOUR MOVE':'READ THE RIFT. FIND YOUR MOMENT.';
- paused=false;lastEventStamp=-1;combatDirector.beginMatch(g.dailyChallenge?{seed:g.dailyChallenge.seed}:undefined);$('overlay').classList.add('hidden');eventFxAt=performance.now();previousFrame=performance.now();showScreen('arena');
+ paused=false;lastEventStamp=-1;combatDirector.beginMatch(g.dailyChallenge?{seed:g.dailyChallenge.seed}:undefined);$('overlay').classList.add('hidden');eventFxAt=performance.now();previousFrame=performance.now();showScreen('arena');setCameraPanelInArena(cameraMode&&cameraStatus==='ready');
  $('moves-main').classList.toggle('hidden',mode==='duo');$('duo-controls').classList.toggle('hidden',mode!=='duo');
  $('mode-pill').innerHTML='<b></b>'+(mode==='duo'?(cameraMode?'2P MOTION ONLINE':'2P LOCAL DUEL'):(cameraMode?'MOTION ONLINE':'SOLO VS AI'));
- $('mode-pill').classList.add('live');$('move-mode').textContent=mode==='duo'?'TWO PLAYER TOUCH CONTROLS':'KEYBOARD / CLICK CONTROLS';updateHud();
+ $('mode-pill').classList.toggle('live',cameraMode&&cameraStatus==='ready');$('move-mode').textContent=mode==='duo'?'TWO PLAYER TOUCH CONTROLS':'KEYBOARD / CLICK CONTROLS';updateHud();
 }
-function showScreen(which) { home.classList.toggle('hidden',which!=='home'); arena.classList.toggle('hidden',which!=='arena'); }
+function setCameraPanelInArena(inArena){
+ const frame=document.querySelector('.game-frame');
+ if(inArena&&frame&&cameraPanel.parentNode!==frame)frame.appendChild(cameraPanel);
+ else if(!inArena&&cameraPanel.parentNode!==cameraHomeParent)cameraHomeParent.insertBefore(cameraPanel,cameraHomeNextSibling);
+ cameraPanel.classList.toggle('in-arena',Boolean(inArena));
+}
+function showScreen(which) {
+ home.classList.toggle('hidden',which!=='home');
+ arena.classList.toggle('hidden',which!=='arena');
+ if(which!=='arena')setCameraPanelInArena(false);
+}
 function announce(event,msg,tone) { g.event=event; g.eventAt=g.clock; eventFxAt=performance.now(); g.msg=msg; g.tone=tone||'neutral'; combatDirector.emit('combat:notice',{event,msg,tone:tone||'neutral',tick:combatDirector.tick}); }
 function sfx(name) {
   if(!soundOn) return;
@@ -900,7 +919,7 @@ function continueWithoutCamera(){
  $('gate-status').className='gate-status';
  $('gate-status').textContent='CAMERA OFF · TOUCH / KEYBOARD READY';
 }
-function chooseGameMode(mode,dailyChallenge=null){
+async function chooseGameMode(mode,dailyChallenge=null){
  cameraTargetMode=mode;
  pendingDailyChallenge=mode==='solo'&&dailyChallenge?dailyChallenge:null;
  if(cameraStatus!=='ready'||!stream||!motionEngine.isReady){
@@ -912,7 +931,8 @@ function chooseGameMode(mode,dailyChallenge=null){
   if(!cameraStarting)void startCamera(mode);
   return;
  }
- motionEngine.configure({players:mode==='duo'?2:1,requiredPlayers:mode==='duo'?2:1});
+ try{await ensureMotionPlayerCount(mode);}
+ catch(error){lockToCameraGate(error?.message||'Motion tracking could not be configured.');return;}
  trackingOkay=false;calibrated=false;lastTrackingAt=0;
  $('camera-gate').classList.add('hidden');$('setup').classList.remove('hidden');
  $('setup-title').textContent=mode==='duo'?'LOOKING FOR BOTH PLAYERS':'LOOKING FOR PLAYER';
@@ -939,6 +959,14 @@ function returnToModeSelection(){
  $('setup-title').textContent='CAMERA CONNECTED';$('setup-copy').textContent='Choose a camera-motion mode, then calibrate your movement before the fight.';$('calibrate-start').classList.add('hidden');$('enable-camera').classList.add('hidden');$('camera-hint').classList.add('hidden');
 }
 function showError(text){$('setup-error').textContent=text;$('setup-error').classList.toggle('hidden',!text);}
+async function ensureMotionPlayerCount(mode){
+ const players=mode==='duo'?2:1;
+ if(motionEngine.players!==players||motionEngine.requiredPlayers!==players){
+  trackingOkay=false;
+  await motionEngine.stop();
+  await motionEngine.start(video,{players,requiredPlayers:players,sensitivity:motionSensitivity});
+ }
+}
 async function startCamera(targetMode='lobby'){
  if(cameraStarting)return;
  if(cameraStatus==='ready'&&stream&&motionEngine.isReady){cameraTargetMode=targetMode;return;}
@@ -962,9 +990,9 @@ async function startCamera(targetMode='lobby'){
   video.srcObject=stream;await video.play();cameraPanel.classList.remove('off');cameraStatus='loading';
   $('camera-label').textContent='LOADING MOTION WORKER';$('setup-title').textContent='INITIALIZING MOTION TRACKING';
   $('setup-copy').textContent='Loading the locally hosted pose model in a dedicated worker. Camera frames stay on this device.';
-  await motionEngine.start(video,{players:2,requiredPlayers:1,sensitivity:motionSensitivity});
+  await motionEngine.start(video,{players:targetMode==='duo'?2:1,requiredPlayers:targetMode==='duo'?2:1,sensitivity:motionSensitivity});
   const selectedMode=cameraTargetMode;
-  motionEngine.configure({players:selectedMode==='duo'?2:1,requiredPlayers:selectedMode==='duo'?2:1});
+  await ensureMotionPlayerCount(selectedMode);
   cameraStatus='ready';cameraStarting=false;cameraMode=true;calibrated=false;trackingOkay=false;lastTrackingAt=0;
   $('camera-gate').classList.add('hidden');$('gate-retry').disabled=false;$('gate-skip').disabled=false;$('setup').classList.remove('hidden');
   $('setup-title').textContent='CAMERA CONNECTED';
@@ -988,7 +1016,7 @@ async function startCamera(targetMode='lobby'){
 function stopCamera(resetUI){
  void motionEngine.stop();
  stream?.getTracks().forEach(track=>track.stop());stream=null;video.srcObject=null;
- cameraPanel.classList.add('off');cameraStatus='off';cameraMode=false;calibrated=false;trackingOkay=false;lastTrackingAt=0;
+ setCameraPanelInArena(false);cameraPanel.classList.add('off');cameraStatus='off';cameraMode=false;calibrated=false;trackingOkay=false;lastTrackingAt=0;
  $('calibrate-start').classList.add('hidden');$('enable-camera').disabled=false;
  $('enable-camera').innerHTML='<svg viewBox="0 0 24 24"><path d="M4 7.5h3l1.7-2h6.6l1.7 2h3A1.5 1.5 0 0 1 21.5 9v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9A1.5 1.5 0 0 1 4 7.5Z"/><circle cx="12" cy="13" r="3.5"/></svg> PLAY WITH CAMERA';
  $('mode-pill').innerHTML='<b></b>KEYBOARD MODE';$('mode-pill').classList.remove('live');$('move-mode').textContent='KEYBOARD / CLICK CONTROLS';
@@ -996,11 +1024,42 @@ function stopCamera(resetUI){
  $('gate-skip').disabled=false;
  combatDirector.reset();
 }
+const CAMERA_POSE_LINKS=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24]];
+function drawCameraSkeleton(poses){
+ if(!cameraSkeleton)return;
+ const width=cameraSkeleton.clientWidth||video.clientWidth||1;
+ const height=cameraSkeleton.clientHeight||video.clientHeight||1;
+ const dpr=Math.min(window.devicePixelRatio||1,2);
+ if(cameraSkeleton.width!==Math.round(width*dpr)||cameraSkeleton.height!==Math.round(height*dpr)){
+  cameraSkeleton.width=Math.max(1,Math.round(width*dpr));
+  cameraSkeleton.height=Math.max(1,Math.round(height*dpr));
+ }
+ const overlay=cameraSkeleton.getContext('2d');if(!overlay)return;
+ overlay.setTransform(dpr,0,0,dpr,0,0);overlay.clearRect(0,0,width,height);
+ (Array.isArray(poses)?poses:[]).forEach((points,index)=>{
+  if(!Array.isArray(points))return;
+  const usable=(p)=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&(p.visibility===undefined||p.visibility>=.15);
+  overlay.save();overlay.lineWidth=2;overlay.lineCap='round';overlay.lineJoin='round';
+  overlay.strokeStyle=index===0?'rgba(200,255,61,.92)':'rgba(177,151,255,.92)';
+  overlay.shadowBlur=8;overlay.shadowColor=overlay.strokeStyle;
+  for(const [a,b] of CAMERA_POSE_LINKS){
+   const p=points[a],q=points[b];if(!usable(p)||!usable(q))continue;
+   overlay.beginPath();overlay.moveTo(p.x*width,p.y*height);overlay.lineTo(q.x*width,q.y*height);overlay.stroke();
+  }
+  overlay.shadowBlur=5;overlay.fillStyle=overlay.strokeStyle;
+  for(const joint of [11,12,13,14,15,16,23,24]){
+   const p=points[joint];if(!usable(p))continue;
+   overlay.beginPath();overlay.arc(p.x*width,p.y*height,2.8,0,Math.PI*2);overlay.fill();
+  }
+  overlay.restore();
+ });
+}
 function handleMotionTracking(info){
+ drawCameraSkeleton(info?.poses||[]);
  trackingOkay=Boolean(info.ready);
  if(trackingOkay){
   lastTrackingAt=performance.now();$('camera-dot').classList.add('live');
-  $('camera-label').textContent=info.count>=2?'TWO PLAYERS TRACKED':'MOTION LIVE';$('camera-hint').classList.add('hidden');
+  if(performance.now()-lastCameraActionAt>900)$('camera-label').textContent=info.count>=2?'TWO PLAYERS TRACKED':'BODY TRACKED';$('camera-hint').classList.add('hidden');
   if(cameraTargetMode!=='lobby'&&!home.classList.contains('hidden')&&!setup.classList.contains('hidden')){
    $('calibrate-start').disabled=false;
    $('calibrate-start').textContent=cameraTargetMode==='duo'?'CALIBRATE BOTH PLAYERS & START':'CALIBRATE & START';
@@ -1011,7 +1070,7 @@ function handleMotionTracking(info){
  }else{
   combatDirector.clearCommands('tracking-lost');
   $('camera-dot').classList.remove('live');
-  $('camera-label').textContent=cameraTargetMode==='duo'?'NEED TWO PLAYERS':'FINDING PLAYER';
+  $('camera-label').textContent=cameraTargetMode==='duo'?'SEARCHING FOR TWO PLAYERS':'SEARCHING FOR BODY';
   $('camera-hint').textContent=cameraTargetMode==='duo'?'BOTH PLAYERS MUST BE VISIBLE':'KEEP SHOULDERS AND HIPS IN FRAME';
   $('camera-hint').classList.remove('hidden');
   if(cameraTargetMode!=='lobby'&&!home.classList.contains('hidden')&&!setup.classList.contains('hidden')){
