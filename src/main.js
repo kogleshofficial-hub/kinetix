@@ -57,6 +57,7 @@ const progressionVault = new KinetixProgressionVault({
  characters: CHARACTER_STYLES,
  banners: COMBO_BANNERS
 });
+async function initializeKinetix() {
 let profile = await progressionVault.load();
 async function saveProfile(){ return progressionVault.save(profile); }
 function refreshStore(message){
@@ -673,4 +674,13 @@ function handleMotionTracking(info){
 }
 window.addEventListener('beforeunload',()=>{void motionEngine.stop();stream?.getTracks().forEach(track=>track.stop());if(audioContext)audioContext.close();viewport.destroy();});
 void startCamera('lobby');
+}
 
+void initializeKinetix().catch((error) => {
+  console.error('[KINETIX BOOT]', error);
+  const message = document.getElementById('setup-error');
+  if (message) {
+    message.textContent = 'KINETIX COULD NOT INITIALIZE. Please reload the page and try again.';
+    message.classList.remove('hidden');
+  }
+});
