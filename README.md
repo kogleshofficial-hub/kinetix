@@ -53,7 +53,7 @@ The webcam detects controlled movement, not strike force. Raise one hand comfort
 
 The lobby offers a local **Daily Rift** challenge. It derives a deterministic seed from the current UTC date and uses that seed for the encounter's lane sequence. Players using the same ruleset and UTC date receive the same sequence; the result card includes the date and seed code so friends can compare runs.
 
-Daily Rift uses your selected solo difficulty and the normal solo victory reward table. It does not award bonus currency, require an account, upload camera footage, or submit scores to an online leaderboard. The current build does not verify results on a server, so the seed is a reproducibility aid—not an anti-cheat or competitive ranking system. The challenge can be played again on the same date.
+Daily Rift uses your selected solo difficulty and the normal solo victory reward table. It does not award bonus currency, require an account, upload camera footage, or submit scores to an online leaderboard. A device-local history keeps up to 31 UTC dates of attempts, clears and personal-best combo/damage/accuracy, and the lobby shows today's personal record. This history is not synced, is editable/clearable with browser storage, and may be unavailable when storage is blocked. The current build does not verify results on a server, so the seed and personal record are reproducibility/personal-history aids—not anti-cheat or competitive rankings. The challenge can be replayed on the same date.
 
 ## Health, mana and supplies
 
