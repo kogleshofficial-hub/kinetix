@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1050" role="img" aria-label="A futuristic megacity split by a luminous energy rift">
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#101d2e"/><stop offset=".37" stop-color="#465a69"/><stop offset=".64" stop-color="#b17d68"/><stop offset="1" stop-color="#17232a"/></linearGradient>
+ <radialGradient id="sun"><stop stop-color="#ffd5a3" stop-opacity=".9"/><stop offset=".28" stop-color="#f0a77e" stop-opacity=".42"/><stop offset="1" stop-color="#e58e77" stop-opacity="0"/></radialGradient>
+ <linearGradient id="rift" x2="0" y2="1"><stop stop-color="#d9ffff" stop-opacity=".18"/><stop offset=".25" stop-color="#b9ffeb" stop-opacity=".95"/><stop offset=".5" stop-color="#dcfff8"/><stop offset=".72" stop-color="#8df7d7"/><stop offset="1" stop-color="#aaffdf" stop-opacity=".06"/></linearGradient>
+ <linearGradient id="tower" x2="1" y2="0"><stop stop-color="#0b1822"/><stop offset=".42" stop-color="#1c303a"/><stop offset=".7" stop-color="#101d27"/><stop offset="1" stop-color="#07121a"/></linearGradient>
+ <linearGradient id="towerLit" x2="0" y2="1"><stop stop-color="#49606a"/><stop offset=".3" stop-color="#233a45"/><stop offset="1" stop-color="#09151d"/></linearGradient>
+ <linearGradient id="street" x2="0" y2="1"><stop stop-color="#1a3036"/><stop offset="1" stop-color="#040b11"/></linearGradient>
+ <filter id="soft"><feGaussianBlur stdDeviation="18"/></filter>
+ <filter id="glow"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <filter id="strong"><feGaussianBlur stdDeviation="22"/></filter>
+ <pattern id="windows" width="24" height="31" patternUnits="userSpaceOnUse"><rect x="5" y="6" width="5" height="12" fill="#a9d8d0" opacity=".34"/><rect x="15" y="6" width="4" height="12" fill="#d9ad8c" opacity=".24"/></pattern>
+ <pattern id="tiny" width="15" height="21" patternUnits="userSpaceOnUse"><rect x="4" y="5" width="3" height="8" fill="#b2d9d3" opacity=".34"/></pattern>
+ <linearGradient id="vignette" x2="0" y2="1"><stop stop-color="#02080d" stop-opacity=".08"/><stop offset=".52" stop-color="#02080d" stop-opacity="0"/><stop offset="1" stop-color="#02080d" stop-opacity=".92"/></linearGradient>
+</defs>
+<rect width="1800" height="1050" fill="url(#sky)"/>
+<circle cx="1320" cy="265" r="340" fill="url(#sun)"/>
+<path d="M0 370Q240 280 445 366T890 332T1370 350T1800 315V690H0Z" fill="#233744" opacity=".48"/>
+<g opacity=".58" fill="#304653">
+ <path d="M0 535V355l45-54 44 54v180Z"/><path d="M95 535V285l48-50 50 50v250Z"/>
+ <path d="M205 535V390l35-38 38 38v145Z"/><path d="M310 535V255l62-73 66 73v280Z"/>
+ <path d="M445 535V344l38-42 39 42v191Z"/><path d="M555 535V215l57-68 58 68v320Z"/>
+ <path d="M690 535V336l48-52 49 52v199Z"/><path d="M830 535V258l58-64 62 64v277Z"/>
+ <path d="M1010 535V328l43-48 46 48v207Z"/><path d="M1150 535V190l68-83 70 83v345Z"/>
+ <path d="M1340 535V318l54-59 53 59v217Z"/><path d="M1485 535V235l70-80 70 80v300Z"/>
+ <path d="M1665 535V347l45-51 48 51v188Z"/>
+</g>
+<!-- Far central skyline, softened by sunset haze -->
+<g fill="#182c38" opacity=".82">
+ <path d="M0 700V440l70-35 68 35v260Z"/><path d="M130 700V355l85-72 83 72v345Z"/>
+ <path d="M285 700V465l58-47 56 47v235Z"/><path d="M410 700V330l94-93 96 93v370Z"/>
+ <path d="M610 700V425l66-65 68 65v275Z"/><path d="M760 700V285l104-115 106 115v415Z"/>
+ <path d="M990 700V395l83-78 80 78v305Z"/><path d="M1190 700V260l114-102 113 102v440Z"/>
+ <path d="M1440 700V390l75-72 77 72v310Z"/><path d="M1620 700V330l93-89 87 89v370Z"/>
+</g>
+<g fill="url(#windows)" opacity=".66">
+ <path d="M0 440h138v260H0z"/><path d="M130 355h168v345H130z"/><path d="M410 330h190v370H410z"/><path d="M760 285h210v415H760z"/><path d="M1190 260h227v440h-227z"/><path d="M1620 330h180v370h-180z"/>
+</g>
+<!-- Foreground signature skyscrapers -->
+<g>
+ <path d="M35 1050V185l44-58 65 28 50 895Z" fill="url(#tower)"/>
+ <path d="M55 1050V196l25-32 30 12 61 874Z" fill="url(#windows)" opacity=".52"/>
+ <path d="M145 1050 183 330l52-72 68 14 45 778Z" fill="#0c1b27"/>
+ <path d="M183 330 235 258l68 14 45 778h-80Z" fill="url(#windows)" opacity=".34"/>
+ <path d="M300 1050V95l55-72 76 0 57 1027Z" fill="url(#towerLit)"/>
+ <path d="M322 1050V104l34-47 35 0 42 993Z" fill="url(#tiny)" opacity=".63"/>
+ <path d="M410 1050 475 195l53-57 67 18 65 894Z" fill="#0b1924"/>
+ <path d="M490 154 595 156l65 894H575Z" fill="url(#windows)" opacity=".36"/>
+ <path d="M1150 1050V140l62-87 81 0 78 997Z" fill="url(#tower)"/>
+ <path d="M1220 74h65l76 976h-70Z" fill="url(#windows)" opacity=".48"/>
+ <path d="M1370 1050 1418 225l57-65 76 21 76 869Z" fill="#0a1822"/>
+ <path d="M1475 181 1551 181l76 869h-70Z" fill="url(#tiny)" opacity=".5"/>
+ <path d="M1585 1050V300l48-82 90 38 77 794Z" fill="url(#towerLit)"/>
+ <path d="M1660 254h62l78 796h-65Z" fill="url(#windows)" opacity=".48"/>
+</g>
+<!-- rooftop antennae -->
+<g stroke="#9bb6b5" stroke-opacity=".42" stroke-width="4">
+ <path d="M355 24V-40m0 64-18-28m18 28 18-28M1204 53V-15m0 68-17-28m17 28 19-32M1500 160V62m0 98-20-38m20 38 22-42"/>
+</g>
+<!-- distant elevated transit bridges -->
+<g fill="none" stroke="#667b7c" stroke-opacity=".45" stroke-width="13"><path d="M0 580Q360 530 610 605T1130 570T1800 585"/><path d="M0 602Q360 553 610 628T1130 592T1800 607"/></g>
+<!-- Central energy rift halo -->
+<ellipse cx="930" cy="380" rx="240" ry="420" fill="#89f4db" opacity=".18" filter="url(#strong)"/>
+<path d="M900 -90Q940 80 889 190T940 380T886 570T955 820L918 1080" fill="none" stroke="#77f5dc" stroke-width="95" stroke-opacity=".18" filter="url(#strong)"/>
+<path d="M904 -50Q952 110 906 212T945 390T904 585T948 850L923 1070" fill="none" stroke="url(#rift)" stroke-width="30" filter="url(#glow)"/>
+<path d="M904 -40Q931 105 900 208T927 392T891 578T927 838L914 1040" fill="none" stroke="#e5fff8" stroke-width="5" opacity=".92" filter="url(#glow)"/>
+<path d="M900 84 840 160l52 18-72 115 104-59-36-28 57-122M939 355l-67 104 58-7-78 141 123-95-51-7 59-89M916 668l-64 72 48 14-62 104 92-69-38-15 52-66" fill="#bdfff0" opacity=".76" filter="url(#glow)"/>
+<!-- Branching lightning and fracture filaments -->
+<g fill="none" stroke="#b4ffea" stroke-width="5" stroke-linecap="round" opacity=".8" filter="url(#glow)">
+ <path d="M901 194 806 274 842 293 744 410 882 338"/>
+ <path d="M930 290 1034 350 1000 373 1110 460 963 408"/>
+ <path d="M899 472 790 541 830 557 727 666 886 580"/>
+ <path d="M926 556 1038 620 1004 646 1137 726 959 682"/>
+ <path d="M920 728 847 785 885 804 806 902"/>
+ <path d="M940 115 1017 161 989 185 1078 231"/>
+</g>
+<g fill="#c8fff0" filter="url(#glow)">
+ <circle cx="902" cy="205" r="8"/><circle cx="930" cy="389" r="10"/><circle cx="898" cy="579" r="7"/><circle cx="929" cy="804" r="9"/>
+</g>
+<!-- Atmospheric light and street deck -->
+<path d="M0 760Q450 690 900 760T1800 750V1050H0Z" fill="url(#street)" opacity=".92"/>
+<path d="M0 805Q450 735 900 805T1800 795" fill="none" stroke="#8af1d8" stroke-opacity=".38" stroke-width="3"/>
+<g stroke="#8ee9d1" stroke-opacity=".3" stroke-width="2">
+ <path d="M900 765 240 1050M900 765 570 1050M900 765 1230 1050M900 765 1570 1050"/>
+ <path d="M0 890Q450 830 900 890T1800 885M0 950Q450 890 900 950T1800 944M0 1008Q450 948 900 1008T1800 1004"/>
+</g>
+<g fill="#f4bd92" opacity=".7"><circle cx="168" cy="700" r="3"/><circle cx="370" cy="745" r="3"/><circle cx="1450" cy="715" r="4"/><circle cx="1610" cy="670" r="3"/><circle cx="1180" cy="735" r="3"/></g>
+<rect width="1800" height="1050" fill="url(#vignette)"/>
+<rect width="1800" height="1050" fill="#06131c" opacity=".17"/>
+</svg>
