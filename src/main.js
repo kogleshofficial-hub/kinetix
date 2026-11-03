@@ -381,7 +381,13 @@ async function finish(status){
  }else if(g.mode==='solo'&&(status==='lost'||status==='time-up')){
   try{const result=await progressionVault.awardLoss();profile=result.profile;}catch(error){console.error('[KINETIX PROFILE]',error);}
  }
- if(status==='won'){g.event='win';g.msg='RIFT COLLAPSED';g.tone='good';}
+ if(g.dailyChallenge&&g.mode==='solo'){
+   try{
+    const saved=dailyRiftRecords.record(g.dailyChallenge,{status,bestCombo:g.best,damage:g.damage,accuracy:accuracy()});
+    g.dailyRecord=saved.record;g.dailyRecordPersisted=saved.persisted;refreshDailyChallengePanel();
+   }catch(error){console.error('[KINETIX DAILY RIFT]',error);}
+  }
+  if(status==='won'){g.event='win';g.msg='RIFT COLLAPSED';g.tone='good';}
  else if(status==='lost'){g.event='lose';g.msg='SIGNAL LOST';g.tone='danger';}
  else{g.msg='TIME FRACTURED';g.tone='danger';}
  g.eventAt=g.clock;eventFxAt=performance.now();sfx(status==='won'?'win':'lose');
@@ -453,7 +459,7 @@ function showResult(){
   const title=won?(difficulty==='hard'?'HARD CLEAR — RIFT COLLAPSED.':'RIFT COLLAPSED.'):g.status==='time-up'?'TIME FRACTURED.':'SIGNAL LOST';
   const description=won?(difficulty==='hard'?'You survived the 420 HP Rift Master. Every counter, guard and phase mattered.':'You read the pattern and closed the breach on '+difficultyRules().label+'.'):g.status==='time-up'?'The Rift is still standing. Review your timing and try a different approach.':'The Hollow won this round. Try '+(difficulty==='hard'?'Normal to practice your timing, then return to Hard':difficulty==='normal'?'Easy to learn the moves, then return to Normal':'the round again')+' when ready.';
   const dailyTag=g.dailyChallenge?'DAILY RIFT / UTC '+g.dailyChallenge.date+' / SEED '+g.dailyChallenge.code:'RIFT DUEL / '+difficultyRules().label+' / SESSION REPORT';
-  const dailyCopy=g.dailyChallenge?' Daily seed: '+g.dailyChallenge.code+'. This local challenge uses the same seeded lane sequence for the UTC date. It does not award bonus currency or create an online leaderboard.':'';
+  const dailyCopy=g.dailyChallenge?' Daily seed: '+g.dailyChallenge.code+'. Personal best: '+(g.dailyRecord?.best.cleared?'CLEAR':'ATTEMPT')+', '+(g.dailyRecord?.best.combo||0)+'× combo across '+(g.dailyRecord?.attempts||1)+' local runs. This is a device-only record, not an online leaderboard or verified score.':'';
   showOverlay(title,description+dailyCopy,dailyTag,[{label:g.dailyChallenge?'REPLAY DAILY RIFT →':'RUN IT BACK →',style:'primary',action:'restart'},{label:'OPEN KINET STORE ◈',style:'secondary',action:'store'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
 }
 function pauseGame(){if(g.status!=='playing')return;paused=true;combatDirector.clearCommands('paused');showOverlay('Catch your breath.','The rift is frozen. Your progress is still here.','SESSION PAUSED',[{label:'RESUME ROUND →',style:'primary',action:'resume'},{label:'RESTART ROUND',style:'secondary',action:'restart'}],false);}
@@ -464,7 +470,7 @@ function downloadCard(){
  x.strokeStyle='rgba(145,160,255,.12)';for(let xx=0;xx<1200;xx+=42){x.beginPath();x.moveTo(xx,0);x.lineTo(xx,630);x.stroke();}
  x.fillStyle='#a99bff';x.font='500 23px monospace';x.fillText('KINETIX / RIFT DUEL',74,83);x.fillStyle='#f7f5ff';x.font='700 77px sans-serif';x.fillText(g.mode==='duo'?(g.winner===0?'DUEL DRAW':'PLAYER '+g.winner+' WINS'):g.status==='won'?'RIFT COLLAPSED':g.status==='time-up'?'TIME FRACTURED':'SIGNAL LOST',72,205);x.fillStyle='#9aa3c6';x.font='500 24px sans-serif';x.fillText('YOUR BODY. YOUR POWER. YOUR ARENA.',76,251);
  [['BEST COMBO',String(g.best).padStart(2,'0')],['DAMAGE DEALT',String(g.damage).padStart(3,'0')],['CLEAN PULSES',accuracy()+'%'],['PHASE DODGES',String(g.dodges).padStart(2,'0')]].forEach((item,i)=>{const xx=76+i*274;x.fillStyle='rgba(255,255,255,.045)';x.beginPath();x.roundRect(xx,346,245,116,18);x.fill();x.fillStyle='#8c96bc';x.font='14px monospace';x.fillText(item[0],xx+19,379);x.fillStyle='#f7f5ff';x.font='700 43px sans-serif';x.fillText(item[1],xx+19,432);});
- if(g.mode==='duo'){x.fillStyle='#b3a2ff';x.font='18px monospace';x.fillText('P1 HP '+g.p1.hp+'   /   P2 HP '+g.p2.hp,77,505);}x.fillStyle='#6c7395';x.font='17px monospace';if(g.dailyChallenge){x.fillStyle='#67e8ef';x.font='500 18px monospace';x.fillText('DAILY RIFT · '+g.dailyChallenge.date+' · SEED '+g.dailyChallenge.code,77,518);}x.fillStyle='#6c7395';x.font='17px monospace';x.fillText('A PLAYABLE PROTOTYPE BY KOGLESH R. MURUGAN',77,564);const a=document.createElement('a');a.download='kinetix-rift-duel.png';a.href=c.toDataURL('image/png');a.click();
+ if(g.mode==='duo'){x.fillStyle='#b3a2ff';x.font='18px monospace';x.fillText('P1 HP '+g.p1.hp+'   /   P2 HP '+g.p2.hp,77,505);}x.fillStyle='#6c7395';x.font='17px monospace';if(g.dailyChallenge){x.fillStyle='#67e8ef';x.font='500 18px monospace';x.fillText('DAILY RIFT · '+g.dailyChallenge.date+' · SEED '+g.dailyChallenge.code,77,518);x.fillStyle='#aab2d0';x.font='14px monospace';x.fillText('PERSONAL BEST · '+(g.dailyRecord?.best.cleared?'CLEAR':'ATTEMPT')+' · '+(g.dailyRecord?.best.combo||0)+'× COMBO',77,540);}x.fillStyle='#6c7395';x.font='17px monospace';x.fillText('A PLAYABLE PROTOTYPE BY KOGLESH R. MURUGAN',77,564);const a=document.createElement('a');a.download='kinetix-rift-duel.png';a.href=c.toDataURL('image/png');a.click();
 }
 function draw(t) {
  const r=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);
