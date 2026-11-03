@@ -626,10 +626,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
 </header>
 <main id="home" class="wrap home">
   <section class="copy">
-    <div class="eyebrow">ARENA 01 / THE BREACH IS OPEN</div>
+    <div class="eyebrow">KINETIX CAMPAIGN / THREE REGIONS / TWELVE LEVELS</div>
     <h1>ENTER THE<br><span class="gradient">RIFT.</span></h1>
     <p class="lede">YOUR MOVEMENT. YOUR GAME.</p>
-    <p class="bodycopy">Read the enemy’s tells. Time your counters. Survive the breach. Fight with touch, keyboard or optional camera motion.</p>
+    <p class="bodycopy">Travel through a changing world. Read each enemy’s tells, time your counters and earn every new rank. Fight with touch, keyboard or optional camera motion.</p>
     <div class="actions mode-actions">
       <button class="btn primary" id="play-camera"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg> PLAY SOLO · CAMERA MOTION</button>
       <button class="btn secondary" id="play-keyboard"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M10 10h.01M13 10h.01M16 10h.01M7 14h10"/></svg> SOLO · TOUCH / KEYBOARD</button>
@@ -653,7 +653,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
     <section id="setup" class="setup hidden"><h3><span class="live-dot"></span><span id="setup-title">CONNECTING TO CAMERA</span></h3><p id="setup-copy">Your browser will ask for permission. The preview is processed locally and is never recorded.</p><p id="setup-error" class="error hidden"></p><div class="setup-actions"><button class="btn primary hidden" id="calibrate-start">CALIBRATE & START →</button><button class="text-btn hidden" id="enable-camera">RETRY CAMERA ACCESS</button><button class="btn secondary hidden" id="duo-touch-start">PLAY DUEL WITH TOUCH</button><button class="text-btn" id="stop-camera">STOP CAMERA</button></div></section>
   </section>
   <section class="stage" aria-label="Kinetix visual preview">
-    <div class="stage-top"><span>ARENA 01 / THE BREACH</span><span>HOSTILE SIGNATURE <b>● DETECTED</b></span></div>
+    <div class="stage-top"><span>WORLD 01 / THE VERDANT REACH</span><span>HOSTILE SIGNATURE <b>● DETECTED</b></span></div>
     <div class="stage-art"><div class="ring o"></div><div class="ring m"></div><div class="ring i"></div><div class="core"></div><i class="spark s1"></i><i class="spark s2"></i><i class="spark s3"></i><i class="spark s4"></i><i class="spark s5"></i><i class="spark s6"></i><div class="monster"><i class="horn l"></i><i class="horn r"></i><div class="face"></div><div class="body-monster"></div><div class="arm-monster l"></div><div class="arm-monster r"></div></div><div class="stage-label label-a"><small>YOUR PILOT</small><strong>RIFT RUNNER</strong><span>ARMOUR / CLASS 01</span></div><div class="stage-label label-b"><small>HOSTILE ENTITY</small><strong>THE HOLLOW</strong><span>THREAT / DETECTED</span></div><div class="coords">RIFT SECTOR / 01<br>ARENA STATUS / ACTIVE<br><b>BREACH DETECTED</b></div><div class="floor"></div></div>
     <div class="stage-bottom"><span><b>◇</b> TOUCH / KEYBOARD / MOTION</span><span>THE HOLLOW / HOSTILE</span></div>
   </section>
@@ -676,9 +676,43 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
       </div>
     </div>
   </section>
+  <section class="campaign-panel" id="campaign-panel" aria-labelledby="campaign-title">
+    <div class="campaign-heading">
+      <div>
+        <div class="eyebrow">STORY MODE / 12 MISSIONS / 3 REGIONS</div>
+        <h2 id="campaign-title">THE RIFT CHRONICLES<span>.</span></h2>
+        <p>A signal is spreading through the old world. Follow it from the overgrown Reach, through the drowned city, and into the Ashen Citadel. Each level must be cleared before the next route opens.</p>
+      </div>
+      <div class="campaign-record">
+        <small>CAMPAIGN RECORD</small>
+        <strong id="campaign-progress">0 / 12 MISSIONS COMPLETE</strong>
+        <div class="campaign-progress-track"><i id="campaign-progress-fill"></i></div>
+        <span id="campaign-complete">NEXT UNLOCK · 01 / 12</span>
+      </div>
+    </div>
+    <div class="campaign-layout">
+      <div class="campaign-map" id="campaign-missions" aria-label="Campaign mission map"></div>
+      <aside class="campaign-briefing" aria-live="polite">
+        <div class="campaign-scene-wrap"><img id="campaign-selected-scene" src="/worlds/verdant-reach.svg" alt="The Verdant Reach environment" loading="lazy"><span class="campaign-scene-shade"></span><span class="campaign-scene-tag" id="campaign-selected-world">REGION 01 / THE VERDANT REACH</span></div>
+        <div class="campaign-brief-copy">
+          <small>MISSION BRIEFING</small>
+          <h3 id="campaign-selected-title">THE BROKEN CAUSEWAY</h3>
+          <p id="campaign-selected-description">A damaged signal has awakened something beneath the abandoned crossing.</p>
+          <div class="campaign-brief-meta" id="campaign-selected-location">NORTH BANK / OLD WORLD · THREAT: SCOUT · EASY</div>
+          <div class="campaign-objective"><span>PRIMARY OBJECTIVE</span><strong id="campaign-selected-objective">SURVIVE THE FIRST CONTACT</strong></div>
+          <div class="campaign-brief-actions">
+            <button type="button" class="btn primary" id="campaign-play">DEPLOY LEVEL →</button>
+            <button type="button" class="btn secondary" id="campaign-camera">MOTION MODE</button>
+          </div>
+          <p class="campaign-next-hint" id="campaign-next-hint">CLEAR THIS LEVEL TO UNLOCK THE NEXT</p>
+        </div>
+      </aside>
+    </div>
+    <p class="campaign-footnote">Progress is stored locally in this browser. First clears award campaign XP and Kinets; replays improve your star record but do not repeatedly farm rank XP. No online account or leaderboard is active.</p>
+  </section>
   <section class="progression-store" id="kinet-store" aria-labelledby="store-title">
     <div class="store-heading">
-      <div><div class="eyebrow">PROGRESSION / COSMETICS</div><h2 id="store-title">THE KINET STORE<span>.</span></h2><p>Fight. Earn. Evolve. Every reward is earned in solo play; character styles are cosmetic only.</p></div>
+      <div><div class="eyebrow">PROGRESSION / COSMETICS</div><h2 id="store-title">THE KINET STORE<span>.</span></h2><p>Campaign first clears earn Rank XP and Kinets. Free-play wins earn a small Kinets bonus; styles are cosmetic only.</p></div>
       <div class="wallet-card"><small>YOUR WALLET</small><strong><span>◈</span> <b id="wallet-balance">0</b></strong><em>KINETS</em></div>
     </div>
     <div class="profile-card">
@@ -691,19 +725,19 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
       </form>
     </div>
     <div class="rank-track">
-      <div class="rank-track-top"><div><small>RANK LADDER / SOLO WINS</small><strong id="rank-name">Rift Recruit</strong><span id="rank-next-label">100 XP TO KINETIC INITIATE</span></div><b id="rank-xp-label">0 / 100 RANK XP</b></div>
+      <div class="rank-track-top"><div><small>RANK LADDER / XP + CAMPAIGN CLEARS</small><strong id="rank-name">Rift Recruit</strong><span id="rank-next-label">100 XP TO KINETIC INITIATE</span></div><b id="rank-xp-label">0 / 100 RANK XP</b></div>
       <div class="rank-progress-track"><i id="rank-progress-fill"></i></div>
       <div class="rank-ladder">
         <div class="rank-tier current unlocked" data-rank-id="recruit"><span>01</span><b>Rift Recruit</b><small data-rank-state>CURRENT</small><em>0 XP</em></div>
-        <div class="rank-tier" data-rank-id="initiate"><span>02</span><b>Kinetic Initiate</b><small data-rank-state>LOCKED</small><em>100 XP</em></div>
-        <div class="rank-tier" data-rank-id="adept"><span>03</span><b>Pulse Adept</b><small data-rank-state>LOCKED</small><em>250 XP</em></div>
-        <div class="rank-tier" data-rank-id="hunter"><span>04</span><b>Rift Hunter</b><small data-rank-state>LOCKED</small><em>500 XP</em></div>
-        <div class="rank-tier" data-rank-id="vanguard"><span>05</span><b>Void Vanguard</b><small data-rank-state>LOCKED</small><em>850 XP</em></div>
-        <div class="rank-tier" data-rank-id="champion"><span>06</span><b>Rift Champion</b><small data-rank-state>LOCKED</small><em>1,300 XP</em></div>
-        <div class="rank-tier" data-rank-id="sovereign"><span>07</span><b>Kinetix Sovereign</b><small data-rank-state>LOCKED</small><em>1,900 XP</em></div>
+        <div class="rank-tier" data-rank-id="initiate"><span>02</span><b>Kinetic Initiate</b><small data-rank-state>LOCKED</small><em>35 XP · 1 CLEAR</em></div>
+        <div class="rank-tier" data-rank-id="adept"><span>03</span><b>Pulse Adept</b><small data-rank-state>LOCKED</small><em>80 XP · 2 CLEARS</em></div>
+        <div class="rank-tier" data-rank-id="hunter"><span>04</span><b>Rift Hunter</b><small data-rank-state>LOCKED</small><em>150 XP · 4 CLEARS</em></div>
+        <div class="rank-tier" data-rank-id="vanguard"><span>05</span><b>Void Vanguard</b><small data-rank-state>LOCKED</small><em>235 XP · 6 CLEARS</em></div>
+        <div class="rank-tier" data-rank-id="champion"><span>06</span><b>Rift Champion</b><small data-rank-state>LOCKED</small><em>335 XP · 9 CLEARS</em></div>
+        <div class="rank-tier" data-rank-id="sovereign"><span>07</span><b>Kinetix Sovereign</b><small data-rank-state>LOCKED</small><em>450 XP · 12 CLEARS</em></div>
       </div>
     </div>
-    <p id="store-status" class="store-status" role="status" aria-live="polite">Win solo rounds to earn Kinets and Rank XP. Rank progress is skill-earned and saved in this browser.</p>
+    <p id="store-status" class="store-status" role="status" aria-live="polite">Clear new campaign levels to earn Rank XP. Each rank requires both its XP target and a minimum number of completed missions.</p>
     <div class="character-grid" aria-label="Character style shop">
       <article class="character-card rarity-starter" data-character-card="starter">
         <div class="character-art"><span class="character-orbit"></span><span class="character-mark">K</span></div>
@@ -737,7 +771,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
   <footer class="home-footer"><span>KINETIX 3.0 / IN DEVELOPMENT</span><span>ORIGINAL GAME CONCEPT / MOTION-CONTROLLED COMBAT</span></footer>
 </main>
 <main id="arena" class="wrap arena hidden">
-  <div class="arena-head"><div><div class="kicker">RIFT DUEL <b>/</b> ROUND 01</div><h2>THE FIRST BREACH</h2></div><div class="arena-head-actions"><span class="pill" id="mode-pill"><b></b>KEYBOARD MODE</span><button class="outline" id="pause">Ⅱ PAUSE <kbd>ESC</kbd></button></div></div>
+  <div class="arena-head"><div><div class="kicker">RIFT DUEL <b>/</b> ROUND 01</div><h2 id="arena-title">THE FIRST BREACH</h2></div><div class="arena-head-actions"><span class="pill" id="mode-pill"><b></b>KEYBOARD MODE</span><button class="outline" id="pause">Ⅱ PAUSE <kbd>ESC</kbd></button></div></div>
   <section class="game-frame"><canvas id="game-canvas" aria-label="Kinetix Rift Duel arena"></canvas>
     <div class="hud"><div class="fighter"><div class="symbol">K</div><div class="fighter-data"><span class="fighter-label">PLAYER ONE <i>● LINKED</i></span><strong>RIFT RUNNER</strong><div class="hp-track"><i id="player-hp-bar" class="hp-fill hp-player" style="width:100%"></i></div><small><b id="player-hp">100</b><span id="player-hp-max"> / 120 HP</span></small></div></div>
     <div class="clock"><span>TIME LEFT</span><strong id="timer">00:55</strong><small id="phase-label">READ THE PATTERN</small></div>
