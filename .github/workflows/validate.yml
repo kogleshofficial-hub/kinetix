@@ -79,7 +79,8 @@ jobs:
           if (!source.includes('PROFILE_STORAGE_KEY') || !source.includes('USERNAME_CHANGE_COST') || !source.includes('handleCharacterAction')) throw new Error('Profile/store integration is missing.');
           if (!source.includes('price:120') || !source.includes('price:300') || !source.includes('price:600')) throw new Error('Character price ladder is missing.');
           for (const rank of ['Rift Recruit','Kinetic Initiate','Pulse Adept','Rift Hunter','Void Vanguard','Rift Champion','Kinetix Sovereign']) if (!source.includes(rank)) throw new Error('Missing rank: ' + rank);
-          for (const feature of ['triggerPerfectDefense','checkAdrenaline','LAST_LIGHT','perfectFxUntil','hitStopUntil']) if (!source.includes(feature)) throw new Error('Existing game feature was lost: ' + feature);
+          for (const feature of ['triggerPerfectDefense','checkAdrenaline','perfectFxUntil','hitStopUntil']) if (!source.includes(feature)) throw new Error('Existing game feature was lost: ' + feature);
+          if (!motion.includes('LAST_LIGHT')) throw new Error('Existing LAST_LIGHT keyboard control was lost.');
           for (const feature of ['COMBO_BANNERS','rank-progress-fill','rank-xp-label','UNSTOPPABLE','RIFT BREAKER']) if (!(source+html).includes(feature)) throw new Error('Rank/banner feature was lost: ' + feature);
 
           const ids = html.split('id="').slice(1).map(part => part.split('"', 1)[0]);
