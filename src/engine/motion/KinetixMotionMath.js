@@ -1,6 +1,32 @@
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const distance = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
 
+/**
+ * Detects a deliberate raised-hand pose using shoulder-relative landmarks.
+ * No forward reach, striking trajectory, or movement-speed signal is used.
+ */
+export function detectRaisedHand({ wristY, elbowY, shoulderY, shoulderWidth }, profile = {}) {
+  const values = [wristY, elbowY, shoulderY, shoulderWidth];
+  if (!values.every(Number.isFinite) || shoulderWidth <= 0) {
+    return Object.freeze({ detected: false, confidence: 0 });
+  }
+
+  const raiseThreshold = clamp(
+    Number.isFinite(profile.raiseThreshold) ? profile.raiseThreshold : 0.08,
+    0.01,
+    0.35
+  );
+  const wristRaised = wristY <= shoulderY + shoulderWidth * raiseThreshold;
+  const elbowLifted = elbowY <= shoulderY + shoulderWidth * 0.62;
+  const wristAboveElbow = wristY <= elbowY + shoulderWidth * 0.18;
+  const detected = wristRaised && elbowLifted && wristAboveElbow;
+
+  return Object.freeze({
+    detected,
+    confidence: detected ? 1 : 0
+  });
+}
+
 export function measureForwardReach({ baselineWristZ, wristZ, baselineShoulderZ = 0, shoulderZ = 0, shoulderWidth }) {
   const values = [baselineWristZ, wristZ, baselineShoulderZ, shoulderZ, shoulderWidth];
   if (!values.every(Number.isFinite) || shoulderWidth <= 0) return 0;
@@ -11,17 +37,6 @@ export function measureForwardSpeed({ previousWristZ, wristZ, previousShoulderZ 
   const values = [previousWristZ, wristZ, previousShoulderZ, shoulderZ, shoulderWidth, seconds];
   if (!values.every(Number.isFinite) || shoulderWidth <= 0 || seconds <= 0) return 0;
   return ((previousWristZ - wristZ) - (previousShoulderZ - shoulderZ)) / Math.max(shoulderWidth, 1e-6) / Math.max(seconds, 0.001);
-}
-
-export function detectArmPulse(metrics, profile) {
-  const lift = Number.isFinite(metrics?.lift) ? metrics.lift : 0;
-  const riseSpeed = Number.isFinite(metrics?.riseSpeed) ? metrics.riseSpeed : 0;
-  const depthReach = Number.isFinite(metrics?.depthReach) ? metrics.depthReach : 0;
-  const forwardSpeed = Number.isFinite(metrics?.forwardSpeed) ? metrics.forwardSpeed : 0;
-  const handRaise = lift >= profile.lift && riseSpeed >= profile.liftSpeed && Boolean(metrics?.raisedIntoControlZone);
-  const forwardReach = depthReach >= profile.forwardReach
-    && (forwardSpeed >= profile.forwardSpeed || depthReach >= profile.forwardReach * 1.5);
-  return Object.freeze({ detected: handRaise || forwardReach, gestureType: forwardReach ? 'FORWARD_REACH' : handRaise ? 'HAND_RAISE' : 'NONE' });
 }
 
 /**
