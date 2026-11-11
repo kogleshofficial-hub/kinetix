@@ -1,19 +1,48 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyPulseTrajectory, detectArmPulse, measureForwardReach, measureForwardSpeed } from '../src/engine/motion/KinetixMotionMath.js';
+import { classifyPulseTrajectory, detectRaisedHand, measureForwardReach, measureForwardSpeed } from '../src/engine/motion/KinetixMotionMath.js';
 import { KinetixCombatDirector } from '../src/engine/combat/KinetixCombatDirector.js';
 
-const MAX_SENSITIVITY_PROFILE = Object.freeze({ lift: 0.075, liftSpeed: 0.23, forwardReach: 0.055, forwardSpeed: 0.11 });
+const MAX_SENSITIVITY_PROFILE = Object.freeze({ raiseThreshold: 0.18 });
+const HIGH_SENSITIVITY_PROFILE = Object.freeze({ raiseThreshold: 0.04 });
 
-test('detects a forward arm movement without requiring a hand raise', () => {
-  const result = detectArmPulse({ lift: 0.01, riseSpeed: 0.01, depthReach: 0.06, forwardSpeed: 0.14, raisedIntoControlZone: false }, MAX_SENSITIVITY_PROFILE);
+test('MAX accepts a small, controlled raised-hand posture', () => {
+  const result = detectRaisedHand({
+    wristY: 0.27,
+    elbowY: 0.32,
+    shoulderY: 0.25,
+    shoulderWidth: 0.2
+  }, MAX_SENSITIVITY_PROFILE);
   assert.equal(result.detected, true);
-  assert.equal(result.gestureType, 'FORWARD_REACH');
 });
 
-test('accepts a clear reach when low frame rate weakens the speed estimate', () => {
-  const result = detectArmPulse({ lift: 0, riseSpeed: 0, depthReach: 0.09, forwardSpeed: 0.02, raisedIntoControlZone: false }, MAX_SENSITIVITY_PROFILE);
-  assert.equal(result.detected, true);
+test('HIGH requires a clearer hand raise than MAX', () => {
+  const slightlyRaised = {
+    wristY: 0.27,
+    elbowY: 0.32,
+    shoulderY: 0.25,
+    shoulderWidth: 0.2
+  };
+  assert.equal(detectRaisedHand(slightlyRaised, MAX_SENSITIVITY_PROFILE).detected, true);
+  assert.equal(detectRaisedHand(slightlyRaised, HIGH_SENSITIVITY_PROFILE).detected, false);
+
+  const clearlyRaised = { ...slightlyRaised, wristY: 0.252 };
+  assert.equal(detectRaisedHand(clearlyRaised, HIGH_SENSITIVITY_PROFILE).detected, true);
+});
+
+test('forward reach without a raised hand does not trigger the camera control', () => {
+  const result = detectRaisedHand({
+    wristY: 0.36,
+    elbowY: 0.34,
+    shoulderY: 0.25,
+    shoulderWidth: 0.2
+  }, MAX_SENSITIVITY_PROFILE);
+  assert.equal(result.detected, false);
+});
+
+test('raised-hand detector safely rejects missing or invalid landmarks', () => {
+  assert.equal(detectRaisedHand({ wristY: NaN, elbowY: 0.2, shoulderY: 0.25, shoulderWidth: 0.2 }, MAX_SENSITIVITY_PROFILE).detected, false);
+  assert.equal(detectRaisedHand({ wristY: 0.2, elbowY: 0.2, shoulderY: 0.25, shoulderWidth: 0 }, MAX_SENSITIVITY_PROFILE).detected, false);
 });
 
 test('measures forward reach relative to shoulder movement', () => {
