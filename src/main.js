@@ -967,8 +967,8 @@ $('calibrate-start').addEventListener('click',async()=>{
   calibrated=true;cameraMode=true;showError('');
   $('setup-title').textContent='MOTION CALIBRATED';
   $('setup-copy').textContent=cameraTargetMode==='duo'
-   ?'Both players are calibrated. A short forward arm movement or small hand raise triggers PULSE, hands near the chest activate GUARD, and slight torso shifts PHASE between lanes.'
-   :'Ready. A short forward arm movement or small hand raise triggers PULSE, hands near the chest activate GUARD, and slight torso shifts PHASE between lanes. Buttons remain available as backup.';
+   ?'Raise one hand comfortably above shoulder level, then lower it to trigger one PULSE per raise cycle. Hands near the chest activate GUARD, and slight torso shifts PHASE between lanes.'
+   :'Ready. Raise one hand comfortably above shoulder level, then lower it to trigger one PULSE per raise cycle. Hands near the chest activate GUARD, and slight torso shifts PHASE between lanes. Buttons remain available as backup.';
   beginGame(cameraTargetMode,pendingDailyChallenge);pendingDailyChallenge=null;$('mode-pill').classList.add('live');
   $('move-mode').textContent=cameraTargetMode==='duo'?'TWO PLAYERS · MOTION + TOUCH':'MOTION + BUTTON BACKUP · '+difficultyRules().label;
   $('camera-hint').classList.add('hidden');
