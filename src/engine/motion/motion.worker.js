@@ -72,7 +72,6 @@ function torso(points) {
   if (shoulderWidth < 0.035 || torsoHeight < 0.035 || torsoHeight > 0.8) return null;
   return {
     sx, sy, hx, hy, shoulderWidth,
-    shoulderZ: ((ls.z || 0) + (rs.z || 0)) / 2,
     lean: (sx - hx) / shoulderWidth,
     elbows: [visible(points[13], 0.12) ? points[13] : null, visible(points[14], 0.12) ? points[14] : null],
     wrists: [visible(points[15], 0.12) ? points[15] : null, visible(points[16], 0.12) ? points[16] : null]
@@ -115,12 +114,7 @@ function updateGestures(points, playerIndex, timestamp) {
   }
 
   const config = profiles[sensitivity];
-  const seconds = Math.max(0.001, Math.min(0.2, (timestamp - (memory.lastFrameAt || timestamp - 33)) / 1000));
-  memory.lastFrameAt = timestamp;
-
   const wristPair = body.wrists;
-  const previousShoulderZ = Number.isFinite(memory.previousShoulderZ) ? memory.previousShoulderZ : body.shoulderZ;
-  const chestY = body.sy + (body.hy - body.sy) * 0.36;
   const insideChest = wristPair.every((wrist) => wrist
     && wrist.x >= body.sx - body.shoulderWidth * 0.66
     && wrist.x <= body.sx + body.shoulderWidth * 0.66
