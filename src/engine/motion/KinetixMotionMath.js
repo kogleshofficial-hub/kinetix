@@ -5,7 +5,8 @@ const distance = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
  * Detects a deliberate raised-hand pose using shoulder-relative landmarks.
  * No forward reach, striking trajectory, or movement-speed signal is used.
  */
-export function detectRaisedHand({ wristY, elbowY, shoulderY, shoulderWidth }, profile = {}) {
+export function detectRaisedHand(metrics = {}, profile = {}) {
+  const { wristY, elbowY, shoulderY, shoulderWidth } = metrics;
   const values = [wristY, elbowY, shoulderY, shoulderWidth];
   if (!values.every(Number.isFinite) || shoulderWidth <= 0) {
     return Object.freeze({ detected: false, confidence: 0 });
