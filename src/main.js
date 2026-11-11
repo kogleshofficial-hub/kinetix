@@ -935,7 +935,7 @@ document.querySelectorAll('[data-sensitivity]').forEach(button=>button.addEventL
  document.querySelectorAll('[data-sensitivity]').forEach(option=>{
   const selected=option.dataset.sensitivity===motionSensitivity;option.classList.toggle('active',selected);option.setAttribute('aria-pressed',String(selected));
  });
- const summaries={max:'MAX sensitivity selected — forward arm movements and smaller hand raises register more easily; incidental movement may also register.',high:'HIGH sensitivity selected — requires a clearer hand raise or forward arm movement to reduce incidental triggers.'};
+ const summaries={max:'MAX sensitivity selected — a modest hand raise is enough. Lower your hand to reset before the next input.',high:'HIGH sensitivity selected — a clearer raise above shoulder level is required. Lower your hand to reset before the next input.'};
  document.querySelectorAll('[data-sensitivity-summary]').forEach(node=>node.textContent=summaries[motionSensitivity]);
 }));
 $('play-keyboard').addEventListener('click',()=>startSoloWithoutCamera());
