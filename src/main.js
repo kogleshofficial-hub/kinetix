@@ -602,6 +602,12 @@ function showResult(){
   showOverlay(title,description+dailyCopy,dailyTag,[{label:g.dailyChallenge?'REPLAY DAILY RIFT →':'RUN IT BACK →',style:'primary',action:'restart'},{label:'OPEN KINET STORE ◈',style:'secondary',action:'store'},{label:'EXPORT RESULT CARD',style:'secondary',action:'card'},{label:'BACK TO MAIN MENU',style:'secondary',action:'home'}],true);
 }
 function pauseGame(){if(g.status!=='playing')return;paused=true;combatDirector.clearCommands('paused');showOverlay('Catch your breath.','The rift is frozen. Your progress is still here.','SESSION PAUSED',[{label:'RESUME ROUND →',style:'primary',action:'resume'},{label:'RESTART ROUND',style:'secondary',action:'restart'}],false);}
+function pauseForPageExit(){
+ if(audioContext&&audioContext.state!=='suspended'&&audioContext.state!=='closed')audioContext.suspend().catch(()=>{});
+ if(!arena.classList.contains('hidden')&&g.status==='playing')pauseGame();
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseForPageExit();});
+window.addEventListener('blur',pauseForPageExit);
 function downloadCard(){
  const c=document.createElement('canvas');c.width=1200;c.height=630;const x=c.getContext('2d');if(!x)return;
  const bg=x.createLinearGradient(0,0,1200,630);bg.addColorStop(0,'#0b0d20');bg.addColorStop(.55,'#171632');bg.addColorStop(1,'#080a14');x.fillStyle=bg;x.fillRect(0,0,1200,630);
