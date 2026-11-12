@@ -42,6 +42,9 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const html = fs.readFileSync('index.html', 'utf8');
+          if (/<a\b[^>]*\bhref\s*=\s*["']https?:\/\//i.test(html)) throw new Error('External website links are not allowed in the Y8-facing game page.');
+          if (html.includes('youtube.com') || html.includes('creator-youtube') || html.includes('creator-launch')) throw new Error('Creator promotion/development links must not appear in the Y8-facing game page.');
+          if (html.includes('fonts.googleapis.com') || html.includes('fonts.gstatic.com')) throw new Error('Game page must not depend on externally hosted web fonts.');
           const source = fs.readFileSync('src/main.js', 'utf8');
           const motion = fs.readFileSync('src/engine/motion/KinetixMotionEngine.js', 'utf8');
           const worker = fs.readFileSync('src/engine/motion/motion.worker.js', 'utf8');
@@ -97,6 +100,8 @@ jobs:
           if (!source.includes("isEnabled:()=>g.status==='playing'&&!paused&&(!cameraMode||trackingOkay)")) throw new Error('Simulation pause and lost-tracking gates are missing.');
           if (source.includes('combatDirector.advance(')) throw new Error('The render loop must not drive the simulation clock.');
           if (!source.includes("document.addEventListener('visibilitychange'") || !source.includes("window.addEventListener('blur'") || !source.includes('audioContext.suspend()')) throw new Error('Page-visibility pause and audio mute are missing.');
+          if (!source.includes("if(!paused&&!arena.classList.contains('hidden')&&g.status==='playing')pauseGame();")) throw new Error('Repeated focus-loss events must not reopen the pause dialog.');
+          if (!source.includes("if(soundOn&&audioContext&&audioContext.state==='suspended')audioContext.resume().catch(()=>{})")) throw new Error('Resume must restore audio from the player interaction while respecting mute settings.');
           if (!source.includes('viewport.render(t)') || !source.includes('viewport.connect(combatDirector.bus)')) throw new Error('Viewport effects are not connected to the game event bus.');
           if (!source.includes('scaleX(') || !css.includes('translate3d')) throw new Error('Transform-based HUD/viewport styling is missing.');
           if (!vault.includes('client-local-unverified') || !vault.includes('signature: null')) throw new Error('Local receipts must be explicitly marked unverified.');
