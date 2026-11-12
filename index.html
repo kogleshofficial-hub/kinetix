@@ -7,15 +7,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="KINETIX">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="description" content="KINETIX is a browser-based motion gaming experience. Play solo, challenge a friend locally, and enter the Daily Rift. Your movement. Your game.">
+<meta name="description" content="KINETIX is a browser-based fantasy action game. Play a 12-mission solo campaign, challenge Rift AI, take on Daily Rift, or duel locally with a friend. Keyboard and touch controls are available; webcam motion is optional.">
 <meta name="google-site-verification" content="LI6z3Avdq6RsVP2faZ6nlhcbRwvnMIdjJkrSBygvnZM">
 <title>KINETIX — Your Movement. Your Game.</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230a0b19'/%3E%3Cpath d='M17 13v38h9V35l15 16h12L34 30 52 13H40L26 28V13z' fill='%23C8FF3D'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{color-scheme:dark;--bg:#090a16;--panel:#111328;--line:rgba(160,170,225,.15);--muted:#8b92b4;--white:#f4f3ff;--violet:#a396ff;--cyan:#67e8ef;--mint:#64f0d1;--amber:#ffbb7e;--mono:"DM Mono",monospace;--sans:"Space Grotesk",system-ui,sans-serif}
+:root{color-scheme:dark;--bg:#090a16;--panel:#111328;--line:rgba(160,170,225,.15);--muted:#8b92b4;--white:#f4f3ff;--violet:#a396ff;--cyan:#67e8ef;--mint:#64f0d1;--amber:#ffbb7e;--mono:ui-monospace,SFMono-Regular,Menlo,monospace;--sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 *{box-sizing:border-box}html{min-width:320px;background:var(--bg)}body{margin:0;min-width:320px;min-height:100vh;background:radial-gradient(ellipse at 60% 20%,rgba(65,52,134,.13),transparent 44%),var(--bg);color:var(--white);font-family:var(--sans);-webkit-font-smoothing:antialiased}button{font:inherit;cursor:pointer}button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}button:disabled{opacity:.4;cursor:not-allowed}svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .topbar{height:76px;padding:0 clamp(20px,5vw,76px);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:rgba(8,9,20,.85);backdrop-filter:blur(18px);position:relative;z-index:5}.brand{display:flex;align-items:center;gap:12px;background:none;border:0;color:var(--white);padding:0;text-align:left}.brand-mark{width:34px;height:34px;border:1px solid rgba(163,150,255,.65);border-radius:10px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(142,126,255,.2),rgba(70,230,240,.04));box-shadow:0 0 24px rgba(124,112,255,.13)}.brand-mark b{font-size:21px;line-height:1;color:#c6c0ff;font-weight:600}.brand-name{font-size:16px;font-weight:700;letter-spacing:.15em}.brand-name i{font-style:normal;color:var(--cyan)}.brand-name small{display:block;font:400 8px var(--mono);color:#747b9a;letter-spacing:.13em;margin-top:5px}.top-right{display:flex;align-items:center;gap:10px}.prototype{font:400 9px var(--mono);letter-spacing:.08em;color:#7d84a4;margin-right:8px}.live-dot{width:5px;height:5px;display:inline-block;background:var(--mint);border-radius:50%;box-shadow:0 0 9px var(--mint);margin-right:6px}.icon-btn{width:34px;height:34px;border:1px solid var(--line);background:#121429;border-radius:9px;color:#abb1d0;display:grid;place-items:center}.icon-btn svg{width:17px;height:17px}.icon-btn:hover{border-color:rgba(103,232,239,.5);color:var(--cyan)}
 .wrap{max-width:1540px;margin:auto;padding:0 clamp(20px,5vw,76px)}.home{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:clamp(24px,4vw,68px);align-items:center;padding-top:clamp(42px,6vw,88px);padding-bottom:36px}.copy{min-width:0}.eyebrow{font:400 9px var(--mono);letter-spacing:.13em;color:#9ba1c0;display:flex;align-items:center;gap:10px;white-space:nowrap}.eyebrow:before{content:"";height:1px;width:24px;background:var(--cyan);box-shadow:0 0 8px rgba(103,232,239,.4)}.copy h1{font-size:clamp(53px,6.5vw,91px);letter-spacing:-.075em;line-height:.98;font-weight:600;margin:28px 0 24px}.gradient{background:linear-gradient(100deg,#f5f3ff,#bbb3ff 58%,#6be5ee);-webkit-background-clip:text;background-clip:text;color:transparent}.copy h1 em{font-style:normal;color:var(--cyan)}.lede{font-size:clamp(16px,1.5vw,20px);line-height:1.55;max-width:490px;color:#d4d4e9;margin:0}.bodycopy{font-size:13px;line-height:1.9;color:#8c93b3;max-width:455px;margin:15px 0 28px}.actions{display:flex;flex-wrap:wrap;gap:10px}.btn{min-height:47px;border-radius:8px;padding:0 17px;display:inline-flex;align-items:center;justify-content:center;gap:13px;font:500 9px var(--mono);letter-spacing:.07em;transition:transform .18s,border-color .18s,background .18s;white-space:nowrap}.btn svg{width:17px;height:17px}.primary{color:#0a0b18;border:1px solid rgba(220,220,255,.5);background:linear-gradient(105deg,#aca0ff,#86c9f5 58%,#79ebee);box-shadow:0 6px 28px rgba(113,123,255,.17)}.primary:hover{transform:translateY(-2px);box-shadow:0 8px 34px rgba(113,123,255,.27)}.secondary{background:rgba(22,24,46,.8);color:#d6d8ee;border:1px solid rgba(151,163,220,.23)}.secondary:hover{border-color:rgba(103,232,239,.5);background:#1a1d39}.trust{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:23px;color:#686f8d;font:400 8px var(--mono)}.trust span{display:flex;align-items:center;gap:5px}.trust b{color:#9198bb;font-size:10px;font-weight:400}.trust i{height:3px;width:3px;border-radius:50%;background:#48506e}
@@ -123,10 +120,9 @@
 
 </style>
 <style>
-.creator-launch{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 12px;border:1px solid rgba(103,232,239,.33);border-radius:7px;background:rgba(23,42,56,.66);color:#aafaff;font:500 8px "DM Mono",monospace;letter-spacing:.075em;text-decoration:none;white-space:nowrap;transition:background .15s,border-color .15s}
-.creator-launch:hover{background:rgba(35,77,91,.45);border-color:rgba(103,232,239,.75)}
-@media(max-width:600px){.creator-launch{min-height:30px;padding:0 8px;font-size:7px}.prototype{display:none}}
-.daily-rift-card{max-width:540px;margin:14px 0 4px;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid rgba(103,232,239,.22);border-radius:9px;background:linear-gradient(115deg,rgba(23,38,58,.86),rgba(14,18,36,.92))}.gate-skip{display:block;width:100%;margin-top:10px;padding:10px;color:#98a2c5;font:400 8px var(--mono);letter-spacing:.08em}.gate-skip:disabled{opacity:.45;cursor:wait}.mode-actions{max-width:450px}.mode-actions .btn{min-height:45px}.daily-rift-actions{display:flex;flex-direction:column;gap:5px;min-width:180px}.daily-rift-actions .btn{width:100%}.daily-rift-actions .text-btn{font:400 7px var(--mono);letter-spacing:.06em;color:#9eadd0;padding:8px}.creator-youtube{display:inline-flex;align-items:center;color:#aeb8d8;font:400 7px var(--mono);letter-spacing:.06em;text-decoration:none}.creator-youtube:hover{color:#ff9a9a;text-decoration:underline}.daily-rift-copy{min-width:0}.daily-rift-copy small{display:block;font:400 7px var(--mono);letter-spacing:.12em;color:var(--cyan)}.daily-rift-copy strong{display:block;margin-top:5px;font:500 10px var(--mono);letter-spacing:.04em;color:#f0f3ff}.daily-rift-copy p{font-size:10px;line-height:1.5;color:#858eae;margin:6px 0 0;max-width:320px}.daily-rift-copy .daily-rift-record{display:block;margin-top:9px;color:#aeb8d8;font-size:7px;line-height:1.5;letter-spacing:.05em}.daily-rift-card .btn{min-height:39px;flex:0 0 auto}
+
+@media(max-width:600px){.prototype{display:none}}
+.daily-rift-card{max-width:540px;margin:14px 0 4px;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid rgba(103,232,239,.22);border-radius:9px;background:linear-gradient(115deg,rgba(23,38,58,.86),rgba(14,18,36,.92))}.gate-skip{display:block;width:100%;margin-top:10px;padding:10px;color:#98a2c5;font:400 8px var(--mono);letter-spacing:.08em}.gate-skip:disabled{opacity:.45;cursor:wait}.mode-actions{max-width:450px}.mode-actions .btn{min-height:45px}.daily-rift-actions{display:flex;flex-direction:column;gap:5px;min-width:180px}.daily-rift-actions .btn{width:100%}.daily-rift-actions .text-btn{font:400 7px var(--mono);letter-spacing:.06em;color:#9eadd0;padding:8px}.daily-rift-copy{min-width:0}.daily-rift-copy small{display:block;font:400 7px var(--mono);letter-spacing:.12em;color:var(--cyan)}.daily-rift-copy strong{display:block;margin-top:5px;font:500 10px var(--mono);letter-spacing:.04em;color:#f0f3ff}.daily-rift-copy p{font-size:10px;line-height:1.5;color:#858eae;margin:6px 0 0;max-width:320px}.daily-rift-copy .daily-rift-record{display:block;margin-top:9px;color:#aeb8d8;font-size:7px;line-height:1.5;letter-spacing:.05em}.daily-rift-card .btn{min-height:39px;flex:0 0 auto}
 @media(max-width:760px){.daily-rift-card{max-width:none;align-items:flex-start;flex-direction:column}.daily-rift-card .btn{width:100%}}
 </style>
 
@@ -188,12 +184,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
   border-radius:10px;background:#111820;color:#AAB6C0
 }
 .icon-btn:hover{border-color:rgba(200,255,61,.5);color:#C8FF3D}
-.creator-launch{
-  min-height:36px;padding:0 12px;border:1px solid rgba(200,255,61,.32);
-  border-radius:8px;background:rgba(200,255,61,.075);color:#D9FCA0;
-  font:500 8px var(--mono);letter-spacing:.07em
-}
-.creator-launch:hover{background:rgba(200,255,61,.13);border-color:#C8FF3D}
+
 .wrap{max-width:1480px;padding-left:clamp(18px,4vw,64px);padding-right:clamp(18px,4vw,64px)}
 .home{
   gap:clamp(26px,5vw,76px);padding-top:clamp(50px,7vw,100px);padding-bottom:40px;
@@ -597,7 +588,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
 }
 @media(max-width:380px){
   .prototype{display:none}
-  .footerbar .creator-youtube{display:none}
+  
 }
 </style>
 <style id="kinetix-accessibility-polish">
@@ -620,9 +611,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
   </div>
 </div>
 <header class="topbar">
-  <button class="brand" id="brand-home" aria-label="Kinetix home"><span class="brand-mark"><b>K</b></span><span class="brand-name">KINETIX<i>.</i><small>RIFT ARENA / MOTION COMBAT</small></span></button>
-  <nav class="site-nav" aria-label="Main navigation"><a href="#home">THE RIFT</a><a href="#how-to-play">FIELD GUIDE</a><a href="#kinet-store">ARMORY</a><a href="/creator.html">CREATOR STUDIO ↗</a></nav>
-  <div class="top-right"><a class="creator-launch" href="/creator.html" title="Build a motion-game blueprint">✦ CREATOR STUDIO</a><span class="prototype"><i class="live-dot"></i>DEVELOPMENT BUILD / 01</span><button class="icon-btn hidden" id="pwa-install" aria-label="Install KINETIX" title="Install KINETIX"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg></button><button class="icon-btn hidden" id="pwa-update" aria-label="Update KINETIX" title="Install available KINETIX update"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 1-2-5"/></svg></button><button class="icon-btn" id="sound-toggle" aria-label="Toggle sound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6"/></svg></button><button class="icon-btn" id="motion-toggle" aria-label="Toggle reduced motion" title="Toggle reduced motion"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4.5 14 2.5-7H21"/></svg></button></div>
+  <button class="brand" id="brand-home" aria-label="Kinetix home"><span class="brand-mark"><b>K</b></span><span class="brand-name">KINETIX<i>.</i><small>RIFT ARENA / MOTION CONTROL</small></span></button>
+  <nav class="site-nav" aria-label="Main navigation"><a href="#home">THE RIFT</a><a href="#how-to-play">FIELD GUIDE</a><a href="#kinet-store">ARMORY</a></nav>
+  <div class="top-right"><span class="prototype"><i class="live-dot"></i>SOLO · CAMPAIGN · LOCAL DUEL</span><button class="icon-btn hidden" id="pwa-install" aria-label="Install KINETIX" title="Install KINETIX"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg></button><button class="icon-btn hidden" id="pwa-update" aria-label="Update KINETIX" title="Install available KINETIX update"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 1-2-5"/></svg></button><button class="icon-btn" id="sound-toggle" aria-label="Toggle sound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9a4.5 4.5 0 0 1 0 6"/></svg></button><button class="icon-btn" id="motion-toggle" aria-label="Toggle reduced motion" title="Toggle reduced motion"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4.5 14 2.5-7H21"/></svg></button></div>
 </header>
 <main id="home" class="wrap home">
   <section class="copy">
@@ -805,7 +796,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
   <div class="pickup-status" id="pickup-status">SUPPLY DROP · ARRIVING SOON</div><div class="note"><span>ⓘ NO PHYSICAL CONTACT. MOVE COMFORTABLY AND KEEP YOUR SPACE CLEAR.</span><span>BEST COMBO <b id="best-combo">00×</b></span></div>
 </main>
 <div class="camera off" id="camera-panel"><video id="video" autoplay muted playsinline></video><canvas id="camera-skeleton" aria-hidden="true"></canvas><div class="camera-hint hidden" id="camera-hint">KEEP SHOULDERS AND HIPS IN FRAME</div><div class="camera-bar"><i class="camera-dot" id="camera-dot"></i><span id="camera-label">CAMERA PREVIEW</span><button id="camera-close" aria-label="Stop camera">×</button></div></div>
-<footer class="footerbar"><span>KINETIX 3.0 / DEVELOPMENT PREVIEW</span><span>CAMERA IS OPTIONAL · PROCESSING STAYS LOCAL&nbsp; ◇</span><span class="creator-credit">Created By Koglesh R. Murugan</span><a class="creator-youtube" href="https://www.youtube.com/@ItsAero_Official" target="_blank" rel="noopener noreferrer">SUPPORT THE CREATOR · YOUTUBE ↗</a></footer>
+<footer class="footerbar"><span>KINETIX 3.0 / RIFT ARENA</span><span>CAMERA IS OPTIONAL · PROCESSING STAYS LOCAL&nbsp; ◇</span><span class="creator-credit">Created By Koglesh R. Murugan</span></footer>
 <script type="module" src="/src/main.js"></script>
 </body>
 </html>

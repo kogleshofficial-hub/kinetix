@@ -59,9 +59,13 @@ test('camera disconnect does not claim camera is required for all play modes', (
   assert.ok(!helper.includes('cannot start a round without the camera'));
 });
 
-test('creator YouTube link is voluntary and not used as a payment or gameplay gate', () => {
-  assert.ok(html.includes('href="https://www.youtube.com/@ItsAero_Official"'));
-  assert.ok(html.includes('SUPPORT THE CREATOR · YOUTUBE'));
+test('Y8-facing game page has no external creator promotion and preserves camera-free play', () => {
+  assert.ok(!html.includes('href="https://'));
+  assert.ok(!html.includes("href='https://"));
+  assert.ok(!html.includes('href="http://'));
+  assert.ok(!html.includes('youtube.com'));
+  assert.ok(!html.includes('creator-youtube'));
+  assert.ok(html.includes('Created By Koglesh R. Murugan'));
   assert.ok(main.includes("startSoloWithoutCamera"));
   assert.ok(!html.includes('subscribe to unlock'));
 });
