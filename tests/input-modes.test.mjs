@@ -60,7 +60,9 @@ test('camera disconnect does not claim camera is required for all play modes', (
 });
 
 test('Y8-facing game page has no external creator promotion and preserves camera-free play', () => {
-  assert.ok(!/<a\\b[^>]*\\bhref\\s*=\\s*["']https?:\\/\\//i.test(html));
+  assert.ok(!html.includes('href="https://'));
+  assert.ok(!html.includes("href='https://"));
+  assert.ok(!html.includes('href="http://'));
   assert.ok(!html.includes('youtube.com'));
   assert.ok(!html.includes('creator-youtube'));
   assert.ok(html.includes('Created By Koglesh R. Murugan'));
