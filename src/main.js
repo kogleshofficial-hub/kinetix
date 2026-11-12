@@ -315,7 +315,7 @@ function sfx(name) {
   if(!soundOn) return;
   try {
     const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-    audioContext=audioContext||new AC();if(audioContext.state==='suspended')audioContext.resume();
+    audioContext=audioContext||new AC();if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});
     const defs={pulse:[440,.09,'triangle'],hit:[105,.19,'sawtooth'],block:[720,.14,'sine'],dodge:[610,.12,'triangle'],nova:[72,.42,'sawtooth'],win:[660,.34,'sine'],lose:[130,.35,'triangle'],miss:[240,.07,'sine'],perfect:[920,.18,'sawtooth'],comeback:[190,.32,'triangle']};
     const [freq,dur,wave]=defs[name]||[330,.06,'sine'];const now=audioContext.currentTime,o=audioContext.createOscillator(),a=audioContext.createGain();
     o.type=wave;o.frequency.setValueAtTime(freq,now);if(name==='nova')o.frequency.exponentialRampToValueAtTime(28,now+dur);if(name==='win')o.frequency.exponentialRampToValueAtTime(990,now+dur);
@@ -521,7 +521,7 @@ function showOverlay(title,desc,tag,buttons,stats) {
  buttons.forEach(b=>html+='<button class="btn '+b.style+'" data-overlay="'+b.action+'">'+b.label+'</button>');
  if(!stats)html+='<button class="text-btn" data-overlay="home">EXIT TO MAIN MENU</button>';
  dialog.innerHTML=html;
- dialog.querySelectorAll('[data-overlay]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.overlay;if(action==='resume'){paused=false;$('overlay').classList.add('hidden');updateHud();}else if(action==='restart'){beginGame(g.mode,g.dailyChallenge||null);}else if(action==='next-mission'){
+ dialog.querySelectorAll('[data-overlay]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.overlay;if(action==='resume'){if(soundOn&&audioContext&&audioContext.state==='suspended')audioContext.resume().catch(()=>{});paused=false;$('overlay').classList.add('hidden');updateHud();}else if(action==='restart'){beginGame(g.mode,g.dailyChallenge||null);}else if(action==='next-mission'){
  const next=getMissionById(g.missionNextId);if(next){activeMission=next;selectedMissionId=next.id;setDifficulty(next.difficulty);beginGame('solo');}
  }else if(action==='campaign'){
  stopCamera(true);paused=false;activeMission=null;selectedMissionId=profile.campaign?.highestUnlocked||1;g=freshGame();showScreen('home');$('overlay').classList.add('hidden');renderCampaignMap();$('campaign-panel').scrollIntoView({behavior:'smooth',block:'start'});
@@ -604,7 +604,7 @@ function showResult(){
 function pauseGame(){if(g.status!=='playing')return;paused=true;combatDirector.clearCommands('paused');showOverlay('Catch your breath.','The rift is frozen. Your progress is still here.','SESSION PAUSED',[{label:'RESUME ROUND →',style:'primary',action:'resume'},{label:'RESTART ROUND',style:'secondary',action:'restart'}],false);}
 function pauseForPageExit(){
  if(audioContext&&audioContext.state!=='suspended'&&audioContext.state!=='closed')audioContext.suspend().catch(()=>{});
- if(!arena.classList.contains('hidden')&&g.status==='playing')pauseGame();
+ if(!paused&&!arena.classList.contains('hidden')&&g.status==='playing')pauseGame();
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseForPageExit();});
 window.addEventListener('blur',pauseForPageExit);
