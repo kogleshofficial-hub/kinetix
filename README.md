@@ -3,7 +3,7 @@
 **Your body. Your power. Your arena.**
 *Train smart. Survive the Rift.*
 
-Kinetix is a browser-first, webcam-controlled fantasy combat prototype created by **Koglesh R. Murugan**. It includes a solo boss encounter and a local two-player duel, with readable motion gestures, health and mana management, healing supplies, impact feedback and original energy effects.
+Kinetix is a browser-first fantasy action game with optional webcam motion controls, created by **Koglesh R. Murugan**. It includes a solo boss encounter and a local two-player duel, with readable motion gestures, health and mana management, healing supplies, impact feedback and original energy effects.
 
 This is an early playable prototype—not a finished commercial game or a claim that webcam-controlled games are new.
 
@@ -71,7 +71,7 @@ Keep the play area clear. Use controlled, comfortable air gestures only—no phy
 
 ## Creator and community
 
-The game includes an optional link to the creator's YouTube channel. It is a voluntary way to follow the project; subscribing is not required for gameplay, does not unlock features, and is not tied to a discount or reward. KINETIX does not ask players to connect a YouTube account.
+The game credits its creator in the footer and does not include external social, promotional, payment or account links. Playing is independent of following the creator; there are no subscribe-to-unlock rewards and no external account login.
 
 ## Kinets and customization
 
