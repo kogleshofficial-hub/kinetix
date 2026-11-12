@@ -96,6 +96,7 @@ jobs:
           if (!source.includes('tickRate: 60') || !source.includes('combatDirector.beginMatch(')) throw new Error('Main game does not start the 60 Hz simulation director.');
           if (!source.includes("isEnabled:()=>g.status==='playing'&&!paused&&(!cameraMode||trackingOkay)")) throw new Error('Simulation pause and lost-tracking gates are missing.');
           if (source.includes('combatDirector.advance(')) throw new Error('The render loop must not drive the simulation clock.');
+          if (!source.includes("document.addEventListener('visibilitychange'") || !source.includes("window.addEventListener('blur'") || !source.includes('audioContext.suspend()')) throw new Error('Page-visibility pause and audio mute are missing.');
           if (!source.includes('viewport.render(t)') || !source.includes('viewport.connect(combatDirector.bus)')) throw new Error('Viewport effects are not connected to the game event bus.');
           if (!source.includes('scaleX(') || !css.includes('translate3d')) throw new Error('Transform-based HUD/viewport styling is missing.');
           if (!vault.includes('client-local-unverified') || !vault.includes('signature: null')) throw new Error('Local receipts must be explicitly marked unverified.');
